@@ -1,7 +1,6 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
-using Newtonsoft.Json;
 using System.IO;
 using System.IO.Compression;
 
@@ -32,10 +31,9 @@ public class Plugin : BaseUnityPlugin
             
             foreach (ZipArchiveEntry entry in zipArchive.Entries)
             {
-                if (CustomSceneManagement.CheckIsCustomScene(entry) || 
-                    CustomTextureManagement.CheckIsCustomTexture(entry))
+                if (!CustomSceneManagement.CheckIsCustomScene(entry))
                 {
-                    continue;
+                    CustomTextureManagement.CheckIsCustomTexture(entry);
                 }
             }
             Logger.LogInfo("Checked all files");

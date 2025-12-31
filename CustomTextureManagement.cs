@@ -74,7 +74,7 @@ public class CustomTextureManagement : CustomManagement
         {
             CustomAtlasTextures[scene] = new Dictionary<int, Texture2D>();
         }
-        if (CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
+        else if (CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
         {
             Plugin.Logger.LogWarning($"Duplicate atlas texture for {scene}, index {spriteAtlasIndex}");
             Object.Destroy(CustomAtlasTextures[scene][spriteAtlasIndex]);
@@ -93,7 +93,7 @@ public class CustomTextureManagement : CustomManagement
         {
             CustomSeperateTextures[scene] = new Dictionary<string, Texture2D>();
         }
-        if (CustomSeperateTextures[scene].ContainsKey(name))
+        else if (CustomSeperateTextures[scene].ContainsKey(name))
         {
             Plugin.Logger.LogWarning($"Duplicate seperate texture for {scene}/{name}");
             Object.Destroy(CustomSeperateTextures[scene][name]);
@@ -204,7 +204,7 @@ public class CustomTextureManagement : CustomManagement
         {
             SpriteMaps[scene] = new Dictionary<string, Sprite>();
         }
-        if (SpriteMaps[scene].ContainsKey(original.name))
+        else if (SpriteMaps[scene].ContainsKey(original.name))
         {
             return;
         }
@@ -248,6 +248,7 @@ public class CustomTextureManagement : CustomManagement
         }
         else if (CustomAtlasTextures.ContainsKey(scene) && CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
         {
+            // Logs the creation of all atlas sprites because it takes soooo long that it seems like the game crashed
             Plugin.Logger.LogInfo($" - {scene} - atlas - {original.name}");
             Texture2D tex = CustomAtlasTextures[scene][spriteAtlasIndex];
             Sprite replacement = Sprite.Create(
