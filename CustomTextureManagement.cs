@@ -74,6 +74,11 @@ public class CustomTextureManagement : CustomManagement
         {
             CustomAtlasTextures[scene] = new Dictionary<int, Texture2D>();
         }
+        if (CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
+        {
+            Plugin.Logger.LogWarning($"Duplicate atlas texture for {scene}, index {spriteAtlasIndex}");
+            Object.Destroy(CustomAtlasTextures[scene][spriteAtlasIndex]);
+        }   
         CustomAtlasTextures[scene][spriteAtlasIndex] = tex;
     }
 
@@ -87,6 +92,11 @@ public class CustomTextureManagement : CustomManagement
         if (!CustomSeperateTextures.ContainsKey(scene))
         {
             CustomSeperateTextures[scene] = new Dictionary<string, Texture2D>();
+        }
+        if (CustomSeperateTextures[scene].ContainsKey(name))
+        {
+            Plugin.Logger.LogWarning($"Duplicate seperate texture for {scene}/{name}");
+            Object.Destroy(CustomSeperateTextures[scene][name]);
         }
         CustomSeperateTextures[scene][name] = tex;
     }

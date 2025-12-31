@@ -47,6 +47,7 @@ public class CustomManagement
     {
         string[] namesAffixed =
         [
+        name,
         name + "Custom",
         name + "Mixtape"
         ];
