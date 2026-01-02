@@ -71,7 +71,6 @@ public class Plugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeLoaderCustom __instance, SceneKey sceneKey)
         {
-
             CustomSceneManagement.InitCustomScene(__instance, sceneKey);
             CustomTextureManagement.InitCustomTextures(__instance, sceneKey);
         }

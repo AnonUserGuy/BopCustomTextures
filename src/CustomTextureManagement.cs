@@ -186,7 +186,10 @@ public class CustomTextureManagement : CustomManagement
         {
             return;
         }
-        spriteRenderer.sprite = SpriteMaps[scene][spriteRenderer.sprite.name];
+        if (SpriteMaps[scene].ContainsKey(spriteRenderer.sprite.name))
+        {
+            spriteRenderer.sprite = SpriteMaps[scene][spriteRenderer.sprite.name];
+        }
     }
     
     public static void CreateCustomSprite(Sprite original)

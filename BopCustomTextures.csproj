@@ -13,6 +13,7 @@
 			https://nuget.samboy.dev/v3/index.json
 		</RestoreAdditionalProjectSources>
 		<RootNamespace>BopCustomTextures</RootNamespace>
+		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -32,4 +33,8 @@
 			<HintPath>.\lib\Assembly-CSharp.dll</HintPath>
 		</Reference>
 	</ItemGroup>
+	
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	  <Exec Command="call postbuild.bat $(TargetPath)" />
+	</Target>
 </Project>
