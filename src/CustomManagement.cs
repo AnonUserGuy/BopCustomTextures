@@ -2,34 +2,72 @@
 using UnityEngine;
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Collections.Generic;
 
 namespace BopCustomTextures;
 public class CustomManagement
 {
     public static readonly Dictionary<string, byte[]> OriginalFiles = [];
+
     public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Dictionary<SceneKey, GameObject>> rootObjectsRef =
         AccessTools.FieldRefAccess<MixtapeLoaderCustom, Dictionary<SceneKey, GameObject>>("rootObjects");
 
-    protected static MemoryStream ReadFile(ZipArchiveEntry entry)
+
+    public static void ReadDirectory(string path)
     {
-        using Stream stream = entry.Open();
-        MemoryStream memStream = new MemoryStream();
-        stream.CopyTo(memStream);
-        OriginalFiles[entry.FullName] = memStream.GetBuffer();
-        memStream.Position = 0;
-        return memStream;
+        int filesLoaded = 0;
+        var subpaths = Directory.EnumerateDirectories(path);
+        foreach (var subpath in subpaths)
+        {
+            if (CustomSceneManagement.IsCustomSceneDirectory(subpath))
+            {
+                filesLoaded += CustomSceneManagement.LocateCustomScenes(subpath, path);
+            }
+            else if (CustomTextureManagement.IsCustomTextureDirectory(subpath))
+            {
+                filesLoaded += CustomTextureManagement.LocateCustomTextures(subpath, path);
+            }
+        }
+
+        Plugin.Logger.LogInfo($"Loaded {filesLoaded} custom assets");
     }
 
-    public static void WriteFiles(ZipArchive archive)
+    public static void WriteDirectory(string path)
+    {
+        if (HasFiles())
+        {
+            Plugin.Logger.LogInfo("Saving with custom files");
+            WriteFiles(path);
+        }
+    }
+
+    public static void ResetAll()
+    {
+        CustomSceneManagement.UnloadCustomScenes();
+        CustomTextureManagement.UnloadCustomTextures();
+        UnloadFiles();
+    }
+
+    public static void InitScene(MixtapeLoaderCustom __instance, SceneKey sceneKey)
+    {
+        CustomSceneManagement.InitCustomScene(__instance, sceneKey);
+        CustomTextureManagement.InitCustomTextures(__instance, sceneKey);
+    }
+
+
+    protected static byte[] ReadFile(string path, string localPath)
+    {
+        OriginalFiles[localPath] = File.ReadAllBytes(path);
+        return OriginalFiles[localPath];
+    }
+
+    public static void WriteFiles(string path)
     {
         foreach (var w in OriginalFiles)
         {
-            using (BinaryWriter binaryWriter = new BinaryWriter(archive.CreateEntry(w.Key).Open()))
-            {
-                binaryWriter.Write(w.Value);
-            }
+            string fullpath = Path.Combine(path, w.Key);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullpath));
+            File.WriteAllBytes(fullpath, w.Value);
         }
     }
 

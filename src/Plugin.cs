@@ -1,8 +1,8 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
+using BepInEx.Configuration;
 using HarmonyLib;
-using System.IO;
-using System.IO.Compression;
+using UnityEngine.SceneManagement;
 
 namespace BopCustomTextures;
 
@@ -12,46 +12,88 @@ public class Plugin : BaseUnityPlugin
     internal static new ManualLogSource Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
 
+    private static ConfigEntry<LogLevel> logFileLoading;
+    private static ConfigEntry<LogLevel> logUnloading;
+    private static ConfigEntry<LogLevel> logSeperateTextureSprites;
+    private static ConfigEntry<LogLevel> logAtlasTextureSprites;
+    private static ConfigEntry<LogLevel> logSceneIndices;
+
     private void Awake()
     {
         // Plugin startup logic
         Logger = base.Logger;
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
-        Harmony.PatchAll();
-    }
+        logFileLoading = Config.Bind("Logging",
+            "LogFileLoading",
+            LogLevel.Debug,
+            "Log level for verbose file loading of custom assets in .bop/.riq archives");
 
-    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "Read")]
-    private static class BopMixtapeSerializerReadPatch
-    {
-        static void Postfix(string path)
+        logUnloading = Config.Bind("Logging",
+            "LogUnloading",
+            LogLevel.Debug,
+            "Log level for verbose custom asset unloading");
+
+        logSeperateTextureSprites = Config.Bind("Logging",
+            "LogSeperateTextureSprites",
+            LogLevel.Debug,
+            "Log level for verbose custom sprite creation from seperate textures");
+
+        logAtlasTextureSprites = Config.Bind("Logging",
+            "LogAtlasTextureSprites",
+            LogLevel.Debug,
+            "Log level for verbose custom sprite creation from atlas textures");
+
+        logSceneIndices = Config.Bind("Logging",
+            "LogSceneIndices",
+            LogLevel.None,
+            "Log level for vanilla scene loading, including scene name + build index (for locating level and sharedassets files)");
+
+
+        Harmony.PatchAll();
+
+        if (logSceneIndices.Value != LogLevel.None)
         {
-            using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using ZipArchive zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
-            
-            foreach (ZipArchiveEntry entry in zipArchive.Entries)
+            SceneManager.sceneLoaded += delegate (Scene scene, LoadSceneMode mode)
             {
-                if (!CustomSceneManagement.CheckIsCustomScene(entry))
-                {
-                    CustomTextureManagement.CheckIsCustomTexture(entry);
-                }
-            }
-            Logger.LogInfo("Checked all files");
+                Logger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
+            };
         }
     }
 
-    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "Write")]
-    private static class BopMixtapeSerializerWritePatch
+    public static void LogFileLoading(object data)
+    {
+        Logger.Log(logFileLoading.Value, data);
+    }
+    public static void LogUnloading(object data)
+    {
+        Logger.Log(logUnloading.Value, data);
+    }
+    public static void LogSeperateTextureSprites(object data)
+    {
+        Logger.Log(logSeperateTextureSprites.Value, data);
+    }
+    public static void LogAtlasTextureSprites(object data)
+    {
+        Logger.Log(logAtlasTextureSprites.Value, data);
+    }
+
+
+    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
+    private static class BopMixtapeSerializerReadDirectoryPatch
     {
         static void Postfix(string path)
         {
-            if (CustomManagement.HasFiles())
-            {
-                Logger.LogInfo("Saving with custom files");
-                using FileStream stream = File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-                using ZipArchive zipArchive = new ZipArchive(stream, ZipArchiveMode.Update);
-                CustomManagement.WriteFiles(zipArchive);
-            }
+            CustomManagement.ReadDirectory(path);
+        }
+    }
+
+    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "WriteDirectory")]
+    private static class BopMixtapeSerializerWriteDirectoryPatch
+    {
+        static void Postfix(string path)
+        {
+            CustomManagement.WriteDirectory(path);
         }
     }
 
@@ -60,9 +102,7 @@ public class Plugin : BaseUnityPlugin
     {
         static void Postfix()
         {
-            CustomSceneManagement.UnloadCustomScenes();
-            CustomTextureManagement.UnloadCustomTextures();
-            CustomManagement.UnloadFiles();
+            CustomManagement.ResetAll();
         }
     }
 
@@ -71,8 +111,7 @@ public class Plugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeLoaderCustom __instance, SceneKey sceneKey)
         {
-            CustomSceneManagement.InitCustomScene(__instance, sceneKey);
-            CustomTextureManagement.InitCustomTextures(__instance, sceneKey);
+            CustomManagement.InitScene(__instance, sceneKey);
         }
     }
 }

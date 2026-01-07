@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.U2D;
 using UnityEngine.Rendering;
 using System.IO;
-using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -16,31 +15,59 @@ public class CustomTextureManagement : CustomManagement
     public static readonly HashSet<SceneKey> CustomSpritesInited = [];
     public static readonly Dictionary<Texture2D, Dictionary<string, Sprite>> SpriteMaps = [];
     public static readonly Dictionary<Texture2D, (SceneKey, int)> TextureMaps = [];
-    public static readonly Regex FileRegex = new Regex(@"^text?u?r?e?s?/(\w+)/.*\.(?:png|j(?:pe?g|pe|f?if|fi))$", RegexOptions.IgnoreCase);
+    public static readonly Regex PathRegex = new Regex(@"\\text?u?r?e?s?$", RegexOptions.IgnoreCase);
+    public static readonly Regex FileRegex = new Regex(@"^text?u?r?e?s?\\(\w+)\\.*?([^\\]*\.(?:png|j(?:pe?g|pe|f?if|fi)))$", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegexAtlas = new Regex(@"^sactx-(\d+)", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegexSeperate = new Regex(@"^(\w+)");
     public static readonly Regex SceneAndSpriteAtlasIndexRegex = new Regex(@"^sactx-(\d+)-\d+x\d+-DXT5\|BC3-_(\w+)Atlas");
 
-    public static bool CheckIsCustomTexture(ZipArchiveEntry entry)
+
+    public static bool IsCustomTextureDirectory(string path)
     {
-        Match match = FileRegex.Match(entry.FullName);
+        return PathRegex.IsMatch(path);
+    }
+
+    public static int LocateCustomTextures(string path, string parentPath)
+    {
+        int filesLoaded = 0;
+        var fullFilepaths = Directory.EnumerateFiles(path);
+        foreach (var fullFilepath in fullFilepaths)
+        {
+            var localFilepath = fullFilepath.Substring(parentPath.Length + 1);
+            if (CheckIsCustomTexture(fullFilepath, localFilepath))
+            {
+                filesLoaded++;
+            }
+        }
+        var fullSubpaths = Directory.EnumerateDirectories(path);
+        foreach (var fullSubpath in fullSubpaths)
+        {
+            filesLoaded += LocateCustomTextures(fullSubpath, parentPath);
+        }
+        return filesLoaded;
+    }
+
+    public static bool CheckIsCustomTexture(string path, string localPath)
+    {
+        Match match = FileRegex.Match(localPath);
         if (match.Success)
         {
             SceneKey scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
             if (scene != SceneKey.Invalid)
             {
-                Match match2 = FileRegexAtlas.Match(entry.Name);
+                string filename = match.Groups[2].Value;
+                Match match2 = FileRegexAtlas.Match(filename);
                 if (match2.Success)
                 {
-                    Plugin.Logger.LogInfo($"Found custom atlas texture: {scene}/{entry.Name}");
-                    LoadCustomAtlasTexture(entry, scene, int.Parse(match2.Groups[1].Value));
+                    Plugin.LogFileLoading($"Found custom atlas texture: {scene} ~ {filename}");
+                    LoadCustomAtlasTexture(path, localPath, filename, scene, int.Parse(match2.Groups[1].Value));
                     return true;
                 }
-                Match match3 = FileRegexSeperate.Match(entry.Name);
+                Match match3 = FileRegexSeperate.Match(filename);
                 if (match3.Success)
                 {
-                    Plugin.Logger.LogInfo($"Found custom seperate texture: {scene}/{entry.Name}");
-                    LoadCustomSeperateTexture(entry, scene, match3.Groups[1].Value);
+                    Plugin.LogFileLoading($"Found custom seperate texture: {scene} ~ {filename}");
+                    LoadCustomSeperateTexture(path, localPath, filename, scene, match3.Groups[1].Value);
                     return true;
                 }
                 
@@ -49,24 +76,9 @@ public class CustomTextureManagement : CustomManagement
         return false;
     }
 
-    public static Texture2D LoadImage(ZipArchiveEntry entry)
+    public static void LoadCustomAtlasTexture(string path, string localPath, string filename, SceneKey scene, int spriteAtlasIndex)
     {
-        MemoryStream memStream = ReadFile(entry);
-        Texture2D tex = new Texture2D(2, 2);
-        bool success = ImageConversion.LoadImage(tex, memStream.GetBuffer());
-        if (!success)
-        {
-            Plugin.Logger.LogWarning($"Couldn't load custom texture: {entry.FullName} (is it a PNG/JPG?)");
-            Object.Destroy(tex);
-            return null;
-        }
-        tex.name = entry.Name;
-        return tex;
-    }
-
-    public static void LoadCustomAtlasTexture(ZipArchiveEntry entry, SceneKey scene, int spriteAtlasIndex)
-    {
-        Texture2D tex = LoadImage(entry);
+        Texture2D tex = LoadImage(path, localPath, filename);
         if (tex == null)
         {
             return;
@@ -83,9 +95,9 @@ public class CustomTextureManagement : CustomManagement
         CustomAtlasTextures[scene][spriteAtlasIndex] = tex;
     }
 
-    public static void LoadCustomSeperateTexture(ZipArchiveEntry entry, SceneKey scene, string name)
+    public static void LoadCustomSeperateTexture(string path, string localPath, string filename, SceneKey scene, string name)
     {
-        Texture2D tex = LoadImage(entry);
+        Texture2D tex = LoadImage(path, localPath, filename);
         if (tex == null)
         {
             return;
@@ -102,13 +114,28 @@ public class CustomTextureManagement : CustomManagement
         CustomSeperateTextures[scene][name] = tex;
     }
 
+    public static Texture2D LoadImage(string path, string localPath, string filename)
+    {
+        byte[] bytes = ReadFile(path, localPath);
+        Texture2D tex = new Texture2D(2, 2);
+        bool success = ImageConversion.LoadImage(tex, bytes);
+        if (!success)
+        {
+            Plugin.Logger.LogWarning($"Couldn't load custom texture: {localPath} (is it a PNG/JPG?)");
+            Object.Destroy(tex);
+            return null;
+        }
+        tex.name = filename;
+        return tex;
+    }
+
     public static void UnloadCustomTextures()
     {
         foreach (var q in SpriteMaps)
         {
             Texture2D tex = q.Key;
             var spriteMap = q.Value;
-            Plugin.Logger.LogInfo($"Unloading custom sprites: {tex.name}");
+            Plugin.LogUnloading($"Unloading custom sprites: {tex.name}");
             foreach (var w in spriteMap)
             {
                 var sprite = w.Value;
@@ -124,7 +151,7 @@ public class CustomTextureManagement : CustomManagement
         {
             SceneKey scene = q.Key;
             var textures = q.Value;
-            Plugin.Logger.LogInfo($"Unloading custom atlas textures: {scene}");
+            Plugin.LogUnloading($"Unloading custom atlas textures: {scene}");
             foreach (var w in textures)
             {
                 Object.Destroy(w.Value);
@@ -135,7 +162,7 @@ public class CustomTextureManagement : CustomManagement
         {
             SceneKey scene = q.Key;
             var textures = q.Value;
-            Plugin.Logger.LogInfo($"Unloading custom seperate textures: {scene}");
+            Plugin.LogUnloading($"Unloading custom seperate textures: {scene}");
             foreach (var w in textures)
             {
                 Object.Destroy(w.Value);
@@ -215,7 +242,7 @@ public class CustomTextureManagement : CustomManagement
         }
         if (CustomSeperateTextures.ContainsKey(scene) && CustomSeperateTextures[scene].ContainsKey(original.name))
         {
-            //Plugin.Logger.LogInfo($" - {scene} - seperate - {original.name}");
+            Plugin.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
             Texture2D tex = CustomSeperateTextures[scene][original.name];
 
             Sprite replacement = Sprite.Create(
@@ -254,7 +281,7 @@ public class CustomTextureManagement : CustomManagement
         else if (CustomAtlasTextures.ContainsKey(scene) && CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
         {
             // Logs the creation of all atlas sprites because it takes soooo long that it seems like the game crashed
-            Plugin.Logger.LogInfo($" - {scene} - atlas - {original.name}");
+            Plugin.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
             Texture2D tex = CustomAtlasTextures[scene][spriteAtlasIndex];
             Sprite replacement = Sprite.Create(
                 tex,

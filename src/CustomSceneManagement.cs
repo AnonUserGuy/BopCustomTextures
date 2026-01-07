@@ -2,7 +2,6 @@ using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
-using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -11,29 +10,52 @@ namespace BopCustomTextures;
 public class CustomSceneManagement : CustomManagement
 {
     public static readonly Dictionary<SceneKey, JObject> CustomScenes = [];
-    public static readonly Regex FileRegex = new Regex(@"^(?:level|scene)s?/(\w+).json$", RegexOptions.IgnoreCase);
+    public static readonly Regex PathRegex = new Regex(@"\\(?:level|scene)s?$", RegexOptions.IgnoreCase);
+    public static readonly Regex FileRegex = new Regex(@"(\w+).json$", RegexOptions.IgnoreCase);
 
-    public static bool CheckIsCustomScene(ZipArchiveEntry entry)
+    public static bool IsCustomSceneDirectory(string path)
     {
-        Match match = FileRegex.Match(entry.FullName);
+        return PathRegex.IsMatch(path);
+    }
+
+    public static int LocateCustomScenes(string path, string parentPath)
+    {
+        int filesLoaded = 0;
+        var fullFilepaths = Directory.EnumerateFiles(path);
+        foreach (var fullFilepath in fullFilepaths)
+        {
+            var localFilepath = fullFilepath.Substring(parentPath.Length + 1);
+            if (CheckIsCustomScene(fullFilepath, localFilepath))
+            {
+                filesLoaded++;
+            }
+        }
+        return filesLoaded;
+    }
+
+    public static bool CheckIsCustomScene(string path, string localPath)
+    {
+        Match match = FileRegex.Match(localPath);
         if (match.Success)
         {
             SceneKey scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
             if (scene != SceneKey.Invalid)
             {
-                Plugin.Logger.LogInfo($"Found custom scene: {scene}");
-                LoadCustomScene(entry, scene);
+                Plugin.LogFileLoading($"Found custom scene: {scene}");
+
+                LoadCustomScene(path, localPath, scene);
                 return true;
             }
         }
         return false;
     }
 
-    public static void LoadCustomScene(ZipArchiveEntry entry, SceneKey scene)
+    public static void LoadCustomScene(string path, string localPath, SceneKey scene)
     {
         try
         {
-            MemoryStream memStream = ReadFile(entry);
+            byte[] bytes = ReadFile(path, localPath);
+            MemoryStream memStream = new MemoryStream(bytes);
             using StreamReader reader = new StreamReader(memStream);
             using JsonTextReader jsonReader = new JsonTextReader(reader);
             CustomScenes[scene] = JObject.Load(jsonReader);
@@ -50,7 +72,7 @@ public class CustomSceneManagement : CustomManagement
     {
         if (CustomScenes.Count > 0)
         {
-            Plugin.Logger.LogInfo("Unloading all custom scenes");
+            Plugin.LogUnloading("Unloading all custom scenes");
             CustomScenes.Clear();
         }
     }
