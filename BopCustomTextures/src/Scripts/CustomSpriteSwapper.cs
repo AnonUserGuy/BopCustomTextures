@@ -4,7 +4,7 @@ using UnityEngine;
 namespace BopCustomTextures.Scripts;
 
 [DefaultExecutionOrder(2)] // because of flow worms
-internal class CustomSpriteScript : MonoBehaviour
+internal class CustomSpriteSwapper : MonoBehaviour
 {
     private Sprite last;
     public SceneKey scene;

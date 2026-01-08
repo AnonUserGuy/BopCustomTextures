@@ -204,7 +204,7 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
         foreach (var spriteRenderer in spriteRenderers)
         {
             ReplaceCustomSprite(spriteRenderer, scene);
-            var script = spriteRenderer.gameObject.AddComponent<CustomSpriteScript>();
+            var script = spriteRenderer.gameObject.AddComponent<CustomSpriteSwapper>();
             script.scene = scene;
             script.textureManager = this;
         }
