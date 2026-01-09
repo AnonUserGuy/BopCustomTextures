@@ -14,8 +14,10 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
 {
     public readonly Dictionary<SceneKey, Dictionary<int, Texture2D>> CustomAtlasTextures = [];
     public readonly Dictionary<SceneKey, Dictionary<string, Texture2D>> CustomSeperateTextures = [];
+    public readonly Dictionary<SceneKey, Dictionary<Texture2D, string>> CustomSeperateTexturesNotInited = [];
     public readonly HashSet<SceneKey> CustomSpritesInited = [];
     public readonly Dictionary<Texture2D, Dictionary<string, Sprite>> SpriteMaps = [];
+    public readonly HashSet<Sprite> CustomSprites = [];
     public readonly Dictionary<Texture2D, (SceneKey, int)> TextureMaps = [];
     public static readonly Regex PathRegex = new Regex(@"\\text?u?r?e?s?$", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegex = new Regex(@"^text?u?r?e?s?\\(\w+)\\.*?([^\\]*\.(?:png|j(?:pe?g|pe|f?if|fi)))$", RegexOptions.IgnoreCase);
@@ -106,6 +108,7 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
         if (!CustomSeperateTextures.ContainsKey(scene))
         {
             CustomSeperateTextures[scene] = new Dictionary<string, Texture2D>();
+            CustomSeperateTexturesNotInited[scene] = new Dictionary<Texture2D, string>();
         }
         else if (CustomSeperateTextures[scene].ContainsKey(name))
         {
@@ -113,6 +116,7 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
             Object.Destroy(CustomSeperateTextures[scene][name]);
         }
         CustomSeperateTextures[scene][name] = tex;
+        CustomSeperateTexturesNotInited[scene][tex] = name;
     }
 
     public Texture2D LoadImage(string path, string localPath, string filename)
@@ -147,6 +151,7 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
             }
         }
         SpriteMaps.Clear();
+        CustomSprites.Clear();
         CustomSpritesInited.Clear();
         foreach (var q in CustomAtlasTextures)
         {
@@ -170,6 +175,7 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
             }
         }
         CustomSeperateTextures.Clear();
+        CustomSeperateTexturesNotInited.Clear();
         TextureMaps.Clear();
     }
 
@@ -181,30 +187,62 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
         }
         if (!CustomSpritesInited.Contains(sceneKey))
         {
-            logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
-            InitAllCustomSprites();
+            logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})"); 
+            InitCustomSprites(sceneKey);
         }
         logger.LogInfo($"Applying custom sprites: {sceneKey}");
         GameObject rootObj = rootObjectsRef(__instance)[sceneKey];
-        InitCustomSpritesInGameObject(rootObj, sceneKey);
+        InitCustomSpriteRenderers(rootObj, sceneKey);
     }
 
-    public void InitAllCustomSprites()
+    public void InitCustomSprites(SceneKey scene)
     {
         Sprite[] sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        HashSet<Sprite> nonPackedSprites = [];
         foreach (var sprite in sprites)
         {
-            CreateCustomSprite(sprite);
+            if (!CreateCustomSprite(sprite))
+            {
+                nonPackedSprites.Add(sprite);
+            }
         }
+        
+        foreach (var a in CustomSeperateTexturesNotInited[scene])
+        {
+            Texture2D tex = a.Key;
+            Sprite ogSprite = null;
+            foreach (var sprite in nonPackedSprites)
+            {
+                if (sprite.texture.name == a.Value)
+                {
+                    SpriteMaps[sprite.texture] = new Dictionary<string, Sprite>();
+                    CreateCustomSeperateSprite(sprite, tex, scene);
+
+                    ogSprite = sprite;
+                    break;
+                }
+            }
+            if (ogSprite == null)
+            {
+                logger.LogWarning($"Found seperate texture that doesn't correspond to any game texture: {scene} ~ {tex.name}");
+            }
+            else
+            {
+                nonPackedSprites.Remove(ogSprite);
+            }
+        }
+        CustomSeperateTexturesNotInited.Remove(scene);
+        CustomSpritesInited.Add(scene);
     }
 
-    public void InitCustomSpritesInGameObject(GameObject rootObj, SceneKey scene)
+    public void InitCustomSpriteRenderers(GameObject rootObj, SceneKey scene)
     {
         var spriteRenderers = rootObj.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (var spriteRenderer in spriteRenderers)
         {
             ReplaceCustomSprite(spriteRenderer, scene);
-            var script = spriteRenderer.gameObject.AddComponent<CustomSpriteSwapper>();
+            CustomSpriteSwapper script = spriteRenderer.gameObject.AddComponent<CustomSpriteSwapper>();
+            script.last = spriteRenderer.sprite; // doing this in Awake() is insufficient
             script.scene = scene;
             script.textureManager = this;
         }
@@ -222,87 +260,107 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
         }
     }
 
-    public void CreateCustomSprite(Sprite original)
+    public bool CreateCustomSprite(Sprite original)
     {
         if (!original.packed)
         {
-            return;
+            if (CustomSprites.Contains(original))
+            {
+                return true;
+            } 
+            else
+            {
+                return false;
+            }
         }
         var (scene, spriteAtlasIndex) = GetSceneAndSpriteAtlasIndex(original);
         if (scene == SceneKey.Invalid || !(CustomAtlasTextures.ContainsKey(scene) || CustomSeperateTextures.ContainsKey(scene)))
         {
-            return;
+            return true;
         }
-        CustomSpritesInited.Add(scene);
         if (!SpriteMaps.ContainsKey(original.texture))
         {
             SpriteMaps[original.texture] = new Dictionary<string, Sprite>();
         }
         else if (SpriteMaps[original.texture].ContainsKey(original.name))
         {
-            return;
+            return true;
         }
         if (CustomSeperateTextures.ContainsKey(scene) && CustomSeperateTextures[scene].ContainsKey(original.name))
         {
-            logger.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
             Texture2D tex = CustomSeperateTextures[scene][original.name];
-
-            Sprite replacement = Sprite.Create(
-                tex,
-                new Rect(0, 0, tex.width, tex.height),
-                original.pivot / original.rect.size,
-                original.pixelsPerUnit,
-                0,
-                SpriteMeshType.FullRect,
-                original.border
-            );
-            replacement.name = original.name;
-            Rect vertexBox = GetBoundingBox(original.vertices);
-            vertexBox = GetWithDimensionsCentered(vertexBox, tex.width / original.pixelsPerUnit, tex.height / original.pixelsPerUnit);
-            Vector3[] vertices = [
-                new Vector3(vertexBox.xMin, vertexBox.yMax, 0),
-                new Vector3(vertexBox.xMax, vertexBox.yMax, 0),
-                new Vector3(vertexBox.xMin, vertexBox.yMin, 0),
-                new Vector3(vertexBox.xMax, vertexBox.yMin, 0)
-            ];
-            Vector2[] uvs = [
-                new Vector2(0, 1),
-                new Vector2(1, 1),
-                new Vector2(0, 0),
-                new Vector2(1, 0)
-            ];
-            NativeArray<Vector3> verticesNative = new NativeArray<Vector3>(vertices, Allocator.Temp);
-            NativeArray<Vector2> uvsNative = new NativeArray<Vector2>(uvs, Allocator.Temp);
-            replacement.SetVertexAttribute(VertexAttribute.Position, verticesNative);
-            replacement.SetVertexAttribute(VertexAttribute.TexCoord0, uvsNative);
-            verticesNative.Dispose();
-            uvsNative.Dispose();
-
-            SpriteMaps[original.texture][original.name] = replacement;
+            CreateCustomSeperateSprite(original, tex, scene);
+            CustomSeperateTexturesNotInited[scene].Remove(tex);
         }
         else if (CustomAtlasTextures.ContainsKey(scene) && CustomAtlasTextures[scene].ContainsKey(spriteAtlasIndex))
         {
-            // Logs the creation of all atlas sprites because it takes soooo long that it seems like the game crashed
-            logger.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
             Texture2D tex = CustomAtlasTextures[scene][spriteAtlasIndex];
-            Sprite replacement = Sprite.Create(
-                tex,
-                original.rect,
-                original.pivot / original.rect.size,
-                original.pixelsPerUnit,
-                0,
-                SpriteMeshType.Tight,
-                original.border
-            );
-            CopySpriteMesh(original, replacement);
-            replacement.name = original.name;
-
-            SpriteMaps[original.texture][original.name] = replacement;
+            CreateCustomAtlasSprite(original, tex, scene);
         }
         else
         {
             SpriteMaps[original.texture][original.name] = original;
         }
+        return true;
+    }
+
+    public void CreateCustomSeperateSprite(Sprite original, Texture2D tex, SceneKey scene)
+    {
+        logger.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
+
+        Sprite replacement = Sprite.Create(
+            tex,
+            new Rect(0, 0, tex.width, tex.height),
+            original.pivot / original.rect.size,
+            original.pixelsPerUnit,
+            0,
+            SpriteMeshType.FullRect,
+            original.border
+        );
+        replacement.name = original.name;
+        Rect vertexBox = GetBoundingBox(original.vertices);
+        vertexBox = GetWithDimensionsCentered(vertexBox, tex.width / original.pixelsPerUnit, tex.height / original.pixelsPerUnit);
+        Vector3[] vertices = [
+            new Vector3(vertexBox.xMin, vertexBox.yMax, 0),
+                new Vector3(vertexBox.xMax, vertexBox.yMax, 0),
+                new Vector3(vertexBox.xMin, vertexBox.yMin, 0),
+                new Vector3(vertexBox.xMax, vertexBox.yMin, 0)
+        ];
+        Vector2[] uvs = [
+            new Vector2(0, 1),
+                new Vector2(1, 1),
+                new Vector2(0, 0),
+                new Vector2(1, 0)
+        ];
+        NativeArray<Vector3> verticesNative = new NativeArray<Vector3>(vertices, Allocator.Temp);
+        NativeArray<Vector2> uvsNative = new NativeArray<Vector2>(uvs, Allocator.Temp);
+        replacement.SetVertexAttribute(VertexAttribute.Position, verticesNative);
+        replacement.SetVertexAttribute(VertexAttribute.TexCoord0, uvsNative);
+        verticesNative.Dispose();
+        uvsNative.Dispose();
+
+        SpriteMaps[original.texture][original.name] = replacement;
+        CustomSprites.Add(replacement);
+    }
+
+    public void CreateCustomAtlasSprite(Sprite original, Texture2D tex, SceneKey scene)
+    {
+        // Logs the creation of all atlas sprites because it takes soooo long that it seems like the game crashed
+        logger.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
+        Sprite replacement = Sprite.Create(
+            tex,
+            original.rect,
+            original.pivot / original.rect.size,
+            original.pixelsPerUnit,
+            0,
+            SpriteMeshType.Tight,
+            original.border
+        );
+        CopySpriteMesh(original, replacement);
+        replacement.name = original.name;
+
+        SpriteMaps[original.texture][original.name] = replacement;
+        CustomSprites.Add(replacement);
     }
 
     public static void CopySpriteMesh(Sprite srcSprite, Sprite destSprite)

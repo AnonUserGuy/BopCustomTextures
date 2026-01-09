@@ -6,7 +6,7 @@ namespace BopCustomTextures.Scripts;
 [DefaultExecutionOrder(2)] // because of flow worms
 internal class CustomSpriteSwapper : MonoBehaviour
 {
-    private Sprite last;
+    public Sprite last;
     public SceneKey scene;
     public CustomTextureManager textureManager;
     public SpriteRenderer spriteRenderer;
@@ -14,7 +14,6 @@ internal class CustomSpriteSwapper : MonoBehaviour
     void Awake()
     {
         spriteRenderer = gameObject.GetComponent<SpriteRenderer>();
-        last = spriteRenderer.sprite;
     }
 
     void LateUpdate()
