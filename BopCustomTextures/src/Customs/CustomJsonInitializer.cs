@@ -46,10 +46,13 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
         switch (name)
         {
             case "Transform":
-                InitCustomTransform(jcomponent, obj.transform);
+                InitCustomTransform(jcomponent, obj);
                 break;
             case "SpriteRenderer":
                 InitCustomSpriteRenderer(jcomponent, obj);
+                break;
+            case "ParallaxObjectScript":
+                InitCustomParallaxObjectScript(jcomponent, obj);
                 break;
             default:
                 logger.LogWarning($"JSON Componnent \"{name}\" is an unknown/unsupported component");
@@ -57,9 +60,10 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
         }
     }
 
-    // COMPONENTS //
-    public void InitCustomTransform(JObject jtransform, Transform transform)
+    // UNITY COMPONENTS //
+    public void InitCustomTransform(JObject jtransform, GameObject obj)
     {
+        var transform = obj.transform;
         transform.localPosition = InitCustomVector3(jtransform, "LocalPosition", transform.localPosition);
         transform.localRotation = InitCustomQuaternion(jtransform, "LocalRotation", transform.localRotation);
         transform.localScale = InitCustomVector3(jtransform, "LocalScale", transform.localScale);
@@ -78,8 +82,21 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
         spriteRenderer.flipY = InitCustomBool(jspriteRenderer, "FlipY", spriteRenderer.flipY);
     }
 
+    // BITS & BOPS SCRIPTS //
+    public void InitCustomParallaxObjectScript(JObject jparallaxObjectScript, GameObject obj)
+    {
+        var parallaxObjectScript = obj.GetComponent<ParallaxObjectScript>();
+        if (parallaxObjectScript == null)
+        {
+            logger.LogWarning($"GameObject \"{obj.name}\" does not have a parallaxObjectScript");
+            return;
+        }
+        parallaxObjectScript.parallaxScale = InitCustomFloat(jparallaxObjectScript, "ParallaxScale", parallaxObjectScript.parallaxScale);
+        parallaxObjectScript.loopDistance = InitCustomFloat(jparallaxObjectScript, "LoopDistance", parallaxObjectScript.loopDistance);
+    }
+
     // STRUCTS //
-    public Vector3 InitCustomVector2(JObject jobj, string key, Vector2 vector2)
+    public Vector2 InitCustomVector2(JObject jobj, string key, Vector2 vector2)
     {
         if (jobj.ContainsKey(key))
         {
