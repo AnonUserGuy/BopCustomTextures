@@ -40,7 +40,7 @@ root:
 ```
 
 ### Adding Custom Textures
-With the ``textures`` folder created, you're about ready to start adding custom textures to your remix. But first, you'll need to create a subfolder in ``textures`` corresponding to the game the textures are for. To target a game, you'll need to name the subfolder the internal name of the game. This will always, *always* just be whatever name the game is listed as in the Mixtape Editor without any punctuation or spaces. For example, a mainline game like "Rock, Paper, Showdown!" will become ``RockPaperShowdown``, with a mixtape game like "Flow Worms (Sky)" will become ``FlowWormsSky``.
+With the ``textures`` folder created, you're about ready to start adding custom textures to your mixtape. But first, you'll need to create a subfolder in ``textures`` corresponding to the game the textures are for. To target a game, you'll need to name the subfolder the internal name of the game. This will always, *always* just be whatever name the game is listed as in the Mixtape Editor without any punctuation or spaces. For example, a non-mixtape game like "Rock, Paper, Showdown!" will become ``RockPaperShowdown``, while a mixtape game like "Flow Worms (Sky)" will become ``FlowWormsSky``.
 
 If you were targetting "Flow Worms (Sky)" and "Rock, Paper, Showdown!", your ``textures`` folder should now contain the following subfolders:
 ```
@@ -53,16 +53,16 @@ Within these folders you'll add you're custom textures as PNG and JPEG files. Ad
 From here, you have two options for supplying your custom textures: "atlas" textures and "seperate" textures. 
 
 #### Atlas Textures 
-In Bits & Bops, individual sprites like a blue gentleman ordering tea or an ant marching aren't actually stored as individual images, but rather as large sheets of sprites with special metadata associated with them that the Unity engine uses to split into individual sprites at runtime, called a sprite atlas. If you want to replace an entire sheet like this, henceforth refered to as an atlas texture, you'll need to name the file appropriately. 
+In Bits & Bops, individual sprites like a blue gentleman ordering tea or an ant marching aren't actually stored as individual images, but rather as large sheets of sprites with special metadata associated with them that the Unity engine uses to split into individual sprites at runtime, called sprite atlases. If you want to replace an entire sheet like this, henceforth refered to as an atlas texture, you'll need to name the file appropriately. 
 
 If you directly extract an atlas texture from Bits & Bops's game files, you'll recieve it with a name prefixed with ``sactx-N``, ``N`` being some number specifying which atlas texture it was for the given game. if you name an image file such that it begins with ``sactx-N`` and place it in the appropriate game folder, it will be used as an atlas texture and replace an entire sprite atlas's texture.
 
-***For the time being, I DO NOT recommend using atlas textures. It takes a very long time to regenerate the sprites to use the new atlas texture (~10s for a small game like "Octeaparty (Fire)"). Until the process can be optimized, you will probably prefer to work with individual textures instead.***
+***Note: For the time being, I DO NOT recommend using atlas textures. It takes a very long time to regenerate the sprites to use the new atlas texture (~10s for a small game like "Octeaparty (Fire)"). Until the process can be optimized, you will probably prefer to work with individual textures instead.***
 
 #### Seperate Textures
 If, instead of replacing an entire atlas texture, you just want to replace one individual sprite, (or you are heeding my suggestion at the end of the previous section,) you can instead supply individual textures. Individual textures correspond to the individual sprites contained within a sprite atlas. If you give an image file the same name as a sprite's name and place it in the appropriate game folder, it will be used as a seperate texture and replace the texture of a single sprite. 
  - IF you're downloading textures from [the Spriters Resource](https://www.spriters-resource.com/pc_computer/bitsbops/), sprites are already given in this format.
- - If you can't find a desired sprite from there, I found [UnityPy](https://pypi.org/project/UnityPy/1.5.1/) to be the easiest way to extract them manually.
+ - If you can't find a desired sprite there, I found [UnityPy](https://pypi.org/project/UnityPy/1.5.1/) to be the easiest way to extract them manually.
 
 #### Using Textures with Different Dimensions from Base Texture
 Supplying a texture with different dimensions from the base texture is handled differently depending on what kind of custom texture you're using. 
@@ -75,6 +75,7 @@ Most of Bits & Bops's sprites are illustrated for 1080p viewing, and Bits & Bops
  - If a texture contains little to no transparency (like textures for backgrounds or very rectangular sprites) you can convert the image to a highly compressed JPEG.
  - Optimize the PNG texture.
  - Reduce the amount of colors in the PNG texture.
+ - If you can, perform your modifications using a scene mod. 
 
 ### Adding Scene Mods
 A more fledgling feature of this plugin is the ability to modify the scenes of rhythm games, a feature dubbed "scene mods". Scene mods can be used to move game objects around, change the tint color of sprite renderers, etc. Scene mods are described using JSON, with the following basic structure:
