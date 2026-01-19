@@ -1,5 +1,7 @@
 # BopCustomTextures
-A BepInEx mod for Bits & Bops that allows custom mixtape files to include custom textures in their .bop archive.
+A BepInEx mod for Bits & Bops that allows custom mixtape files to include custom textures in their .bop archive. 
+
+The mod was created because I wanted to create a custom mixtape with custom textures, but I also wanted others to be able to create custom mixtapes with custom textures without having to create their own mods.
 
 Demo: https://youtu.be/pZQ74qy7PbY
 
@@ -19,10 +21,11 @@ With a file archiver program available, now open any .bop file as a file archive
 root:
  - mixtape.json
  - song.bin
+ - preview.bin (if a preview image is included)
 ```
-``mixtape.json`` contains all the Bits & Bops specific data for your mixtape, while ``song.bin`` is just the song used in the mixtape with a generic file extension.
+``mixtape.json`` contains all the Bits & Bops specific data for your mixtape, ``song.bin`` is the audio file for the song used in the mixtape with a generic file extension, and ``preview.bin`` is the image file for the preview image for the mixtape also with a generic file extension.
 
-To start adding custom textures to the mixtape, add a new folder to the archive named ``textures`` (or ``tex`` if you appreciate brevity)
+To start adding custom textures to the mixtape, add a new folder to the archive named ``textures`` (or ``tex`` for short).
 ```
 root:
 - textures\
@@ -30,7 +33,7 @@ root:
 - song.bin
 ```
 
-To start adding scene mods (like moving game objects around or recoloring sprite renderers), add a new folder to the archive named ``levels`` (or ``scenes``)
+To start adding scene mods (like moving game objects around or recoloring sprite renderers), add a new folder to the archive named ``levels`` (or ``scenes``).
 ```
 root:
 - levels\
@@ -40,42 +43,42 @@ root:
 ```
 
 ### Adding Custom Textures
-With the ``textures`` folder created, you're about ready to start adding custom textures to your mixtape. But first, you'll need to create a subfolder in ``textures`` corresponding to the game the textures are for. To target a game, you'll need to name the subfolder the internal name of the game. This will always, *always* just be whatever name the game is listed as in the Mixtape Editor without any punctuation or spaces. For example, a non-mixtape game like "Rock, Paper, Showdown!" will become ``RockPaperShowdown``, while a mixtape game like "Flow Worms (Sky)" will become ``FlowWormsSky``.
+With the ``textures`` folder created, you're about ready to start adding custom textures to your mixtape. But first, you'll need to create a subfolder in ``textures`` corresponding to the game the textures are for. To target a game, you'll need to name the subfolder the internal name of the game. If you aren't sure what this is for the game you're targeting, this will always just be whatever name the game is listed as in the Mixtape Editor without any punctuation or spaces. For example, a non-mixtape game like "Rock, Paper, Showdown!" will become ``RockPaperShowdown``, while a mixtape game like "Flow Worms (Sky)" will become ``FlowWormsSky``.
 
-If you were targetting "Flow Worms (Sky)" and "Rock, Paper, Showdown!", your ``textures`` folder should now contain the following subfolders:
+If you were targeting "Flow Worms (Sky)" and "Rock, Paper, Showdown!", your ``textures`` folder should now contain the following subfolders:
 ```
 textures:
 - FlowWormsSky\
 - RockPaperShowdown\
 ```
-Within these folders you'll add you're custom textures as PNG and JPEG files. Additional sobfolders within these will all be searched by the plugin, so feel free to add additional subfolders for organization of types of textures.  
+Within these folders you'll add you're custom textures as PNG and JPEG files. Additional subfolders within these will all be searched by the plugin, so feel free to add additional subfolders for organization of types of textures.  
 
-From here, you have two options for supplying your custom textures: "atlas" textures and "seperate" textures. 
+From here, you have two options for supplying your custom textures: "atlas" textures and "separate" textures. 
 
 #### Atlas Textures 
-In Bits & Bops, individual sprites like a blue gentleman ordering tea or an ant marching aren't actually stored as individual images, but rather as large sheets of sprites with special metadata associated with them that the Unity engine uses to split into individual sprites at runtime, called sprite atlases. If you want to replace an entire sheet like this, henceforth refered to as an atlas texture, you'll need to name the file appropriately. 
+In Bits & Bops, individual sprites like a blue gentleman ordering tea or an ant marching aren't actually stored as individual images. Instead they're stored as sprite atlases, which are large sheets of sprites with special metadata associated with them that the Unity engine uses to split into individual sprites at runtime. If you want to replace the texture as an entire sheet like this, henceforth referred to as an atlas texture, you'll need to name the file appropriately. 
 
-If you directly extract an atlas texture from Bits & Bops's game files, you'll recieve it with a name prefixed with ``sactx-N``, ``N`` being some number specifying which atlas texture it was for the given game. if you name an image file such that it begins with ``sactx-N`` and place it in the appropriate game folder, it will be used as an atlas texture and replace an entire sprite atlas's texture.
+If you directly extract an atlas texture from Bits & Bops's game files, you'll receive it with a name prefixed with ``sactx-N``, ``N`` being some number specifying which atlas texture it was for the given game. if you name an image file such that it begins with ``sactx-N`` and place it in the appropriate game folder, it will be used as an atlas texture and replace an entire sprite atlas's texture.
 
 ***Note: For the time being, I DO NOT recommend using atlas textures. It takes a very long time to regenerate the sprites to use the new atlas texture (~10s for a small game like "Octeaparty (Fire)"). Until the process can be optimized, you will probably prefer to work with individual textures instead.***
 
-#### Seperate Textures
-If, instead of replacing an entire atlas texture, you just want to replace one individual sprite, (or you are heeding my suggestion at the end of the previous section,) you can instead supply individual textures. Individual textures correspond to the individual sprites contained within a sprite atlas. If you give an image file the same name as a sprite's name and place it in the appropriate game folder, it will be used as a seperate texture and replace the texture of a single sprite. 
+#### Separate Textures
+If, instead of replacing an entire atlas texture, you just want to replace one individual sprite, (or you are heeding my suggestion at the end of the previous section,) you can instead supply individual textures. Individual textures correspond to the individual sprites contained within a sprite atlas. If you give an image file the same name as a sprite's name and place it in the appropriate game folder, it will be used as a separate texture and replace the texture of a single sprite. 
  - IF you're downloading textures from [the Spriters Resource](https://www.spriters-resource.com/pc_computer/bitsbops/), sprites are already given in this format.
  - If you can't find a desired sprite there, I found [UnityPy](https://pypi.org/project/UnityPy/1.5.1/) to be the easiest way to extract them manually.
 
 #### Using Textures with Different Dimensions from Base Texture
 Supplying a texture with different dimensions from the base texture is handled differently depending on what kind of custom texture you're using. 
  - If you're using an atlas texture, the custom texture will be scaled to fit the dimensions of the old texture. This way you can downscale your base textures and they will still work.
- - If you're using a seperate texture, the custom texture will be treated as if you expanded the canvas size of the base texture with it centered. Any extra bounds will be added on all sides of the image equally. This way, if you wanna add something to a sprite outside of the bounds of its texture, you can simply expand it on all sides such that the additions now fit on the canvas.
+ - If you're using a separate texture, the custom texture will be treated as if you expanded the canvas size of the base texture with it centered. Any extra bounds will be added on all sides of the image equally. This way, if you wanna add something to a sprite outside of the bounds of its texture, you can simply expand it on all sides such that the additions now fit on the canvas.
 
 #### Optimizing for Size
 Most of Bits & Bops's sprites are illustrated for 1080p viewing, and Bits & Bops has a lot of sprites. As such, you will probably soon notice the file size of your .bop file ballooning due to all these custom textures. Here I have a couple of suggestions for reducing file size:
- - For atlas textures, you can simply downscale them. Unfortunately this isn't an option for seperate textures because they handle altered texture dimensions in a different way.
+ - For atlas textures, you can simply downscale them. Unfortunately this isn't an option for separate textures because they handle altered texture dimensions in a different way.
  - If a texture contains little to no transparency (like textures for backgrounds or very rectangular sprites) you can convert the image to a highly compressed JPEG.
  - Optimize the PNG texture.
  - Reduce the amount of colors in the PNG texture.
- - If you can, perform your modifications using a scene mod. 
+ - If you can, realize your alterations using a scene mod instead. 
 
 ### Adding Scene Mods
 A more fledgling feature of this plugin is the ability to modify the scenes of rhythm games, a feature dubbed "scene mods". Scene mods can be used to move game objects around, change the tint color of sprite renderers, etc. Scene mods are described using JSON, with the following basic structure:
@@ -148,12 +151,12 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 | `SaveCustomFiles`            | Boolean           | `true`        | <p>When opening a mixtape in the editor with custom files, save these files with the mixtape whenever the mixtape is saved.</p> |
 | `LogFileLoading`             | BepInEx.LogLevel  | `Debug`       | <p>Log level for verbose file loading of custom files in .bop archives.</p> |
 | `LogUnloading`               | BepInEx.LogLevel  | `Debug`       | <p>Log level for verbose custom asset unloading.</p> |
-| `LogSeperateTextureSprites`  | BepInEx.LogLevel  | `Debug`       | <p>Log level for verbose custom sprite creation from seperate textures.</p> |
+| `LogSeparateTextureSprites`  | BepInEx.LogLevel  | `Debug`       | <p>Log level for verbose custom sprite creation from separate textures.</p> |
 | `LogAtlasTextureSprites`     | BepInEx.LogLevel  | `Debug`       | <p>Log level for verbose custom sprite creation from atlas textures.</p> |
 | `LogSceneIndices`            | BepInEx.LogLevel  | `None`        | <p>Log level for vanilla scene loading, including scene name + build index.</p> <p>Useful when you need to rip sprites from a sprite atlas, which requires knowing the build index of a game to locate its sharedassets file.</p> |
 
 ## Building 
-### Prequisites
+### Prerequisites
 - Bits & Bops v1.6+
 - Microsoft .NET SDK v4.7.2+
 - Visual Studio 2022 (Optional)
@@ -172,3 +175,26 @@ After running Bits & Bops with the latest version of this plugin installed, a co
        - Set build mode to "release".
        - Build project.
 4. Copy ``BopCustomTextures/BopCustomTextures/bin/Release/net472/BopCustomTextures.dll`` into ``<Bits & Bops Installation>/BepinEx/plugins/``.
+
+## Implementation
+### Custom Textures
+In Unity, texture assets can only be directly replaced by hooking into the asset loading pipeline. Using this to replace assets is unreliable however, as if an asset was already loaded before being required by a mixtape containing custom assets, the already loaded assets won't be replaced as they don't need to go through the asset loading pipeline again. So, instead of replacing the texture assets directly, instead every GameObject with a sprite renderer in a rhythm game with custom textures is given a new component, "CustomSpriteSwapper", that checks every frame if the sprite renderer has updated sprites and, when it does, replaces the sprite with a custom one if a custom one exists. 
+
+This is similar to the approach the game itself uses for swapping sprites such as in rhythm games like "Molecano" and "Flow Worms", plus it also enables it to work in any rhythm game without any respect to the rhythm game itself.
+### Scene Mods
+The scene mod implementation is comparatively much simpler than the custom texture system. Whenever a mixtape is played and rhythm games are loading, when a rhythm game finishes loading the corresponding JSON file included in the .bop archive is iterated through, searching for GameObjects and components using the syntax given previously. If the GameObject and component can be found the component is updated with the custom values included in the JSON, and otherwise a warning message is printed to the console informing the mixtape author of the missing GameObject or component. 
+
+The process requires implementing assignment for every individual Unity component which is less than ideal, but there's not much way around it without modifying the source scene files directly in a manner not at all supported by the Unity runtime.    
+
+## Todo
+- Implement custom texture functionality for .riq files.
+  - Currently .riq files are loaded in a completely different manner from that used for .bop files. As such, the process is more complicated than just copy-pasting the same function into the .riq loading routine.
+- Implement different custom textures for different GameObjects that use the same base custom textures.
+- Implement mixtape events that apply scene mods/custom textures during mixtape.
+  - Would allow rhythm games to change over the course of a mixtape, and possibly elaborate animations for mixtape authors willing to implement them.
+- Implement custom AssetBundle loading.
+  - Would allow custom animations (?), more precise sprite attributes, and otherwise better image compression for custom textures.
+- Implement metadata files to define custom sprite attributes.
+  - Short of custom AssetBundle loading, would allow mixtape files to control sprite attributes like size and position without the current bodge-y method of increasing the base sprite canvas on all sides.
+- Implement more supported components for scene mods.
+  - While every component being fully modifiable would be nice, implementing this would take lots of effort programming and testing. As such, component support will likely be added as the community sees need for it.  
