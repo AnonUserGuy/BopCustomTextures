@@ -182,9 +182,9 @@ In Unity, texture assets can only be directly replaced by hooking into the asset
 
 This is similar to the approach the game itself uses for swapping sprites such as in rhythm games like "Molecano" and "Flow Worms", plus it also enables it to work in any rhythm game without any respect to the rhythm game itself.
 ### Scene Mods
-The scene mod implementation is comparatively much simpler than the custom texture system. Whenever a mixtape is played and rhythm games are loading, when a rhythm game finishes loading the corresponding JSON file included in the .bop archive is iterated through, searching for GameObjects and components using the syntax given previously. If the GameObject and component can be found the component is updated with the custom values included in the JSON, and otherwise a warning message is printed to the console informing the mixtape author of the missing GameObject or component. 
+The scene mod implementation is comparatively much simpler than the custom texture system. During rhythm game loading for a custom mixtape, when a rhythm game finishes loading the corresponding JSON file included in the .bop archive is iterated through, searching for GameObjects and components using the syntax given previously. If the GameObject and component can be found the component is updated with the custom values included in the JSON, and otherwise a warning message is printed to the console informing the mixtape author of the missing GameObject or component. 
 
-The process requires implementing assignment for every individual Unity component which is less than ideal, but there's not much way around it without modifying the source scene files directly in a manner not at all supported by the Unity runtime.    
+The process requires implementing assignment methods for every individual Unity component which is less than ideal, but there's not much way around it without completely circumventing normal scene management in the Unity runtime.    
 
 ## Todo
 - Implement custom texture functionality for .riq files.
@@ -197,4 +197,4 @@ The process requires implementing assignment for every individual Unity componen
 - Implement metadata files to define custom sprite attributes.
   - Short of custom AssetBundle loading, would allow mixtape files to control sprite attributes like size and position without the current bodge-y method of increasing the base sprite canvas on all sides.
 - Implement more supported components for scene mods.
-  - While every component being fully modifiable would be nice, implementing this would take lots of effort programming and testing. As such, component support will likely be added as the community sees need for it.  
+  - While every component being fully modifiable would be nice, implementing this would take lots of effort programming and testing. As such, component support will likely be added as the community sees need for it. (That is to say, if you want to do something with scene mods that isn't currently possible, don't be afraid to make a request for it!)
