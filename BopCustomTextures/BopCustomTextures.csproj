@@ -39,7 +39,7 @@
 		<Compile Include="src\**\*.cs" />
 	</ItemGroup>
 
-	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-	  <Exec Command="call postbuild.bat $(TargetPath)" />
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$(PostBuildCopyDestination) != ''">
+	  <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PostBuildCopyDestination)" />
 	</Target>
 </Project>

@@ -23,8 +23,8 @@ public class CustomTextureManager(ILogger logger) : BaseCustomManager(logger)
     public readonly Dictionary<Texture2D, Dictionary<string, Sprite>> SpriteMaps = [];
     public readonly HashSet<Sprite> CustomSprites = [];
     public readonly Dictionary<Texture2D, (SceneKey, int)> TextureMaps = [];
-    public static readonly Regex PathRegex = new Regex(@"\\text?u?r?e?s?$", RegexOptions.IgnoreCase);
-    public static readonly Regex FileRegex = new Regex(@"^text?u?r?e?s?\\(\w+)\\.*?([^\\]*\.(?:png|j(?:pe?g|pe|f?if|fi)))$", RegexOptions.IgnoreCase);
+    public static readonly Regex PathRegex = new Regex(@"[\\/]text?u?r?e?s?$", RegexOptions.IgnoreCase);
+    public static readonly Regex FileRegex = new Regex(@"^text?u?r?e?s?[\\/](\w+)[\\/].*?([^\\/]*\.(?:png|j(?:pe?g|pe|f?if|fi)))$", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegexAtlas = new Regex(@"^sactx-(\d+)", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegexSeperate = new Regex(@"^(\w+)");
     public static readonly Regex SceneAndSpriteAtlasIndexRegex = new Regex(@"^sactx-(\d+)-\d+x\d+-DXT5\|BC3-_(\w+)Atlas");

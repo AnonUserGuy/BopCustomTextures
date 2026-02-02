@@ -16,7 +16,7 @@ public class CustomSceneManager(ILogger logger) : BaseCustomManager(logger)
 {
     public CustomJsonInitializer jsonInitializer = new CustomJsonInitializer(logger);
     public readonly Dictionary<SceneKey, JObject> CustomScenes = [];
-    public static readonly Regex PathRegex = new Regex(@"\\(?:level|scene)s?$", RegexOptions.IgnoreCase);
+    public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegex = new Regex(@"(\w+).json$", RegexOptions.IgnoreCase);
 
     public static bool IsCustomSceneDirectory(string path)

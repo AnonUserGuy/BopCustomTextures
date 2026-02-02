@@ -175,6 +175,14 @@ After running Bits & Bops with the latest version of this plugin installed, a co
        - Set build mode to "release".
        - Build project.
 4. Copy ``BopCustomTextures/BopCustomTextures/bin/Release/net472/BopCustomTextures.dll`` into ``<Bits & Bops Installation>/BepinEx/plugins/``.
+    - You can setup `BopCustomTextures.csproj.user` file next to `BopCustomTextures.csproj` with the `PostBuildCopyDestination` path set to automatically copy the new DLL after build:
+      ```xml
+      <Project>
+        <PropertyGroup>
+          <PostBuildCopyDestination>&lt;Bits &amp; Bops Installation&gt;/BepInEx/plugins</PostBuildCopyDestination>
+        </PropertyGroup>
+      </Project>
+      ```
 
 ## Implementation
 ### Custom Textures
