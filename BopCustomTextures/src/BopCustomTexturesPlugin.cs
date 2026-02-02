@@ -112,12 +112,39 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(MixtapeEditorScript), "ResetAll")]
-    private static class MixtapeEditorScriptResetAllPatch
+    [HarmonyPatch(typeof(MixtapeEditorScript), "ResetAllAndReformat")]
+    private static class MixtapeEditorScriptResetAllAndReformatPatch
     {
         static void Postfix()
         {
             Manager.ResetAll();
+        }
+    }
+    [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]
+    private static class MixtapeLoaderCustomAwakePatch
+    {
+        static void Prefix()
+        {
+            if (!IsProbablyCustom())
+            {
+                Manager.ResetAll();
+            }
+        }
+    }
+    [HarmonyPatch(typeof(RiqLoader), "Load")]
+    private static class RiqLoaderLoadPatch
+    {
+        static void Prefix(string path)
+        {
+            Manager.ResetIfNecessary(path);
+        }
+    }
+    [HarmonyPatch(typeof(MixtapeEditorScript), "Open", [typeof(string)] )]
+    private static class MixtapeEditorScriptOpenPatch
+    {
+        static void Prefix(string path)
+        {
+            Manager.ResetIfNecessary(path);
         }
     }
 
@@ -150,5 +177,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     public static string GetTempPath()
     {
         return Path.Combine(Path.GetTempPath(), "BepInEx", MyPluginInfo.PLUGIN_GUID, $"{Process.GetCurrentProcess().Id}");
+    }
+    public static bool IsProbablyCustom()
+    {
+        SceneKey activeSceneKey = TempoSceneManager.GetActiveSceneKey();
+        return activeSceneKey == SceneKey.MixtapeEditor || activeSceneKey == SceneKey.MixtapeCustom;
     }
 }

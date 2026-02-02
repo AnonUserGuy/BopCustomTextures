@@ -93,7 +93,6 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
 
     public static bool ShouldBackupDirectory()
     {
-        Scene scene = SceneManager.GetSceneByName("MixtapeEditor");
-        return scene.IsValid() && scene.isLoaded;
+        return TempoSceneManager.GetActiveSceneKey() == SceneKey.MixtapeEditor;
     }
 }

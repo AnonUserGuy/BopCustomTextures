@@ -1,4 +1,5 @@
 ﻿using BopCustomTextures.Logging;
+using System;
 using System.IO;
 
 namespace BopCustomTextures.Customs;
@@ -10,12 +11,19 @@ namespace BopCustomTextures.Customs;
 /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded</param>
 public class CustomManager(ILogger logger, string tempPath) : BaseCustomManager(logger)
 {
+    public DateTime lastModified;
+    public string lastPath;
+    public bool readNecessary = true;
     public CustomSceneManager sceneManager = new CustomSceneManager(logger);
     public CustomTextureManager textureManager = new CustomTextureManager(logger);
     public CustomFileManager fileManager = new CustomFileManager(logger, tempPath);
 
     public void ReadDirectory(string path, bool backup)
     {
+        if (!readNecessary)
+        {
+            return;
+        }
         int filesLoaded = 0;
         var subpaths = Directory.EnumerateDirectories(path);
         foreach (var subpath in subpaths)
@@ -56,6 +64,25 @@ public class CustomManager(ILogger logger, string tempPath) : BaseCustomManager(
         sceneManager.UnloadCustomScenes();
         textureManager.UnloadCustomTextures();
         fileManager.DeleteTempDirectory();
+        lastPath = null;
+        lastModified = default;
+        readNecessary = true;
+    }
+
+    public void ResetIfNecessary(string path)
+    {
+        var modified = File.GetLastWriteTime(path);
+        if (lastPath != path || lastModified != modified)
+        {
+            ResetAll();
+        }
+        else
+        {
+            logger.LogInfo("Avoided customs reload for reopened mixtape");
+            readNecessary = false;
+        }
+        lastPath = path;
+        lastModified = modified;
     }
 
     public void DeleteTempDirectory()
