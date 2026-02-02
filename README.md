@@ -42,6 +42,24 @@ root:
 - song.bin
 ```
 
+The resulting mixtape will also need to include a ``BopCustomTextures.json`` file, which contains the version of BopCustomTextures this mixtape was made for. This file should be added automatically if you save a mixtape with custom assets, but if you would prefer to make it manually, make it at the root of the mixtape archive.
+```
+root:
+- levels\
+- textures\
+- BopCustomTextures.json
+- mixtape.json
+- song.bin
+```
+
+Then include `version` and `release` properties as such.
+```js
+{
+  "version": "0.1.0", // lowest version of BopCustomTextures needed to play this mixtape
+  "release": 1 // lowest release number of BopCustomTextures needed to play this mixtape
+}
+```
+
 ### Adding Custom Textures
 With the ``textures`` folder created, you're about ready to start adding custom textures to your mixtape. But first, you'll need to create a subfolder in ``textures`` corresponding to the game the textures are for. To target a game, you'll need to name the subfolder the internal name of the game. If you aren't sure what this is for the game you're targeting, this will always just be whatever name the game is listed as in the Mixtape Editor without any punctuation or spaces. For example, a non-mixtape game like "Rock, Paper, Showdown!" will become ``RockPaperShowdown``, while a mixtape game like "Flow Worms (Sky)" will become ``FlowWormsSky``.
 
@@ -64,7 +82,7 @@ If you directly extract an atlas texture from Bits & Bops's game files, you'll r
 
 #### Separate Textures
 If, instead of replacing an entire atlas texture, you just want to replace one individual sprite, (or you are heeding my suggestion at the end of the previous section,) you can instead supply individual textures. Individual textures correspond to the individual sprites contained within a sprite atlas. If you give an image file the same name as a sprite's name and place it in the appropriate game folder, it will be used as a separate texture and replace the texture of a single sprite. 
- - IF you're downloading textures from [the Spriters Resource](https://www.spriters-resource.com/pc_computer/bitsbops/), sprites are already given in this format.
+ - If you're downloading textures from [the Spriters Resource](https://www.spriters-resource.com/pc_computer/bitsbops/), sprites are already given in this format.
  - If you can't find a desired sprite there, I found [UnityPy](https://pypi.org/project/UnityPy/1.5.1/) to be the easiest way to extract them manually.
 
 #### Using Textures with Different Dimensions from Base Texture
@@ -163,7 +181,7 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 
 ### Steps
 1. Clone this repository using ``git clone https://github.com/AnonUserGuy/BopCustomTextures.git``.
-2. Copy ``<Bits & Bops installation>/Bits & Bops_Data/Managed/Assembly-CSharp.dll`` into ``BopCustomTextures/lib/``.
+2. From ``<Bits & Bops installation>/Bits & Bops_Data/Managed/``, copy ``Assembly-CSharp.dll`` and ``Unity.TextMeshPro.dll`` into ``BopCustomTextures/lib/``.
 3. Build
     - Using CLI:
       ```bash
@@ -175,14 +193,16 @@ After running Bits & Bops with the latest version of this plugin installed, a co
        - Set build mode to "release".
        - Build project.
 4. Copy ``BopCustomTextures/BopCustomTextures/bin/Release/net472/BopCustomTextures.dll`` into ``<Bits & Bops Installation>/BepinEx/plugins/``.
-    - You can setup `BopCustomTextures.csproj.user` file next to `BopCustomTextures.csproj` with the `PostBuildCopyDestination` path set to automatically copy the new DLL after build:
-      ```xml
-      <Project>
-        <PropertyGroup>
-          <PostBuildCopyDestination>&lt;Bits &amp; Bops Installation&gt;/BepInEx/plugins</PostBuildCopyDestination>
-        </PropertyGroup>
-      </Project>
-      ```
+
+### Configuration (Optional)
+You can setup `BopCustomTextures.csproj.user` file next to `BopCustomTextures.csproj` with the `PostBuildCopyDestination` path set to automatically copy the new DLL after build:
+```xml
+<Project>
+  <PropertyGroup>
+    <PostBuildCopyDestination>&lt;Bits &amp; Bops Installation&gt;/BepInEx/plugins</PostBuildCopyDestination>
+  </PropertyGroup>
+</Project>
+```
 
 ## Implementation
 ### Custom Textures
