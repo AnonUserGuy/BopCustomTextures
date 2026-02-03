@@ -4,7 +4,7 @@
 		<TargetFramework>net472</TargetFramework>
 		<AssemblyName>BopCustomTextures</AssemblyName>
 		<Product>CustomTex</Product>
-		<Version>0.1.1</Version>
+		<Version>0.1.2</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
