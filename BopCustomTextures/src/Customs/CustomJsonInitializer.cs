@@ -1,9 +1,9 @@
 ﻿using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
-using Color = UnityEngine.Color;
 using ILogger = BopCustomTextures.Logging.ILogger;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace BopCustomTextures.Customs;
 
@@ -13,6 +13,9 @@ namespace BopCustomTextures.Customs;
 /// <param name="logger">Plugin-specific logger</param>
 public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
 {
+    private readonly Dictionary<string, Material> materials = [];
+    private readonly Dictionary<string, Material> shaderMaterials = [];
+
     public void InitCustomGameObject(JObject jobj, GameObject obj)
     {
         foreach (KeyValuePair<string, JToken> dict in jobj)
@@ -21,7 +24,7 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
             {
                 if (dict.Value.Type != JTokenType.Object)
                 {
-                    logger.LogWarning($"JSON Componnent \"{dict.Key}\" is a {dict.Value.Type} when it should be a JObject");
+                    logger.LogWarning($"JSON Componnent \"{dict.Key}\" is a {dict.Value.Type} when it should be a Object");
                     return;
                 }
                 InitCustomComponent((JObject)dict.Value, dict.Key.Substring(1), obj);
@@ -71,172 +74,183 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
     public void InitCustomTransform(JObject jtransform, GameObject obj)
     {
         var transform = obj.transform;
-        transform.localPosition = InitCustomVector3(jtransform, "LocalPosition", transform.localPosition);
-        transform.localRotation = InitCustomQuaternion(jtransform, "LocalRotation", transform.localRotation);
-        transform.localScale = InitCustomVector3(jtransform, "LocalScale", transform.localScale);
+        JObject jobj;
+        if (TryGetJObject(jtransform, "LocalPosition", out jobj)) transform.localPosition = InitCustomVector3(jobj, transform.localPosition);
+        if (TryGetJObject(jtransform, "LocalRotation", out jobj)) transform.localRotation = InitCustomQuaternion(jobj, transform.localRotation);
+        if (TryGetJObject(jtransform, "LocalScale", out jobj)) transform.localScale = InitCustomVector3(jobj, transform.localScale);
     }
     public void InitCustomSpriteRenderer(JObject jspriteRenderer, GameObject obj)
     {
         var spriteRenderer = obj.GetComponent<SpriteRenderer>();
-        if (spriteRenderer == null)
+        if (!spriteRenderer)
         {
             logger.LogWarning($"GameObject \"{obj.name}\" does not have a spriteRenderer");
             return;
         }
-        spriteRenderer.color = InitCustomColor(jspriteRenderer, "Color", spriteRenderer.color);
-        spriteRenderer.size = InitCustomVector2(jspriteRenderer, "Size", spriteRenderer.size);
-        spriteRenderer.flipX = InitCustomBool(jspriteRenderer, "FlipX", spriteRenderer.flipX);
-        spriteRenderer.flipY = InitCustomBool(jspriteRenderer, "FlipY", spriteRenderer.flipY);
+        JObject jobj;
+        if (TryGetJObject(jspriteRenderer, "Color", out jobj)) spriteRenderer.color = InitCustomColor(jobj, spriteRenderer.color);
+        if (TryGetJObject(jspriteRenderer, "Size", out jobj)) spriteRenderer.size = InitCustomVector2(jobj, spriteRenderer.size);
+        JValue jval;
+        if (TryGetJValue(jspriteRenderer, "FlipX", JTokenType.Boolean, out jval)) spriteRenderer.flipX = (bool)jval;
+        if (TryGetJValue(jspriteRenderer, "FlipY", JTokenType.Boolean, out jval)) spriteRenderer.flipY = (bool)jval;
+        Material mat;
+        if (TryGetJMaterial(jspriteRenderer, "Material", out mat) || 
+            TryGetJShader(jspriteRenderer, "Shader", out mat)) 
+            spriteRenderer.material = mat;
     }
 
     // BITS & BOPS SCRIPTS //
     public void InitCustomParallaxObjectScript(JObject jparallaxObjectScript, GameObject obj)
     {
         var parallaxObjectScript = obj.GetComponent<ParallaxObjectScript>();
-        if (parallaxObjectScript == null)
+        if (!parallaxObjectScript)
         {
             logger.LogWarning($"GameObject \"{obj.name}\" does not have a parallaxObjectScript");
             return;
         }
-        parallaxObjectScript.parallaxScale = InitCustomFloat(jparallaxObjectScript, "ParallaxScale", parallaxObjectScript.parallaxScale);
-        parallaxObjectScript.loopDistance = InitCustomFloat(jparallaxObjectScript, "LoopDistance", parallaxObjectScript.loopDistance);
+        JValue jval;
+        if (TryGetJValue(jparallaxObjectScript, "ParallaxScale", JTokenType.Float, out jval)) parallaxObjectScript.parallaxScale = (float)jval;
+        if (TryGetJValue(jparallaxObjectScript, "LoopDistance", JTokenType.Float, out jval)) parallaxObjectScript.loopDistance = (float)jval;
     }
 
     // STRUCTS //
-    public Vector2 InitCustomVector2(JObject jobj, string key, Vector2 vector2)
+    public Vector2 InitCustomVector2(JObject jvector2, Vector2 vector2)
     {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JObject))
-            {
-                JObject jvector2 = (JObject)jobj[key];
-                vector2.x = InitCustomFloat(jvector2, "x", vector2.x);
-                vector2.y = InitCustomFloat(jvector2, "y", vector2.y);
-            }
-            else
-            {
-                logger.LogWarning($"JSON Vector2 \"{key}\" is a {jobj[key].GetType()} when it should be a JObject");
-            }
-        }
+        JValue jval;
+        if (TryGetJValue(jvector2, "x", JTokenType.Float, out jval)) vector2.x = (float)jval;
+        if (TryGetJValue(jvector2, "y", JTokenType.Float, out jval)) vector2.y = (float)jval;
         return vector2;
     }
-    public Vector3 InitCustomVector3(JObject jobj, string key, Vector3 vector3)
+    public Vector3 InitCustomVector3(JObject jvector3, Vector3 vector3)
     {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JObject))
-            {
-                JObject jvector3 = (JObject)jobj[key];
-                vector3.x = InitCustomFloat(jvector3, "x", vector3.x);
-                vector3.y = InitCustomFloat(jvector3, "y", vector3.y);
-                vector3.z = InitCustomFloat(jvector3, "z", vector3.z);
-            }
-            else
-            {
-                logger.LogWarning($"JSON Vector3 \"{key}\" is a {jobj[key].GetType()} when it should be a JObject");
-            }
-        }
+        JValue jval;
+        if (TryGetJValue(jvector3, "x", JTokenType.Float, out jval)) vector3.x = (float)jval;
+        if (TryGetJValue(jvector3, "y", JTokenType.Float, out jval)) vector3.y = (float)jval;
+        if (TryGetJValue(jvector3, "z", JTokenType.Float, out jval)) vector3.z = (float)jval;
         return vector3;
     }
 
-    public Quaternion InitCustomQuaternion(JObject jobj, string key, Quaternion quaternion)
+    public Quaternion InitCustomQuaternion(JObject jquaternion, Quaternion quaternion)
     {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JObject))
-            {
-                JObject jvector3 = (JObject)jobj[key];
-                quaternion.x = InitCustomFloat(jvector3, "x", quaternion.x);
-                quaternion.y = InitCustomFloat(jvector3, "y", quaternion.y);
-                quaternion.z = InitCustomFloat(jvector3, "z", quaternion.z);
-                quaternion.w = InitCustomFloat(jvector3, "w", quaternion.w);
-            }
-            else
-            {
-                logger.LogWarning($"JSON Quaternion \"{key}\" is a {jobj[key].GetType()} when it should be a JObject");
-            }
-        }
+        JValue jval;
+        if (TryGetJValue(jquaternion, "x", JTokenType.Float, out jval)) quaternion.x = (float)jval;
+        if (TryGetJValue(jquaternion, "y", JTokenType.Float, out jval)) quaternion.y = (float)jval;
+        if (TryGetJValue(jquaternion, "z", JTokenType.Float, out jval)) quaternion.z = (float)jval;
+        if (TryGetJValue(jquaternion, "w", JTokenType.Float, out jval)) quaternion.w = (float)jval;
         return quaternion;
     }
 
-    public Color InitCustomColor(JObject jobj, string key, Color color)
+    public Color InitCustomColor(JObject jcolor, Color color)
     {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JObject))
-            {
-                JObject jcolor = (JObject)jobj[key];
-                color.r = InitCustomFloat(jcolor, "r", color.r);
-                color.g = InitCustomFloat(jcolor, "g", color.g);
-                color.b = InitCustomFloat(jcolor, "b", color.b);
-                color.a = InitCustomFloat(jcolor, "a", color.a);
-            }
-            else
-            {
-                logger.LogWarning($"JSON Color \"{key}\" is a {jobj[key].GetType()} when it should be a JObject");
-            }
-        }
+        JValue jval;
+        if (TryGetJValue(jcolor, "r", JTokenType.Float, out jval)) color.r = (float)jval;
+        if (TryGetJValue(jcolor, "g", JTokenType.Float, out jval)) color.g = (float)jval;
+        if (TryGetJValue(jcolor, "b", JTokenType.Float, out jval)) color.b = (float)jval;
+        if (TryGetJValue(jcolor, "a", JTokenType.Float, out jval)) color.a = (float)jval;
         return color;
-    }
-
-    // PRIMITIVES // 
-    public float InitCustomFloat(JObject jobj, string key, float num)
-    {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JValue))
-            {
-                JValue jval = (JValue)jobj[key];
-                if (jval.Type == JTokenType.Float)
-                {
-                    return (float)jval;
-                }
-                else
-                {
-                    logger.LogWarning($"JSON float \"{key}\" is a {jval.Type} when it should be a float");
-                }
-            }
-            else
-            {
-                logger.LogWarning($"JSON float \"{key}\" is a {jobj[key].GetType()} when it should be a float");
-            }
-        }
-        return num;
-    }
-
-    public bool InitCustomBool(JObject jobj, string key, bool val)
-    {
-        if (jobj.ContainsKey(key))
-        {
-            if (jobj[key].GetType() == typeof(JValue))
-            {
-                JValue jval = (JValue)jobj[key];
-                if (jval.Type == JTokenType.Boolean)
-                {
-                    return (bool)jval;
-                }
-                else
-                {
-                    logger.LogWarning($"JSON float \"{key}\" is a {jval.Type} when it should be a boolean");
-                }
-            }
-            else
-            {
-                logger.LogWarning($"JSON float \"{key}\" is a {jobj[key].GetType()} when it should be a boolean");
-            }
-        }
-        return val;
     }
 
 
     // UTILITY // 
+    public bool TryGetJToken<T>(JObject jobj, string key, JTokenType type, out T jtoken) where T: JToken
+    {
+        if (!jobj.TryGetValue(key, out var jtoken2))
+        {
+            jtoken = null;
+            return false;
+        }
+        if (jtoken2.Type != type)
+        {
+            logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a {type}");
+            jtoken = null;
+            return false;
+        }
+        jtoken = (T)jtoken2;
+        return true;
+    }
+    public bool TryGetJValue(JObject jobj, string key, JTokenType type, out JValue jvalue)
+    {
+        return TryGetJToken(jobj, key, type, out jvalue);
+    }
+    public bool TryGetJObject(JObject jobj, string key, out JObject jvalue)
+    {
+        return TryGetJToken(jobj, key, JTokenType.Object, out jvalue);
+    }
+    public bool TryGetJMaterial(JObject jobj, string key, out Material mat)
+    {
+        if (!TryGetJValue(jobj, key, JTokenType.String, out var jmatName))
+        {
+            mat = null;
+            return false;
+        }
+        string matName = (string)jmatName;
+        if (!materials.ContainsKey(matName))
+        {
+            Material found = Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(s => s.name == matName);
+            if (!found)
+            {
+                found = Resources.Load<Material>($"Materials/{matName}");
+            }
+            if (!found)
+            {
+                logger.LogWarning($"JSON material \"{matName}\" could not be found");
+                materials[matName] = null;
+            }
+            else
+            {
+                materials[matName] = found;
+            }
+        }
+
+        mat = materials[matName];
+        if (!mat)
+        {
+            return false;
+        }
+        return true;
+        
+    }
+    public bool TryGetJShader(JObject jobj, string key, out Material mat)
+    {
+        if (!TryGetJValue(jobj, key, JTokenType.String, out var jshaderName))
+        {
+            mat = null;
+            return false;
+        }
+        string shaderName = (string)jshaderName;
+        if (!shaderMaterials.ContainsKey(shaderName))
+        {
+            Shader found = Resources.FindObjectsOfTypeAll<Shader>().FirstOrDefault(s => s.name == shaderName);
+            if (!found)
+            {
+                found = Resources.Load<Shader>($"Shaders/{shaderName}");
+            }
+            if (!found)
+            {
+                logger.LogWarning($"JSON shader \"{shaderName}\" could not be found");
+                shaderMaterials[shaderName] = null;
+            }
+            else
+            {
+                shaderMaterials[shaderName] = new Material(found);
+            }
+        }
+
+        mat = shaderMaterials[shaderName];
+        if (!mat)
+        {
+            return false;
+        }
+        return true;
+        
+    }
+
 
     public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject obj, string path)
     {
         string[] names = Regex.Split(path, @"[\\/]");
         return FindGameObjectsInChildren(obj, names);
     }
-
     public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject rootObj, string[] names, int i = 0)
     {
         for (var j = 0; j < rootObj.transform.childCount; j++)
@@ -258,6 +272,7 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
             }
         }
     }
+
 
     private static string WildCardToRegex(string value)
     {

@@ -128,8 +128,8 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
 
     public void InitScene(MixtapeLoaderCustom __instance, SceneKey sceneKey)
     {
-        sceneManager.InitCustomScene(__instance, sceneKey);
         textureManager.InitCustomTextures(__instance, sceneKey);
+        sceneManager.InitCustomScene(__instance, sceneKey);
     }
 
     public void InitScenes(MixtapeLoaderCustom __instance)
