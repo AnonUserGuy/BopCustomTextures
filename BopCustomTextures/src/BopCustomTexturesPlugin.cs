@@ -1,5 +1,6 @@
 ﻿using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
+using BopCustomTextures.EventTemplates;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Configuration;
@@ -9,6 +10,7 @@ using System;
 using System.IO;
 using System.Diagnostics;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace BopCustomTextures;
 
@@ -79,15 +81,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             logSeperateTextureSprites.Value,
             logAtlasTextureSprites.Value
         );
-        Manager = new CustomManager(customlogger, 
-            MyPluginInfo.PLUGIN_GUID, 
-            MyPluginInfo.PLUGIN_VERSION, 
-            LowestRelease, 
-            LowestVersion, 
-            GetTempPath()
-        );
 
         Harmony.PatchAll();
+        MixtapeEventTemplates.entities[MyPluginInfo.PLUGIN_GUID] = new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.templates);
+
+        Manager = new CustomManager(customlogger, GetTempPath(), BopCustomTexturesEventTemplates.sceneModTemplate);
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -163,16 +161,27 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Start")]
     private static class MixtapeLoaderCustomStartPatch
     {
+        public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, int> totalRef =
+            AccessTools.FieldRefAccess<MixtapeLoaderCustom, int>("total");
         static void Prefix(MixtapeLoaderCustom __instance, out MixtapeLoaderCustom __state)
         {
             __state = __instance;
         }
         static IEnumerator Postfix(IEnumerator __result, MixtapeLoaderCustom __state)
         {
-            while (__result.MoveNext())
-                yield return __result.Current;
+            bool hasInited = false;
+            totalRef(__state) = 0;
 
-            Manager.InitScenes(__state);
+            while (__result.MoveNext())
+            {
+                if (totalRef(__state) > 0 && !hasInited)
+                {
+                    // after BeginInternal for all games, before jukebox is ready
+                    Manager.Prepare(__state);
+                    hasInited = true;
+                }
+                yield return __result.Current;
+            } 
         }
     }
 

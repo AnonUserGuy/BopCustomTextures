@@ -10,18 +10,9 @@ namespace BopCustomTextures.Customs;
 /// Manages all custom assets using specific manager classes.
 /// </summary>
 /// <param name="logger">Plugin-specific logger</param>
-/// <param name="pluginGUID">GUID of plugin. plugin-specific data in mixtape files will be saved at "{pluginGUID}.json"</param>
-/// <param name="pluginVersion">Current version of plugin. Only used in logging</param>
-/// <param name="lowestRelease">Lowest release number saved mixtapes with customs will support</param>
-/// <param name="lowestVersion">Lowest version string saved mixtapes with customs will support</param>
 /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded</param>
-public class CustomManager(ILogger logger, string pluginGUID, string pluginVersion, uint lowestRelease, string lowestVersion, string tempPath) : BaseCustomManager(logger)
+public class CustomManager(ILogger logger, string tempPath, MixtapeEventTemplate sceneModTemplate) : BaseCustomManager(logger)
 {
-    public readonly string pluginGUID = pluginGUID;
-    public readonly string latestVersion = pluginVersion;
-    public readonly uint lowestRelease = lowestRelease;
-    public readonly string lowestVersion = lowestVersion;
-
     public string version;
     public uint release;
     public bool hasCustomAssets = false;
@@ -30,7 +21,7 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
     public DateTime lastModified;
     public bool readNecessary = true;
 
-    public CustomSceneManager sceneManager = new CustomSceneManager(logger);
+    public CustomSceneManager sceneManager = new CustomSceneManager(logger, sceneModTemplate);
     public CustomTextureManager textureManager = new CustomTextureManager(logger);
     public CustomFileManager fileManager = new CustomFileManager(logger, tempPath);
 
@@ -42,9 +33,9 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
         }
 
         hasCustomAssets = GetMixtapeVersion(path);
-        if (release > lowestRelease)
+        if (release > BopCustomTexturesPlugin.LowestRelease)
         {
-            logger.LogEditorError($"Mixtape requires {pluginGUID} v{version}+, but you are on v{latestVersion}. You may have to update {pluginGUID} to play properly.");
+            logger.LogEditorError($"Mixtape requires {MyPluginInfo.PLUGIN_GUID} v{version}+, but you are on v{MyPluginInfo.PLUGIN_VERSION}. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly.");
         }
 
         int filesLoaded = 0;
@@ -82,6 +73,7 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
         {
             logger.LogInfo("No custom assets found");
         }
+        sceneManager.UpdateEventTemplates();
     }
 
     public void WriteDirectory(string path)
@@ -132,21 +124,40 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
         sceneManager.InitCustomScene(__instance, sceneKey);
     }
 
-    public void InitScenes(MixtapeLoaderCustom __instance)
+    public void Prepare(MixtapeLoaderCustom __instance)
     {
         foreach (var dict in rootObjectsRef(__instance))
         {
             InitScene(__instance, dict.Key);
         }
+        PrepareEvents(__instance, entitiesRef(__instance));
+    }
+
+    public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
+    {
+        foreach (Entity entity in entities)
+        {
+            if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
+            {
+                var sceneStr = entity.GetString("scene");
+                var scene = ToSceneKeyOrInvalid(sceneStr);
+                if (scene == SceneKey.Invalid)
+                {
+                    logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                    return;
+                }
+                sceneManager.ScheduleCustomScene(entity.beat, __instance, scene, entity.GetString("key"));
+            }
+        }
     }
 
     public bool GetMixtapeVersion(string path)
     {
-        string filePath = Path.Combine(path, $"{pluginGUID}.json");
+        string filePath = Path.Combine(path, $"{MyPluginInfo.PLUGIN_GUID}.json");
         if (!File.Exists(filePath))
         {
-            version = lowestVersion;
-            release = lowestRelease;
+            version = BopCustomTexturesPlugin.LowestVersion;
+            release = BopCustomTexturesPlugin.LowestRelease;
             return false;
         }
 
@@ -167,13 +178,13 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
                 else
                 {
                     logger.LogWarning($"Release is a {jrelease.Type} when it should be an int, will treat as latest.");
-                    release = lowestRelease;
+                    release = BopCustomTexturesPlugin.LowestRelease;
                 }
             } 
             else
             {
                 logger.LogWarning("Version data missing release, will treat as latest.");
-                release = lowestRelease;
+                release = BopCustomTexturesPlugin.LowestRelease;
             }
             if (jobj.TryGetValue("version", out var jversion))
             {
@@ -184,21 +195,21 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
                 else
                 {
                     logger.LogWarning($"Version is a {jversion.Type} when it should be an int, will treat as latest.");
-                    version = lowestVersion;
+                    version = BopCustomTexturesPlugin.LowestVersion;
                 }
             }
             else
             {
                 logger.LogWarning("Version data missing version, will treat as latest.");
-                version = lowestVersion;
+                version = BopCustomTexturesPlugin.LowestVersion;
             }
 
         }
         catch (JsonReaderException e)
         {
             logger.LogError($"Error reading verison data, will treat as latest: {e}");
-            version = lowestVersion;
-            release = lowestRelease;
+            version = BopCustomTexturesPlugin.LowestVersion;
+            release = BopCustomTexturesPlugin.LowestRelease;
         }
         
         return true;
@@ -212,7 +223,7 @@ public class CustomManager(ILogger logger, string pluginGUID, string pluginVersi
 
         try
         {
-            using (StreamWriter outputFile = new StreamWriter(Path.Combine(path, $"{pluginGUID}.json")))
+            using (StreamWriter outputFile = new StreamWriter(Path.Combine(path, $"{MyPluginInfo.PLUGIN_GUID}.json")))
             {
                 outputFile.Write(JsonConvert.SerializeObject(jobj));
             }

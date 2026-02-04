@@ -1,10 +1,10 @@
-using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using System.Linq;
 
 namespace BopCustomTextures.Customs;
 
@@ -12,8 +12,9 @@ namespace BopCustomTextures.Customs;
 /// Manages scene mods, including loading them from the source file and applying them when the mixtape is played.
 /// </summary>
 /// <param name="logger">Plugin-specific logger</param>
-public class CustomSceneManager(ILogger logger) : BaseCustomManager(logger)
+public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTemplate) : BaseCustomManager(logger)
 {
+    public MixtapeEventTemplate sceneModTemplate = sceneModTemplate;
     public CustomJsonInitializer jsonInitializer = new CustomJsonInitializer(logger);
     public readonly Dictionary<SceneKey, Dictionary<string, JObject>> CustomScenes = [];
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase);
@@ -82,42 +83,28 @@ public class CustomSceneManager(ILogger logger) : BaseCustomManager(logger)
         } 
         else
         {
-            bool isSimple = false;
-            if (jobj.TryGetValue("init", out var jinit))
+            bool isSimple = true;
+            if (jsonInitializer.TryGetJObject(jobj, "init", out var jinit))
             {
-                isSimple = true;
-                if (jinit.Type == JTokenType.Object)
-                {
-                    CustomScenes[scene][""] = (JObject)jinit;
-                }
-                else
-                {
-                    logger.LogWarning($"\"init\" in {scene} is a {jinit.Type} when it should be an Object.");
-                }
+                isSimple = false;
+                CustomScenes[scene][""] = jinit;
             }
-            if (jobj.TryGetValue("events", out var jevents))
+            if (jsonInitializer.TryGetJObject(jobj, "events", out var jevents))
             {
-                isSimple = true;
-                if (jinit.Type == JTokenType.Object)
+                isSimple = false;
+                foreach (KeyValuePair<string, JToken> dict in jevents)
                 {
-                    foreach (KeyValuePair<string, JToken> dict in (JObject)jevents)
+                    if (dict.Value.Type == JTokenType.Object)
                     {
-                        if (dict.Value.Type == JTokenType.Object)
-                        {
-                            CustomScenes[scene][dict.Key] = (JObject)dict.Value;
-                        }
-                        else
-                        {
-                            logger.LogWarning($"Event \"{dict.Key}\" in {scene} is a {jinit.Type} when it should be an Object.");
-                        }
+                        CustomScenes[scene][dict.Key] = (JObject)dict.Value;
+                    }
+                    else
+                    {
+                        logger.LogWarning($"Event \"{dict.Key}\" in {scene} is a {jinit.Type} when it should be an Object.");
                     }
                 }
-                else
-                {
-                    logger.LogWarning($"\"events\" in {scene} is a {jinit.Type} when it should be an Object.");
-                }
             }
-            if (!isSimple)
+            if (isSimple)
             {
                 CustomScenes[scene][""] = jobj;
             }
@@ -133,16 +120,60 @@ public class CustomSceneManager(ILogger logger) : BaseCustomManager(logger)
         }
     }
 
-    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey sceneKey)
+    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
     {
         if (!CustomScenes.ContainsKey(sceneKey))
         {
             return;
         }
         logger.LogInfo($"Applying custom scene: {sceneKey}");
-        GameObject rootObj = rootObjectsRef(__instance)[sceneKey];
-        JObject jall = CustomScenes[sceneKey][""];
+        if (!rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj))
+        {
+            logger.LogError($"Cannot apply scene mod to missing scene {sceneKey}");
+            return;
+        }
+        if (!CustomScenes[sceneKey].TryGetValue(key, out var jall))
+        {
+            logger.LogError($"{sceneKey} does not have a scene mod of the key \"{key}\"");
+            return;
+        }
 
         jsonInitializer.InitCustomGameObject(jall, rootObj);
+    }
+
+    public void ScheduleCustomScene(double beat, MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
+    {
+        if (!CustomScenes.ContainsKey(sceneKey))
+        {
+            return;
+        }
+        if (!rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj))
+        {
+            logger.LogError($"Cannot apply scene mod to missing scene {sceneKey}");
+            return;
+        }
+        if (!CustomScenes[sceneKey].TryGetValue(key, out var jall))
+        {
+            logger.LogError($"{sceneKey} does not have a scene mod of the key \"{key}\"");
+            return;
+        }
+        __instance.scheduler.Schedule(beat, delegate
+        {
+            jsonInitializer.InitCustomGameObject(jall, rootObj);
+        });
+    }
+
+    public void UpdateEventTemplates()
+    {
+        if (CustomScenes.Count < 1)
+        {
+            sceneModTemplate.properties["scene"] = "";
+        }
+        else
+        {
+            // TODO: "Custom" and "Mixtape" is being added to the end, which wouldn't be very space efficient in the long run
+            sceneModTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
+                CustomScenes.Keys.Select(t => t.ToString()).ToArray());
+        }
     }
 }

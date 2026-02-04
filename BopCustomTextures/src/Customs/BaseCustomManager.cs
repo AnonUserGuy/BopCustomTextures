@@ -20,6 +20,9 @@ public class BaseCustomManager(ILogger logger)
     public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, bool> cancelLoadRef =
         AccessTools.FieldRefAccess<MixtapeLoaderCustom, bool>("cancelLoad");
 
+    public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Entity[]> entitiesRef =
+        AccessTools.FieldRefAccess<MixtapeLoaderCustom, Entity[]>("entities");
+
     protected static SceneKey ToSceneKeyOrInvalid(string name)
     {
         string[] namesAffixed =
