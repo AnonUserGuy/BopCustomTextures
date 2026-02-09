@@ -1,8 +1,8 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.SceneMods;
+using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using System.Text.RegularExpressions;
 using System.Linq;
 
 namespace BopCustomTextures.Customs;
@@ -16,8 +16,12 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
     private readonly Dictionary<string, Material> materials = [];
     private readonly Dictionary<string, Material> shaderMaterials = [];
 
-    public void InitCustomGameObject(JObject jobj, GameObject obj)
+    public MGameObject InitCustomGameObject(JObject jobj, string name = "", bool isVolatile = false)
     {
+        var mobj = new MGameObject(name);
+        var components = new List<MComponent>();
+        var childObjs = new List<MGameObject>();
+        var childObjsVolatile = new List<MGameObject>();
         foreach (KeyValuePair<string, JToken> dict in jobj)
         {
             if (dict.Key.StartsWith("!"))
@@ -28,7 +32,7 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
                         logger.LogWarning($"JSON Active \"{dict.Key}\" is a {dict.Value.Type} when it should be a Boolean");
                         continue;
                     }
-                    obj.SetActive((bool)dict.Value);
+                    mobj.active = (bool)dict.Value;
                 } 
                 else
                 {
@@ -37,7 +41,11 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
                         logger.LogWarning($"JSON Componnent \"{dict.Key}\" is a {dict.Value.Type} when it should be a Object");
                         continue;
                     }
-                    InitCustomComponent((JObject)dict.Value, dict.Key.Substring(1), obj);
+                    var mcomponent = InitCustomComponent((JObject)dict.Value, dict.Key.Substring(1));
+                    if (mcomponent != null)
+                    {
+                        components.Add(mcomponent);
+                    }
                 }
             }
             else
@@ -47,119 +55,124 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
                     logger.LogWarning($"JSON GameObject \"{dict.Key}\" is a {dict.Value.Type} when it should be a Object");
                     continue;
                 }
-                bool matched = false;
-                var jchildObj = (JObject)dict.Value;
-                foreach (var childObj in FindGameObjectsInChildren(obj, dict.Key))
-                {
-                    matched = true;
-                    InitCustomGameObject(jchildObj, childObj);
+
+                string childName = dict.Key;
+                bool isChildVolatile = isVolatile;
+                if (childName.StartsWith("~")) {
+                    isChildVolatile = true;
+                    childName = childName.Substring(1);
                 }
-                if (!matched)
+
+                var mchildObj = InitCustomGameObject((JObject)dict.Value, childName, isChildVolatile);
+                if (isChildVolatile)
                 {
-                    logger.LogWarning($"JSON GameObject \"{dict.Key}\" didn't correspond to any existent GameObjects");
+                    childObjsVolatile.Add(mchildObj);
+                } 
+                else
+                {
+                    childObjs.Add(mchildObj);
                 }
             }
         }
+        mobj.components = components.ToArray();
+        mobj.childObjs = childObjs.ToArray();
+        mobj.childObjsVolatile = childObjsVolatile.ToArray();
+        return mobj;
     }
 
-    public void InitCustomComponent(JObject jcomponent, string name, GameObject obj)
+    public MComponent InitCustomComponent(JObject jcomponent, string name)
     {
         switch (name)
         {
             case "Transform":
-                InitCustomTransform(jcomponent, obj);
-                break;
+                return InitCustomTransform(jcomponent);
             case "SpriteRenderer":
-                InitCustomSpriteRenderer(jcomponent, obj);
-                break;
+                return InitCustomSpriteRenderer(jcomponent);
             case "ParallaxObjectScript":
-                InitCustomParallaxObjectScript(jcomponent, obj);
-                break;
+                return InitCustomParallaxObjectScript(jcomponent);
             default:
                 logger.LogWarning($"JSON Componnent \"{name}\" is an unknown/unsupported component");
-                break;
+                return null;
         }
     }
 
     // UNITY COMPONENTS //
-    public void InitCustomTransform(JObject jtransform, GameObject obj)
+    public MTransform InitCustomTransform(JObject jtransform)
     {
-        var transform = obj.transform;
+        var mtransform = new MTransform();
         JObject jobj;
-        if (TryGetJObject(jtransform, "LocalPosition", out jobj)) transform.localPosition = InitCustomVector3(jobj, transform.localPosition);
-        if (TryGetJObject(jtransform, "LocalRotation", out jobj)) transform.localRotation = InitCustomQuaternion(jobj, transform.localRotation);
-        else if (TryGetJObject(jtransform, "LocalEulerAngles", out jobj)) transform.localEulerAngles = InitCustomVector3(jobj, transform.localEulerAngles);
-        if (TryGetJObject(jtransform, "LocalScale", out jobj)) transform.localScale = InitCustomVector3(jobj, transform.localScale);
+        if (TryGetJObject(jtransform, "LocalPosition", out jobj)) mtransform.localPosition = InitCustomVector3(jobj);
+        if (TryGetJObject(jtransform, "LocalRotation", out jobj)) mtransform.localRotation = InitCustomQuaternion(jobj);
+        if (TryGetJObject(jtransform, "LocalEulerAngles", out jobj)) mtransform.localEulerAngles = InitCustomVector3(jobj);
+        if (TryGetJObject(jtransform, "LocalScale", out jobj)) mtransform.localScale = InitCustomVector3(jobj);
+        return mtransform;
     }
-    public void InitCustomSpriteRenderer(JObject jspriteRenderer, GameObject obj)
+
+    public MSpriteRenderer InitCustomSpriteRenderer(JObject jspriteRenderer)
     {
-        var spriteRenderer = obj.GetComponent<SpriteRenderer>();
-        if (!spriteRenderer)
-        {
-            logger.LogWarning($"GameObject \"{obj.name}\" does not have a spriteRenderer");
-            return;
-        }
+        var mspriteRenderer = new MSpriteRenderer();
         JObject jobj;
-        if (TryGetJObject(jspriteRenderer, "Color", out jobj)) spriteRenderer.color = InitCustomColor(jobj, spriteRenderer.color);
-        if (TryGetJObject(jspriteRenderer, "Size", out jobj)) spriteRenderer.size = InitCustomVector2(jobj, spriteRenderer.size);
+        if (TryGetJObject(jspriteRenderer, "Color", out jobj)) mspriteRenderer.color = InitCustomColor(jobj);
+        if (TryGetJObject(jspriteRenderer, "Size", out jobj)) mspriteRenderer.size = InitCustomVector2(jobj);
         JValue jval;
-        if (TryGetJValue(jspriteRenderer, "FlipX", JTokenType.Boolean, out jval)) spriteRenderer.flipX = (bool)jval;
-        if (TryGetJValue(jspriteRenderer, "FlipY", JTokenType.Boolean, out jval)) spriteRenderer.flipY = (bool)jval;
+        if (TryGetJValue(jspriteRenderer, "FlipX", JTokenType.Boolean, out jval)) mspriteRenderer.flipX = (bool)jval;
+        if (TryGetJValue(jspriteRenderer, "FlipY", JTokenType.Boolean, out jval)) mspriteRenderer.flipY = (bool)jval;
         Material mat;
         if (TryGetJMaterial(jspriteRenderer, "Material", out mat) || 
-            TryGetJShader(jspriteRenderer, "Shader", out mat)) 
-            spriteRenderer.material = mat;
+            TryGetJShader(jspriteRenderer, "Shader", out mat))
+            mspriteRenderer.material = mat;
+        return mspriteRenderer;
     }
 
     // BITS & BOPS SCRIPTS //
-    public void InitCustomParallaxObjectScript(JObject jparallaxObjectScript, GameObject obj)
+    public MParallaxObjectScript InitCustomParallaxObjectScript(JObject jparallaxObjectScript)
     {
-        var parallaxObjectScript = obj.GetComponent<ParallaxObjectScript>();
-        if (!parallaxObjectScript)
-        {
-            logger.LogWarning($"GameObject \"{obj.name}\" does not have a parallaxObjectScript");
-            return;
-        }
+        var mparallaxObjectScript = new MParallaxObjectScript();
         JValue jval;
-        if (TryGetJValue(jparallaxObjectScript, "ParallaxScale", JTokenType.Float, out jval)) parallaxObjectScript.parallaxScale = (float)jval;
-        if (TryGetJValue(jparallaxObjectScript, "LoopDistance", JTokenType.Float, out jval)) parallaxObjectScript.loopDistance = (float)jval;
+        if (TryGetJValue(jparallaxObjectScript, "ParallaxScale", JTokenType.Float, out jval)) mparallaxObjectScript.parallaxScale = (float)jval;
+        if (TryGetJValue(jparallaxObjectScript, "LoopDistance", JTokenType.Float, out jval)) mparallaxObjectScript.loopDistance = (float)jval;
+        return mparallaxObjectScript;
     }
 
     // STRUCTS //
-    public Vector2 InitCustomVector2(JObject jvector2, Vector2 vector2)
+    public Vector2 InitCustomVector2(JObject jvector2)
     {
         JValue jval;
-        if (TryGetJValue(jvector2, "x", JTokenType.Float, out jval)) vector2.x = (float)jval;
-        if (TryGetJValue(jvector2, "y", JTokenType.Float, out jval)) vector2.y = (float)jval;
-        return vector2;
+        return new Vector2(
+            TryGetJValue(jvector2, "x", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jvector2, "y", JTokenType.Float, out jval) ? (float)jval : float.NaN
+        );
     }
-    public Vector3 InitCustomVector3(JObject jvector3, Vector3 vector3)
+    public Vector3 InitCustomVector3(JObject jvector3)
     {
         JValue jval;
-        if (TryGetJValue(jvector3, "x", JTokenType.Float, out jval)) vector3.x = (float)jval;
-        if (TryGetJValue(jvector3, "y", JTokenType.Float, out jval)) vector3.y = (float)jval;
-        if (TryGetJValue(jvector3, "z", JTokenType.Float, out jval)) vector3.z = (float)jval;
-        return vector3;
-    }
-
-    public Quaternion InitCustomQuaternion(JObject jquaternion, Quaternion quaternion)
-    {
-        JValue jval;
-        if (TryGetJValue(jquaternion, "x", JTokenType.Float, out jval)) quaternion.x = (float)jval;
-        if (TryGetJValue(jquaternion, "y", JTokenType.Float, out jval)) quaternion.y = (float)jval;
-        if (TryGetJValue(jquaternion, "z", JTokenType.Float, out jval)) quaternion.z = (float)jval;
-        if (TryGetJValue(jquaternion, "w", JTokenType.Float, out jval)) quaternion.w = (float)jval;
-        return quaternion;
+        return new Vector3(
+            TryGetJValue(jvector3, "x", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jvector3, "y", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jvector3, "z", JTokenType.Float, out jval) ? (float)jval : float.NaN
+        );
     }
 
-    public Color InitCustomColor(JObject jcolor, Color color)
+    public Quaternion InitCustomQuaternion(JObject jquaternion)
     {
         JValue jval;
-        if (TryGetJValue(jcolor, "r", JTokenType.Float, out jval)) color.r = (float)jval;
-        if (TryGetJValue(jcolor, "g", JTokenType.Float, out jval)) color.g = (float)jval;
-        if (TryGetJValue(jcolor, "b", JTokenType.Float, out jval)) color.b = (float)jval;
-        if (TryGetJValue(jcolor, "a", JTokenType.Float, out jval)) color.a = (float)jval;
-        return color;
+        return new Quaternion(
+            TryGetJValue(jquaternion, "x", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jquaternion, "y", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jquaternion, "z", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jquaternion, "w", JTokenType.Float, out jval) ? (float)jval : float.NaN
+        );
+    }
+
+    public Color InitCustomColor(JObject jcolor)
+    {
+        JValue jval;
+        return new Color(
+            TryGetJValue(jcolor, "r", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jcolor, "g", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jcolor, "b", JTokenType.Float, out jval) ? (float)jval : float.NaN,
+            TryGetJValue(jcolor, "a", JTokenType.Float, out jval) ? (float)jval : float.NaN
+        );
     }
 
 
@@ -232,11 +245,8 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
         string shaderName = (string)jshaderName;
         if (!shaderMaterials.ContainsKey(shaderName))
         {
-            Shader found = Resources.FindObjectsOfTypeAll<Shader>().FirstOrDefault(s => s.name == shaderName);
-            if (!found)
-            {
-                found = Resources.Load<Shader>($"Shaders/{shaderName}");
-            }
+            Shader found = Resources.FindObjectsOfTypeAll<Shader>().FirstOrDefault(s => s.name == shaderName) ?? 
+                           Resources.Load<Shader>($"Shaders/{shaderName}");
             if (!found)
             {
                 logger.LogWarning($"JSON shader \"{shaderName}\" could not be found");
@@ -254,40 +264,5 @@ public class CustomJsonInitializer(ILogger logger) : BaseCustomManager(logger)
             return false;
         }
         return true;
-        
-    }
-
-
-    public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject obj, string path)
-    {
-        string[] names = Regex.Split(path, @"[\\/]");
-        return FindGameObjectsInChildren(obj, names);
-    }
-    public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject rootObj, string[] names, int i = 0)
-    {
-        for (var j = 0; j < rootObj.transform.childCount; j++)
-        {
-            var obj = rootObj.transform.GetChild(j).gameObject;
-            if (Regex.IsMatch(obj.name, WildCardToRegex(names[i])))
-            {
-                if (i == names.Length - 1)
-                {
-                    yield return obj;
-                }
-                else
-                {
-                    foreach (var childObj in FindGameObjectsInChildren(obj, names, i + 1))
-                    {
-                        yield return childObj;
-                    }
-                }
-            }
-        }
-    }
-
-
-    private static string WildCardToRegex(string value)
-    {
-        return "^" + Regex.Escape(value).Replace("\\?", ".").Replace("\\*", ".*") + "$";
     }
 }

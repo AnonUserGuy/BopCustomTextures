@@ -135,20 +135,7 @@ public class CustomManager(ILogger logger, string tempPath, MixtapeEventTemplate
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
     {
-        foreach (Entity entity in entities)
-        {
-            if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
-            {
-                var sceneStr = entity.GetString("scene");
-                var scene = ToSceneKeyOrInvalid(sceneStr);
-                if (scene == SceneKey.Invalid)
-                {
-                    logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
-                    return;
-                }
-                sceneManager.ScheduleCustomScene(entity.beat, __instance, scene, entity.GetString("key"));
-            }
-        }
+        sceneManager.PrepareEvents(__instance, entities);
     }
 
     public bool GetMixtapeVersion(string path)

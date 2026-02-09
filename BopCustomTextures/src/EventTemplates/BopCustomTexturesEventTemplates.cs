@@ -11,7 +11,7 @@ public class BopCustomTexturesEventTemplates
         properties = new Dictionary<string, object>
         {
             ["scene"] = "",
-            ["key"] = "",
+            ["key"] = ""
         }
     };
 

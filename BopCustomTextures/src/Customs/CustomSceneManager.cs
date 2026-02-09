@@ -1,10 +1,12 @@
+using BopCustomTextures.SceneMods;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using ILogger = BopCustomTextures.Logging.ILogger;
 using System.Linq;
+using ILogger = BopCustomTextures.Logging.ILogger;
+using UnityEngine;
 
 namespace BopCustomTextures.Customs;
 
@@ -16,7 +18,7 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
 {
     public MixtapeEventTemplate sceneModTemplate = sceneModTemplate;
     public CustomJsonInitializer jsonInitializer = new CustomJsonInitializer(logger);
-    public readonly Dictionary<SceneKey, Dictionary<string, JObject>> CustomScenes = [];
+    public readonly Dictionary<SceneKey, Dictionary<string, MGameObject>> CustomScenes = [];
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase);
     public static readonly Regex FileRegex = new Regex(@"(\w+).json$", RegexOptions.IgnoreCase);
 
@@ -76,18 +78,14 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
             return;
         }
 
-        CustomScenes[scene] = new Dictionary<string, JObject>();
-        if (release < 2)
+        CustomScenes[scene] = new Dictionary<string, MGameObject>();
+        bool isSimple = true;
+        if (release >= 2)
         {
-            CustomScenes[scene][""] = jobj;
-        } 
-        else
-        {
-            bool isSimple = true;
             if (jsonInitializer.TryGetJObject(jobj, "init", out var jinit))
             {
                 isSimple = false;
-                CustomScenes[scene][""] = jinit;
+                CustomScenes[scene][""] = jsonInitializer.InitCustomGameObject(jinit);
             }
             if (jsonInitializer.TryGetJObject(jobj, "events", out var jevents))
             {
@@ -96,7 +94,7 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
                 {
                     if (dict.Value.Type == JTokenType.Object)
                     {
-                        CustomScenes[scene][dict.Key] = (JObject)dict.Value;
+                        CustomScenes[scene][dict.Key] = jsonInitializer.InitCustomGameObject((JObject)dict.Value);
                     }
                     else
                     {
@@ -104,10 +102,10 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
                     }
                 }
             }
-            if (isSimple)
-            {
-                CustomScenes[scene][""] = jobj;
-            }
+        }
+        if (isSimple)
+        {
+            CustomScenes[scene][""] = jsonInitializer.InitCustomGameObject(jobj);
         }
     }
 
@@ -124,34 +122,56 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
     {
         if (!CustomScenes.ContainsKey(sceneKey) ||
             !rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj) ||
-            !CustomScenes[sceneKey].TryGetValue(key, out var jall))
+            !CustomScenes[sceneKey].TryGetValue(key, out var mobj))
         {
             return;
         }
         logger.LogInfo($"Applying custom scene: {sceneKey}");
-        jsonInitializer.InitCustomGameObject(jall, rootObj);
+        ResolveGameObject(rootObj, mobj).Apply();
     }
 
-    public void ScheduleCustomScene(double beat, MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
+    public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
     {
-        if (!CustomScenes.ContainsKey(sceneKey))
+        var mobjsResolved = new Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>>();
+        foreach (var pair in CustomScenes)
         {
-            return;
+            if (!rootObjectsRef(__instance).TryGetValue(pair.Key, out var rootObj))
+            {
+                continue;
+            }
+            mobjsResolved[pair.Key] = new Dictionary<string, MGameObjectResolved>();
+            foreach (var eventPair in pair.Value)
+            {
+                mobjsResolved[pair.Key][eventPair.Key] = ResolveGameObject(rootObj, eventPair.Value);
+            }
         }
-        if (!rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj))
+        foreach (Entity entity in entities)
         {
-            logger.LogError($"Cannot apply scene mod to missing scene {sceneKey}");
-            return;
+            if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
+            {
+                var key = entity.GetString("key");
+                var sceneStr = entity.GetString("scene");
+                var scene = ToSceneKeyOrInvalid(sceneStr);
+                if (scene == SceneKey.Invalid)
+                {
+                    logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                    return;
+                }
+                if (!CustomScenes.ContainsKey(scene))
+                {
+                    logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
+                    return;
+                }
+                if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                {
+                    logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+                }
+                if (mobjsResolved[scene].TryGetValue(key, out var mobjResolved))
+                {
+                    __instance.scheduler.Schedule(entity.beat, mobjResolved.Apply);
+                }
+            }
         }
-        if (!CustomScenes[sceneKey].TryGetValue(key, out var jall))
-        {
-            logger.LogError($"{sceneKey} does not have a scene mod of the key \"{key}\"");
-            return;
-        }
-        __instance.scheduler.Schedule(beat, delegate
-        {
-            jsonInitializer.InitCustomGameObject(jall, rootObj);
-        });
     }
 
     public void UpdateEventTemplates()
@@ -165,5 +185,59 @@ public class CustomSceneManager(ILogger logger, MixtapeEventTemplate sceneModTem
             sceneModTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
                 CustomScenes.Keys.Select(FromSceneKeyOrInvalid).ToArray());
         }
+    }
+
+
+    public MGameObjectResolved ResolveGameObject(GameObject obj, MGameObject mobj)
+    {
+        var mobjResolved = new MGameObjectResolved(mobj, obj);
+        var mchildObjsResolved = new List<MGameObjectResolved>();
+        foreach (var mchildObj in mobj.childObjs)
+        {
+            bool found = false;
+            foreach (var childObj in FindGameObjectsInChildren(obj, mchildObj.name))
+            {
+                found = true;
+                var mchildObjResolved = ResolveGameObject(childObj, mchildObj);
+                mchildObjsResolved.Add(mchildObjResolved);
+            }
+            if (!found)
+            {
+                logger.LogWarning($"Couldn't find gameObject \"{mchildObj.name}\" in \"{obj.name}\"");
+            }
+        }
+        mobjResolved.childObjs = mchildObjsResolved.ToArray();
+        return mobjResolved;
+    }
+
+    public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject obj, string path)
+    {
+        string[] names = Regex.Split(path, @"[\\/]");
+        return FindGameObjectsInChildren(obj, names);
+    }
+    public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject rootObj, string[] names, int i = 0)
+    {
+        for (var j = 0; j < rootObj.transform.childCount; j++)
+        {
+            var obj = rootObj.transform.GetChild(j).gameObject;
+            if (Regex.IsMatch(obj.name, WildCardToRegex(names[i])))
+            {
+                if (i == names.Length - 1)
+                {
+                    yield return obj;
+                }
+                else
+                {
+                    foreach (var childObj in FindGameObjectsInChildren(obj, names, i + 1))
+                    {
+                        yield return childObj;
+                    }
+                }
+            }
+        }
+    }
+    private static string WildCardToRegex(string value)
+    {
+        return "^" + Regex.Escape(value).Replace(@"\?", ".").Replace(@"\*", ".*") + "$";
     }
 }
