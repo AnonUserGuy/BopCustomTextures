@@ -2,6 +2,9 @@ using System;
 
 namespace BopCustomTextures.Logging;
 
+/// <summary>
+/// Superset of BepInEx log levels, as also includes MixtapeEditor.
+/// </summary>
 [Flags]
 public enum LogLevel
 {

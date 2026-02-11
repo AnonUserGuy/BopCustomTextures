@@ -1,4 +1,5 @@
 using BopCustomTextures.SceneMods;
+using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
@@ -6,7 +7,6 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Linq;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using UnityEngine;
 
 namespace BopCustomTextures.Customs;
 
@@ -179,16 +179,18 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         }
     }
 
-    public void UpdateEventTemplates()
+    public bool UpdateEventTemplates()
     {
         if (CustomScenes.Count < 1)
         {
             sceneModTemplate.properties["scene"] = "";
+            return false;
         }
         else
         {
             sceneModTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
                 CustomScenes.Keys.Select(FromSceneKeyOrInvalid).ToArray());
+            return true;
         }
     }
 

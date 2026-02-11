@@ -2,9 +2,9 @@
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
-using ILogger = BopCustomTextures.Logging.ILogger;
-using System.Linq;
 using System;
+using System.Linq;
+using ILogger = BopCustomTextures.Logging.ILogger;
 
 namespace BopCustomTextures.Customs;
 

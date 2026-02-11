@@ -392,23 +392,27 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             }
         }
     }
-    public void UpdateEventTemplates()
+    public bool UpdateEventTemplates()
     {
         var hasCustomTextures = AtlasTextures.Keys.ToHashSet().Union(SeperateTextures.Keys.ToHashSet());
         object scenes;
+        bool result;
         if (hasCustomTextures.Count() < 1)
         {
             scenes = "";
+            result = false;
         }
         else
         {
             scenes = new MixtapeEventTemplates.ChoiceField<string>(
                 hasCustomTextures.Select(FromSceneKeyOrInvalid).ToArray());
+            result = true;
         }
         foreach (var mixtapeEventTemplate in mixtapeEventTemplates)
         {
             mixtapeEventTemplate.properties["scene"] = scenes;
         }
+        return result;
     }
 
     public Sprite ReplaceCustomSprite(Sprite sprite)

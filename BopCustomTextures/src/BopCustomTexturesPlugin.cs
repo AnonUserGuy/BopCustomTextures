@@ -8,6 +8,7 @@ using HarmonyLib;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
+using System.Reflection;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
@@ -40,6 +41,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
     private static ConfigEntry<bool> saveCustomFiles;
     private static ConfigEntry<bool> upgradeOldMixtapes;
+    private static ConfigEntry<DisplayEventTemplates> displayEventTemplates;
+    private static ConfigEntry<int> eventTemplatesIndex;
 
     private static ConfigEntry<LogLevel> logOutdatedPlugin;
     private static ConfigEntry<LogLevel> logUpgradeMixtape;
@@ -66,7 +69,19 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         upgradeOldMixtapes = Config.Bind("Editor",
             "UpgradeOldMixtapes",
             true,
-            "When opening a modded mixtape for an older version of the plugin in the editor, upgrade the mixtape version to the current one when saving.");
+            "When opening a modded mixtape for an older version of the plugin in the editor, " +
+            "upgrade the mixtape version to the current one when saving.");
+
+        displayEventTemplates = Config.Bind("Editor",
+            "DisplayEventTemplates",
+            DisplayEventTemplates.WhenActive,
+            "When to display mixtape events catagory \"Bop Custom Textures\".");
+
+        eventTemplatesIndex = Config.Bind("Editor",
+            "EventTemplatesIndex",
+            4,
+            "Position in mixtape event catagories list to display \"Bop Custom Textures\" at. " +
+            "Values lower than 1 will put catagory at end of list.");
 
 
         logOutdatedPlugin = Config.Bind("Logging",
@@ -117,11 +132,15 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         );
 
         Harmony.PatchAll();
-        MixtapeEventTemplates.entities[MyPluginInfo.PLUGIN_GUID] = new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.templates);
 
         Manager = new CustomManager(customlogger, GetTempPath(), 
             BopCustomTexturesEventTemplates.sceneModTemplate,
-            BopCustomTexturesEventTemplates.textureVariantTemplates);
+            BopCustomTexturesEventTemplates.textureVariantTemplates,
+            MixtapeEventTemplates.entities);
+        if (displayEventTemplates.Value == DisplayEventTemplates.Always)
+        {
+            Manager.AddEventTemplates(eventTemplatesIndex.Value);
+        }
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -145,7 +164,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(string path)
         {
-            Manager.ReadDirectory(path, saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(), upgradeOldMixtapes.Value);
+            Manager.ReadDirectory(path,
+                saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
+                upgradeOldMixtapes.Value,
+                displayEventTemplates.Value,
+                eventTemplatesIndex.Value);
         }
     }
 
@@ -163,7 +186,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix()
         {
-            Manager.ResetAll();
+            Manager.ResetAll(displayEventTemplates.Value, eventTemplatesIndex.Value);
         }
     }
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]
@@ -173,24 +196,21 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         {
             if (!IsProbablyCustom())
             {
-                Manager.ResetAll();
+                Manager.ResetAll(displayEventTemplates.Value, eventTemplatesIndex.Value);
             }
         }
     }
-    [HarmonyPatch(typeof(RiqLoader), "Load")]
-    private static class RiqLoaderLoadPatch
+    [HarmonyPatch]
+    private static class MixtapeCustomLoadPatch
     {
-        static void Prefix(string path)
+        static IEnumerable<MethodBase> TargetMethods()
         {
-            Manager.ResetIfNecessary(path);
+            yield return AccessTools.Method(typeof(RiqLoader), "Load");
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "Open", [typeof(string)]);
         }
-    }
-    [HarmonyPatch(typeof(MixtapeEditorScript), "Open", [typeof(string)] )]
-    private static class MixtapeEditorScriptOpenPatch
-    {
         static void Prefix(string path)
         {
-            Manager.ResetIfNecessary(path);
+            Manager.ResetIfNecessary(path, displayEventTemplates.Value, eventTemplatesIndex.Value);
         }
     }
 
@@ -230,6 +250,19 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
+    [HarmonyPatch(typeof(MixtapeEditorScript), "GameNameToDisplay")]
+    private static class MixtapeEditorScriptGameNameToDisplayPatch
+    {
+        static bool Prefix(string name, ref string __result)
+        {
+            if (name == MyPluginInfo.PLUGIN_GUID)
+            {
+                __result = MyPluginInfo.PLUGIN_NAME;
+                return false; // skip original
+            }
+            return true; // don't skip original
+        }
+    }
 
     private void OnProcessExit(object sender, EventArgs e)
     {

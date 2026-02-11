@@ -2,8 +2,8 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
-using ILogger = BopCustomTextures.Logging.ILogger;
 using System.Text.RegularExpressions;
+using ILogger = BopCustomTextures.Logging.ILogger;
 
 namespace BopCustomTextures.Customs;
 

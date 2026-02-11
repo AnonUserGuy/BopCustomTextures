@@ -1,8 +1,11 @@
-﻿using BopCustomTextures.Logging;
+﻿using BopCustomTextures.EventTemplates;
+using BopCustomTextures.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace BopCustomTextures.Customs;
 
@@ -23,20 +26,27 @@ public class CustomManager : BaseCustomManager
     public CustomTextureManager textureManager;
     public CustomVariantNameManager variantManager;
     public CustomFileManager fileManager;
+    
+    public Dictionary<string, List<MixtapeEventTemplate>> entities;
 
     /// <param name="logger">Plugin-specific logger.</param>
     /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded.</param>
     /// <param name="sceneModTemplate">Mixtape event template for applying scene mods.</param>
     /// <param name="textureVariantTemplates">Mixtape event templates concerning custom textures.</param>
-    public CustomManager(ILogger logger, string tempPath, MixtapeEventTemplate sceneModTemplate, MixtapeEventTemplate[] textureVariantTemplates) : base(logger)
+    public CustomManager(ILogger logger, 
+        string tempPath, 
+        MixtapeEventTemplate sceneModTemplate, 
+        MixtapeEventTemplate[] textureVariantTemplates,
+        Dictionary<string, List<MixtapeEventTemplate>> entities) : base(logger)
     {
         variantManager = new CustomVariantNameManager(logger);
         sceneManager = new CustomSceneManager(logger, variantManager, sceneModTemplate);
         textureManager = new CustomTextureManager(logger, variantManager, textureVariantTemplates);
         fileManager = new CustomFileManager(logger, tempPath);
+        this.entities = entities;
     }
 
-    public void ReadDirectory(string path, bool backup, bool upgrade)
+    public void ReadDirectory(string path, bool backup, bool upgrade, DisplayEventTemplates displayEventTemplates, int eventTemplatesIndex)
     {
         if (!readNecessary)
         {
@@ -99,8 +109,7 @@ public class CustomManager : BaseCustomManager
         {
             logger.LogInfo("No custom assets found");
         }
-        sceneManager.UpdateEventTemplates();
-        textureManager.UpdateEventTemplates();
+        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
     }
 
     public void WriteDirectory(string path, bool upgrade)
@@ -113,7 +122,7 @@ public class CustomManager : BaseCustomManager
         };
     }
 
-    public void ResetAll()
+    public void ResetAll(DisplayEventTemplates displayEventTemplates, int eventTemplatesIndex)
     {
         sceneManager.UnloadCustomScenes();
         textureManager.UnloadCustomTextures();
@@ -123,14 +132,15 @@ public class CustomManager : BaseCustomManager
         lastModified = default;
         hasCustomAssets = false;
         readNecessary = true;
+        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
     }
 
-    public void ResetIfNecessary(string path)
+    public void ResetIfNecessary(string path, DisplayEventTemplates displayEventTemplates, int eventTemplatesIndex)
     {
         var modified = File.GetLastWriteTime(path);
         if (lastPath != path || lastModified != modified)
         {
-            ResetAll();
+            ResetAll(displayEventTemplates, eventTemplatesIndex);
         }
         else
         {
@@ -165,6 +175,52 @@ public class CustomManager : BaseCustomManager
     {
         sceneManager.PrepareEvents(__instance, entities);
         textureManager.PrepareEvents(__instance, entities);
+    }
+
+    public void UpdateEventTemplates(DisplayEventTemplates displayEventTemplates, int eventTemplatesIndex)
+    {
+        bool needsTemplates = 
+            sceneManager.UpdateEventTemplates() |
+            textureManager.UpdateEventTemplates();
+
+        switch (displayEventTemplates)
+        {
+            case DisplayEventTemplates.Never:
+                entities.Remove(MyPluginInfo.PLUGIN_GUID);
+                break;
+            case DisplayEventTemplates.WhenActive:
+                if (needsTemplates)
+                {
+                    AddEventTemplates(eventTemplatesIndex);
+                }
+                else
+                {
+                    entities.Remove(MyPluginInfo.PLUGIN_GUID);
+                }
+                break;
+            case DisplayEventTemplates.Always:
+                AddEventTemplates(eventTemplatesIndex);
+                break;
+        }
+    }
+
+    public void AddEventTemplates(int index)
+    {
+        if (entities.ContainsKey(MyPluginInfo.PLUGIN_GUID))
+        {
+            return;
+        }
+        var list = entities.ToList();
+        if (index > list.Count || index < 1)
+        {
+            index = list.Count;
+        }
+        list.Insert(index, new KeyValuePair<string, List<MixtapeEventTemplate>>(MyPluginInfo.PLUGIN_GUID, new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.templates)));
+        entities.Clear();
+        foreach (var pair in list)
+        {
+            entities[pair.Key] = pair.Value;
+        }
     }
 
     public bool GetMixtapeVersion(string path)
