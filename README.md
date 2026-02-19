@@ -25,6 +25,10 @@ root:
 ```
 ``mixtape.json`` contains all the Bits & Bops specific data for your mixtape, ``song.bin`` is the audio file for the song used in the mixtape with a generic file extension, and ``preview.bin`` is the image file for the preview image for the mixtape also with a generic file extension.
 
+> `.riq` files use a very similar archive structure. The main difference is that `mixtape.json` is replaced by `remix.json` in the root folder.
+> 
+> **Note**: only RIQ version 1 is supported by Bits & Bops.
+
 To start adding custom textures to the mixtape, add a new folder to the archive named ``textures`` (or ``tex`` for short).
 ```
 root:
@@ -215,8 +219,6 @@ The scene mod implementation is comparatively much simpler than the custom textu
 The process requires implementing assignment methods for every individual Unity component which is less than ideal, but there's not much way around it without completely circumventing normal scene management in the Unity runtime.    
 
 ## Todo
-- Implement custom texture functionality for .riq files.
-  - Currently .riq files are loaded in a completely different manner from that used for .bop files. As such, the process is more complicated than just copy-pasting the same function into the .riq loading routine.
 - Implement different custom textures for different GameObjects that use the same base custom textures.
 - Implement mixtape events that apply scene mods/custom textures during mixtape.
   - Would allow rhythm games to change over the course of a mixtape, and possibly elaborate animations for mixtape authors willing to implement them.

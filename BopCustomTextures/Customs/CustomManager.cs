@@ -196,6 +196,48 @@ public class CustomManager : BaseCustomManager
             WriteMixtapeVersion(path, upgrade);
         };
     }
+    
+    // NOTE: Bits & Bops currently supports RIQ v1 only.
+    public void LoadRiqArchive(string riqPath, bool backup, bool upgrade, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        if (!readNecessary)
+        {
+            return;
+        }
+        try
+        {
+            var rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetDirectoryName(riqPath));
+            ReadDirectory(rootPath, backup, upgrade, displayEventTemplates, eventTemplatesIndex);
+        }
+        catch (Exception e)
+        {
+            logger.LogError($"Failed to load custom assets from RIQ v1 file: {e}");
+        }
+    }
+
+    // NOTE: Bits & Bops currently supports RIQ v1 only.
+    public void SaveAsRiq(string riqPath, bool upgrade)
+    {
+        if (!hasCustomAssets)
+        {
+            return;
+        }
+
+        try
+        {
+            var rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetDirectoryName(riqPath));
+            if (fileManager.WriteDirectory(rootPath))
+            {
+                logger.LogInfo("Saving RIQ v1 with custom files");
+                WriteMixtapeVersion(rootPath, upgrade);
+                fileManager.PackDirectoryToArchive(rootPath, riqPath);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError($"Failed to save custom assets into RIQ v1 file: {e}");
+        }
+    }
 
     public void ResetAll(Display displayEventTemplates, int eventTemplatesIndex)
     {

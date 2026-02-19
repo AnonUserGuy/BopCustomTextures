@@ -273,6 +273,33 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             }
         }
     }
+    
+    [HarmonyPatch]
+    private static class MixtapeCustomLoadRiqArchivePatch
+    {
+        static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(RiqLoader), "LoadRiqArchive");
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "LoadRiqArchive");
+        }
+        static void Postfix(string path)
+        {
+            Manager.LoadRiqArchive(path,
+                saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
+                upgradeOldMixtapes.Value,
+                displayEventTemplates.Value,
+                eventTemplatesIndex.Value);
+        }
+    }
+    
+    [HarmonyPatch(typeof(MixtapeEditorScript), "SaveAsRiq")]
+    private static class MixtapeEditorScriptSaveAsRiqPatch
+    {
+        static void Postfix(string path)
+        {
+            Manager.SaveAsRiq(path, upgradeOldMixtapes.Value);
+        }
+    }
 
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "InitScene")]
     private static class MixtapeLoaderCustomGetOrLoadScenePatch

@@ -1,5 +1,7 @@
 ﻿using BopCustomTextures.Logging;
+using System;
 using System.IO;
+using System.IO.Compression;
 
 namespace BopCustomTextures.Customs;
 
@@ -63,6 +65,60 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
             tempLock.Close();
             tempLock = null;
             Directory.Delete(tempPath, true);
+        }
+    }
+
+    public string CreateUniqueTempDirectory(string prefix)
+    {
+        Directory.CreateDirectory(tempPath);
+        string tempDirectoryPath = Path.Combine(tempPath, $"{prefix}_{Guid.NewGuid():N}");
+        if (Directory.Exists(tempDirectoryPath))
+        {
+            Directory.Delete(tempDirectoryPath, true);
+        }
+
+        Directory.CreateDirectory(tempDirectoryPath);
+        return tempDirectoryPath;
+    }
+
+    public string ExtractArchiveToTempDirectory(string archivePath, string prefix)
+    {
+        string workingPath = CreateUniqueTempDirectory(prefix);
+        ZipFile.ExtractToDirectory(archivePath, workingPath);
+        return workingPath;
+    }
+
+    public void PackDirectoryToArchive(string sourceDirectory, string archivePath)
+    {
+        var backupArchivePath = archivePath + ".bak";
+        if (File.Exists(archivePath))
+        {
+            File.Copy(archivePath, backupArchivePath, true);
+        }
+        
+        var tempArchivePath = Path.Combine(tempPath, $"{Path.GetFileNameWithoutExtension(archivePath)}_{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            ZipFile.CreateFromDirectory(sourceDirectory, tempArchivePath, CompressionLevel.Optimal, false);
+            File.Copy(tempArchivePath, archivePath, true);
+        }
+        catch (Exception)
+        {
+            logger.LogWarning($"Failed to pack directory ${archivePath} to {tempArchivePath}, restoring backup...");
+            File.Copy(archivePath, tempArchivePath, true);
+        }
+        finally
+        {
+            if (File.Exists(tempArchivePath))
+            {
+                File.Delete(tempArchivePath);
+            }
+
+            if (File.Exists(backupArchivePath))
+            {
+                File.Delete(backupArchivePath);
+            }
         }
     }
 
