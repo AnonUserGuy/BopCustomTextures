@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.IO.Compression;
 
 namespace BopCustomTextures.Customs;
 
@@ -140,13 +139,11 @@ public class CustomManager : BaseCustomManager
 
     public void ReadArchive(string path, bool backup = false)
     {
-        string tempPath = Path.GetTempFileName();
-        File.Delete(tempPath);
-        Directory.CreateDirectory(tempPath);
+        string rootPath = null;
         try
         {
-            ZipFile.ExtractToDirectory(path, tempPath);
-            ReadDirectory(tempPath, backup);
+            rootPath = fileManager.ExtractArchiveToTempDirectory(path, Path.GetFileNameWithoutExtension(path));
+            ReadDirectory(rootPath, backup);
         } 
         catch (Exception e)
         {
@@ -154,7 +151,10 @@ public class CustomManager : BaseCustomManager
         } 
         finally
         {
-            Directory.Delete(tempPath, recursive: true);
+            if (!string.IsNullOrEmpty(rootPath))
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
         }
     }
 
@@ -198,20 +198,28 @@ public class CustomManager : BaseCustomManager
     }
     
     // NOTE: Bits & Bops currently supports RIQ v1 only.
-    public void LoadRiqArchive(string riqPath, bool backup, bool upgrade, Display displayEventTemplates, int eventTemplatesIndex)
+    public void CheckVersionThenReadRiqArchive(string riqPath, bool backup, bool upgrade, OutdatedPluginHandling outdatedPluginHandling, Display displayEventTemplates, int eventTemplatesIndex)
     {
+        string rootPath = null;
         if (!readNecessary)
         {
             return;
         }
         try
         {
-            var rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetDirectoryName(riqPath));
-            ReadDirectory(rootPath, backup, upgrade, displayEventTemplates, eventTemplatesIndex);
+            rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetFileNameWithoutExtension(riqPath));
+            CheckVersionThenReadDirectory(rootPath, backup, upgrade, outdatedPluginHandling, displayEventTemplates, eventTemplatesIndex);
         }
         catch (Exception e)
         {
             logger.LogError($"Failed to load custom assets from RIQ v1 file: {e}");
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(rootPath))
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
         }
     }
 

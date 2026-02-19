@@ -19,7 +19,7 @@ using LogLevel = BopCustomTextures.Logging.LogLevel;
 namespace BopCustomTextures;
 
 /// <summary>
-/// Plugin class. Executes all harmony patches and other hooks, and otherwise uses Customs/CustomManager to realize functionality.
+/// Plugin class. Manages configuration, executes all harmony patches and other hooks, and otherwise uses CustomManager to realize functionality.
 /// </summary>
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 public class BopCustomTexturesPlugin : BaseUnityPlugin
@@ -202,15 +202,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         {
             if (loadCustomAssets.Value)
             {
-                Manager.CheckVersionThenReadDirectory(
-                    path,
+                Manager.CheckVersionThenReadDirectory(path,
                     saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
                     upgradeOldMixtapes.Value,
-                    IsRiqLoader() ? loadOutdatedPluginPlayer.Value :
-                        loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla,
+                    GetOutdatedPluginHandling(),
                     displayEventTemplates.Value,
-                    eventTemplatesIndex.Value
-                );
+                    eventTemplatesIndex.Value);
             }
         }
     }
@@ -284,9 +281,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
         static void Postfix(string path)
         {
-            Manager.LoadRiqArchive(path,
+            Manager.CheckVersionThenReadRiqArchive(path,
                 saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
                 upgradeOldMixtapes.Value,
+                GetOutdatedPluginHandling(),
                 displayEventTemplates.Value,
                 eventTemplatesIndex.Value);
         }
@@ -377,9 +375,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         SceneKey activeSceneKey = TempoSceneManager.GetActiveSceneKey();
         return activeSceneKey == SceneKey.MixtapeEditor || activeSceneKey == SceneKey.MixtapeCustom;
     }
-    public static bool IsRiqLoader()
+    public static OutdatedPluginHandling GetOutdatedPluginHandling()
     {
-        return TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader;
+        return (TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader) ? loadOutdatedPluginPlayer.Value :
+            loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla;
     }
 
     private ConfigEntry<T> UpgradeOrBind<T>(string oldSection, string newSection, string key, T defaultValue, string description)
