@@ -102,7 +102,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         if (performLoad)
         {
             TempoInput.SetActionMap(SettingsScript.gameActionMap);
-            Manager.ReadArchive(Manager.lastPath);
+            Manager.ReadLastPath();
             Manager.interruptLoad = false;
             StartMixtape(Loader);
             Destroy(gameObject);
@@ -139,7 +139,14 @@ public class VersionDisclaimerScript : MonoBehaviour
                     break;
                 case Options.Quit:
                     TempoInput.SetActionMap(SettingsScript.gameActionMap);
-                    SceneManager.LoadScene(SceneKey.TitleScreen.ToString());
+                    if (MixtapePlayer.QuitToPlayer)
+                    {
+                        SceneManager.LoadScene(SceneKey.MixtapePlayer.ToString());
+                    }
+                    else
+                    {
+                        SceneManager.LoadScene(SceneKey.TitleScreen.ToString());
+                    }
                     Manager.lastModified = default;
                     Loader.MoveToActiveScene();
                     Destroy(gameObject);
@@ -157,7 +164,7 @@ public class VersionDisclaimerScript : MonoBehaviour
     {
         if (cachedPosition != position)
         {
-            string[] strings = new string[4];
+            string[] strings = new string[(int)Options.Count];
             for (var i = 0; i < (int)Options.Count; i++)
             {
                 strings[i] = position == i ? $"<color=yellow>{OptionStrings[i]}</color>" : OptionStrings[i];

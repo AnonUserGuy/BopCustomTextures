@@ -158,6 +158,28 @@ public class CustomManager : BaseCustomManager
         }
     }
 
+    public void ReadPath(string path, bool backup = false)
+    {
+        if (File.Exists(path))
+        {
+            ReadArchive(path, backup);
+        } 
+        else if (Directory.Exists(path) && 
+            File.Exists(Path.Combine(path, "mixtape.json"))) 
+        {
+            ReadDirectory(path, backup);
+        }
+        else
+        {
+            logger.LogError($"Path is not a .bop file or directory: {path}");
+        }
+    }
+
+    public void ReadLastPath(bool backup = false)
+    {
+        ReadPath(lastPath, backup);
+    }
+
     public int LocateResources(string path, string parentPath, bool backup)
     {
         int filesLoaded = 0;
