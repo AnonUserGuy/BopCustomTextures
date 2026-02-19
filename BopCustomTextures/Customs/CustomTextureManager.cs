@@ -19,7 +19,7 @@ namespace BopCustomTextures.Customs;
 /// <param name="mixtapeEventTemplates">BopCustomTexture mixtape event templates concerning custom textures.</param>
 public class CustomTextureManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate[] mixtapeEventTemplates) : BaseCustomManager(logger)
 {
-    public static class Operation
+    private static class Operation
     {
         public const byte Add = 0;
         public const byte Remove = 1;
@@ -155,14 +155,14 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         Match match = FileRegexAtlas.Match(filename);
         if (match.Success)
         {
-            logger.LogFileLoading($"Found custom atlas texture: {scene} ~ {filename}");
+            logger.LogFileLoading($"Found custom atlas texture: {scene}#{variant} ~ {filename}");
             LoadCustomAtlasTexture(path, scene, int.Parse(match.Groups[1].Value), variant);
             return true;
         }
         match = FileRegexSeperate.Match(filename);
         if (match.Success)
         {
-            logger.LogFileLoading($"Found custom seperate texture: {scene} ~ {filename}");
+            logger.LogFileLoading($"Found custom seperate texture: {scene}#{variant} ~ {filename}");
             LoadCustomSeperateTexture(path, scene, match.Groups[1].Value, variant);
             return true;
         }
@@ -186,7 +186,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         else if (AtlasTextures[scene][index].ContainsKey(variant))
         {
-            logger.LogWarning($"Duplicate atlas texture for {scene}, index {index}");
+            logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {index}");
             Object.Destroy(AtlasTextures[scene][index][variant]);
         }
         AtlasTextures[scene][index][variant] = tex;
@@ -210,7 +210,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         else if (SeperateTextures[scene][name].ContainsKey(variant))
         {
-            logger.LogWarning($"Duplicate seperate texture for {scene} ~ {name}");
+            logger.LogWarning($"Duplicate seperate texture for {scene}#{variant} ~ {name}");
             var oldTex = SeperateTextures[scene][name][variant];
             SeperateTexturesNotInited[scene].Remove(oldTex);
             Object.Destroy(oldTex);
@@ -297,12 +297,12 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         if (!SpritesInited.Contains(sceneKey))
         {
+            Variants[sceneKey] = [0];
             SpritesInited.Add(sceneKey);
             logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
             InitCustomSprites();
         }
         logger.LogInfo($"Applying custom sprites: {sceneKey}");
-        Variants[sceneKey] = [0];
         GameObject rootObj = rootObjectsRef(__instance)[sceneKey];
         InitCustomSpriteRenderers(rootObj, sceneKey);
     }
@@ -710,7 +710,11 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             // is some sort of menu sprite
             return true;
         }
-        SpritesInited.Add(scene);
+        if (!SpritesInited.Contains(scene))
+        {
+            Variants[scene] = [0];
+            SpritesInited.Add(scene);
+        }
         if (!SpriteMaps.ContainsKey(original.texture))
         {
             SpriteMaps[original.texture] = [];

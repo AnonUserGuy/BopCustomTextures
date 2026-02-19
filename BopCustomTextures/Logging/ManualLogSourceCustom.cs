@@ -74,7 +74,7 @@ public class ManualLogSourceCustom(ManualLogSource logger, string pluginName,
             return;
         }
         obj.SetActive(true);
-        obj.GetComponentInChildren<TMP_Text>().text = $"[{pluginName}] {data}";
+        obj.GetComponentInChildren<TMP_Text>().text = $"[{pluginName}] <noparse>{data}</noparse>";
     }
 
     public void Log(LogLevel level, object data)

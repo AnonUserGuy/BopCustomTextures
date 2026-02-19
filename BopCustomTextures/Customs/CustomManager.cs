@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.IO.Compression;
 
 namespace BopCustomTextures.Customs;
 
@@ -23,6 +24,7 @@ public class CustomManager : BaseCustomManager
     public string lastPath;
     public DateTime lastModified;
     public bool readNecessary = true;
+    public bool interruptLoad = false;
 
     public CustomSceneManager sceneManager;
     public CustomTextureManager textureManager;
@@ -37,7 +39,7 @@ public class CustomManager : BaseCustomManager
     /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded.</param>
     /// <param name="sceneModTemplate">Mixtape event template for applying scene mods.</param>
     /// <param name="textureTemplates">Mixtape event templates concerning custom textures.</param>
-    /// <param name="entities">List of all mixtape event catagories and events.</param>
+    /// <param name="entities">List of all mixtape event categories and events.</param>
     public CustomManager(ILogger logger, 
         string tempPath, 
         MixtapeEventTemplate sceneModTemplate, 
@@ -56,20 +58,35 @@ public class CustomManager : BaseCustomManager
         return PathRegex.IsMatch(path);
     }
 
-    public void ReadDirectory(string path, bool backup, bool upgrade, Display displayEventTemplates, int eventTemplatesIndex)
+    public void CheckVersionThenReadDirectory(string path, bool backup, bool upgrade, OutdatedPluginHandling outdatedPluginHandling, Display displayEventTemplates, int eventTemplatesIndex)
     {
         if (!readNecessary)
         {
+            interruptLoad = false;
             return;
         }
 
         hasCustomAssets = GetMixtapeVersion(path);
         if (release > BopCustomTexturesPlugin.LowestRelease)
         {
+            if (outdatedPluginHandling == OutdatedPluginHandling.LoadVanilla)
+            {
+                logger.LogOutdatedPlugin(
+                    $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} v{version}+, " +
+                    $"but you are on v{MyPluginInfo.PLUGIN_VERSION}, so loading custom assets was cancelled."
+                );
+                interruptLoad = false;
+                return;
+            }
             logger.LogOutdatedPlugin(
                 $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} v{version}+, " +
                 $"but you are on v{MyPluginInfo.PLUGIN_VERSION}. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly."
             );
+            if (outdatedPluginHandling == OutdatedPluginHandling.ShowDisclaimer)
+            {
+                interruptLoad = true;
+                return;
+            }
         }
         else if (release < BopCustomTexturesPlugin.LowestRelease && backup && upgrade)
         {
@@ -78,7 +95,15 @@ public class CustomManager : BaseCustomManager
                 $"while you are on v{MyPluginInfo.PLUGIN_VERSION}. Save this mixtape in the editor to update its version!"
             );
         }
+        
+        ReadDirectory(path, backup);
+        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
+        interruptLoad = false;
+        return;
+    }
 
+    public void ReadDirectory(string path, bool backup = false)
+    {
         int filesLoaded = 0;
         bool hasResourceFolder = false;
         var subpaths = Directory.EnumerateDirectories(path);
@@ -87,12 +112,12 @@ public class CustomManager : BaseCustomManager
             if (IsCustomResourceDirectory(subpath))
             {
                 hasResourceFolder = true;
-                filesLoaded += ReadDirectoryInternal(subpath, path, backup);
+                filesLoaded += LocateResources(subpath, path, backup);
             }
         }
         if (!hasResourceFolder)
         {
-            filesLoaded += ReadDirectoryInternal(path, path, backup);
+            filesLoaded += LocateResources(path, path, backup);
         }
 
         if (filesLoaded > 0)
@@ -111,10 +136,29 @@ public class CustomManager : BaseCustomManager
         {
             logger.LogInfo("No custom assets found");
         }
-        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
     }
 
-    public int ReadDirectoryInternal(string path, string parentPath, bool backup)
+    public void ReadArchive(string path, bool backup = false)
+    {
+        string tempPath = Path.GetTempFileName();
+        File.Delete(tempPath);
+        Directory.CreateDirectory(tempPath);
+        try
+        {
+            ZipFile.ExtractToDirectory(path, tempPath);
+            ReadDirectory(tempPath, backup);
+        } 
+        catch (Exception e)
+        {
+            logger.LogError(e);
+        } 
+        finally
+        {
+            Directory.Delete(tempPath, recursive: true);
+        }
+    }
+
+    public int LocateResources(string path, string parentPath, bool backup)
     {
         int filesLoaded = 0;
         var subpaths = Directory.EnumerateDirectories(path);

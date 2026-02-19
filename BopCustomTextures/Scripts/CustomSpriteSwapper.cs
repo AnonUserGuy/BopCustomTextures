@@ -1,7 +1,6 @@
 ﻿using BopCustomTextures.Customs;
 using UnityEngine;
 using System.Collections.Generic;
-using System;
 
 namespace BopCustomTextures.Scripts;
 

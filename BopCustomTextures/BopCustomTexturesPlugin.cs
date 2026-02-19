@@ -1,6 +1,7 @@
 ﻿using BopCustomTextures.Config;
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
+using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
 using BepInEx;
 using BepInEx.Logging;
@@ -35,13 +36,21 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// plugin name within logger
     /// </summary>
     public static readonly string LoggerName = "CustomTex";
+    /// <summary>
+    /// plugin github repo URL
+    /// </summary>
+    public static readonly string PluginRepoUrl = "https://github.com/AnonUserGuy/BopCustomTextures";
 
     public static new ManualLogSource Logger;
     public static CustomManager Manager;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
 
+    private static ConfigEntry<bool> loadCustomAssets;
+
     private static ConfigEntry<bool> saveCustomFiles;
     private static ConfigEntry<bool> upgradeOldMixtapes;
+    private static ConfigEntry<bool> loadOutdatedPluginEditor;
+
     private static ConfigEntry<Display> displayEventTemplates;
     private static ConfigEntry<int> eventTemplatesIndex;
 
@@ -53,6 +62,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     private static ConfigEntry<LogLevel> logSeperateTextureSprites;
     private static ConfigEntry<LogLevel> logAtlasTextureSprites;
     private static ConfigEntry<LogLevel> logSceneIndices;
+
+    private static ConfigEntry<OutdatedPluginHandling> loadOutdatedPluginPlayer;
 
     private void Awake()
     {
@@ -103,10 +114,23 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
     private void LoadConfigs()
     {
+        loadCustomAssets = Config.Bind("General",
+            "LoadCustomAssets",
+            true,
+            "When opening a modded mixtape, load the custom assets stored in it.\n" + 
+            "(Note: modded mixtapes won't maintain their custom files if saved while this is disabled.)");
+
+
+        loadOutdatedPluginPlayer = Config.Bind("Player",
+            "LoadOutdatedPluginPlayer",
+            OutdatedPluginHandling.ShowDisclaimer,
+            "How to handle opening a modded mixtape in the Mixtape Player that was made for a newer version of BopCustomTextures.");
+
+
         saveCustomFiles = Config.Bind("Editor",
             "SaveCustomFiles",
             true,
-            "When opening a modded mixtape in the editor, save these files whenever the mixtape is saved");
+            "When opening a modded mixtape in the editor, maintain its custom asset files whenever the mixtape is saved.");
 
         upgradeOldMixtapes = Config.Bind("Editor",
             "UpgradeOldMixtapes",
@@ -114,17 +138,22 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "When opening a modded mixtape for an older version of the plugin in the editor, " +
             "upgrade the mixtape version to the current one when saving.");
 
+        loadOutdatedPluginEditor = Config.Bind("Editor",
+            "LoadOutdatedPluginEditor",
+            true,
+            "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
+
         displayEventTemplates = Config.Bind("Editor.Display",
             "DisplayEventTemplates",
             Display.Always,
-            "When to display mixtape events catagory \"Bop Custom Textures\".\n" +
+            "When to display mixtape events category \"Bop Custom Textures\".\n" +
             "(Note: options besides \"Always\" can be buggy when attempting to work with a modded mixtape.)");
 
         eventTemplatesIndex = Config.Bind("Editor.Display",
             "EventTemplatesIndex",
             4,
-            "Position in mixtape event catagories list to display \"Bop Custom Textures\" at. " +
-            "Values lower than 1 will put catagory at end of list.\n" +
+            "Position in mixtape event categories list to display \"Bop Custom Textures\" at. " +
+            "Values lower than 1 will put category at end of list.\n" +
             "(Note: position 0 unsupported as editor is hardcoded to only support category \"Global\" there.)");
 
 
@@ -171,11 +200,32 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(string path)
         {
-            Manager.ReadDirectory(path,
-                saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
-                upgradeOldMixtapes.Value,
-                displayEventTemplates.Value,
-                eventTemplatesIndex.Value);
+            if (loadCustomAssets.Value)
+            {
+                Manager.CheckVersionThenReadDirectory(
+                    path,
+                    saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
+                    upgradeOldMixtapes.Value,
+                    IsRiqLoader() ? loadOutdatedPluginPlayer.Value :
+                        loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla,
+                    displayEventTemplates.Value,
+                    eventTemplatesIndex.Value
+                );
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(RiqLoader), "StartMixtape")] 
+    private static class RiqLoaderStartMixtapePatch
+    {
+        static bool Prefix(RiqLoader __instance)
+        {
+            if (Manager.interruptLoad)
+            {
+                VersionDisclaimerScript.Create(Manager, __instance);
+                return false; // skip original
+            }
+            return true;
         }
     }
 
@@ -201,7 +251,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Prefix()
         {
-            if (!IsProbablyCustom())
+            if (!loadCustomAssets.Value || !IsProbablyCustom())
             {
                 Manager.ResetAll(displayEventTemplates.Value, eventTemplatesIndex.Value);
             }
@@ -217,7 +267,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
         static void Prefix(string path)
         {
-            Manager.ResetIfNecessary(path, displayEventTemplates.Value, eventTemplatesIndex.Value);
+            if (loadCustomAssets.Value)
+            {
+                Manager.ResetIfNecessary(path, displayEventTemplates.Value, eventTemplatesIndex.Value);
+            }
         }
     }
 
@@ -296,6 +349,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         SceneKey activeSceneKey = TempoSceneManager.GetActiveSceneKey();
         return activeSceneKey == SceneKey.MixtapeEditor || activeSceneKey == SceneKey.MixtapeCustom;
+    }
+    public static bool IsRiqLoader()
+    {
+        return TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader;
     }
 
     private ConfigEntry<T> UpgradeOrBind<T>(string oldSection, string newSection, string key, T defaultValue, string description)

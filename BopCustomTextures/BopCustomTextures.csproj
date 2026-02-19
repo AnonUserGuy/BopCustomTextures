@@ -34,6 +34,9 @@
 			<HintPath>..\lib\Assembly-CSharp.dll</HintPath>
 		</Reference>
 		<Reference Include="Unity.TextMeshPro">
+			<HintPath>..\lib\TempoStudio.Core.dll</HintPath>
+		</Reference>
+		<Reference Include="Unity.TextMeshPro">
 			<HintPath>..\lib\Unity.TextMeshPro.dll</HintPath>
 		</Reference>
 	</ItemGroup>
