@@ -1,11 +1,10 @@
 ﻿using BopCustomTextures.Customs;
-using HarmonyLib;
+using BopCustomTextures.Extensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System;
-using System.Reflection;
 using Canvas = UnityEngine.Canvas;
 
 namespace BopCustomTextures.Scripts;
@@ -17,9 +16,6 @@ namespace BopCustomTextures.Scripts;
 /// </summary>
 public class VersionDisclaimerScript : MonoBehaviour
 {
-    static readonly MethodInfo startMixtapeMethod = AccessTools.Method(typeof(RiqLoader), "StartMixtape", []);
-    static void StartMixtape(RiqLoader obj) => startMixtapeMethod.Invoke(obj, []);
-
     private enum Options
     {
         Resume,
@@ -104,7 +100,7 @@ public class VersionDisclaimerScript : MonoBehaviour
             TempoInput.SetActionMap(SettingsScript.gameActionMap);
             Manager.ReadLastPath();
             Manager.interruptLoad = false;
-            StartMixtape(Loader);
+            Loader.StartMixtape();
             Destroy(gameObject);
             return;
         }
@@ -131,7 +127,7 @@ public class VersionDisclaimerScript : MonoBehaviour
                 case Options.ResumeVanilla:
                     TempoInput.SetActionMap(SettingsScript.gameActionMap);
                     Manager.interruptLoad = false;
-                    StartMixtape(Loader);
+                    Loader.StartMixtape();
                     Destroy(gameObject);
                     break;
                 case Options.OpenModPage:

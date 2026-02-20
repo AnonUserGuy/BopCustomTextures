@@ -303,7 +303,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             InitCustomSprites();
         }
         logger.LogInfo($"Applying custom sprites: {sceneKey}");
-        GameObject rootObj = rootObjectsRef(__instance)[sceneKey];
+        GameObject rootObj = __instance.RootObjects[sceneKey];
         InitCustomSpriteRenderers(rootObj, sceneKey);
     }
 
@@ -376,7 +376,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
                 var scene = pair.Key;
                 if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
                 {
-                    if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                    if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                     {
                         toRemove.Add(scene);
                         continue;
@@ -405,7 +405,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             }
             if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
             {
-                if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                 {
                     logger.LogError($"Cannot use variant event for missing scene {scene}");
                     return;
@@ -485,7 +485,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             {
                 if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
                 {
-                    if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                    if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                     {
                         continue;
                     }
@@ -510,7 +510,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             }
             if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
             {
-                if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                 {
                     logger.LogError($"Cannot use toggle texture event for missing scene {scene}");
                     return;

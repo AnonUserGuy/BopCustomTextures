@@ -2,6 +2,7 @@
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
 using BopCustomTextures.Scripts;
+using BopCustomTextures.Extensions;
 using BopCustomTextures.EventTemplates;
 using BepInEx;
 using BepInEx.Logging;
@@ -17,6 +18,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
+using TMPro;
 
 namespace BopCustomTextures;
 
@@ -55,7 +57,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     private static ConfigEntry<bool> upgradeOldMixtapes;
     private static ConfigEntry<bool> loadOutdatedPluginEditor;
 
-    private static ConfigEntry<Display> displayEditorOptions;
+    private static ConfigEntry<Display> displayCopyOptions;
+    private static ConfigEntry<Display> displayReloadOptions;
     private static ConfigEntry<Display> displayEventTemplates;
     private static ConfigEntry<int> eventTemplatesIndex;
 
@@ -149,10 +152,15 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
 
 
-        displayEditorOptions = Config.Bind("Editor.Display",
-            "displayEditorOptions",
-            Display.Never,
-            $"When to display \"{CustomManager.menuOptions[0]}\" and \"{CustomManager.menuOptions[1]}\" in editor.");
+        displayCopyOptions = Config.Bind("Editor.Display",
+            "DisplayOptionsCopy",
+            Display.Always,
+            $"When to display \"{CustomManager.menuCopyOptions[0]}\" and \"{CustomManager.menuCopyOptions[1]}\" in editor.");
+
+        displayReloadOptions = Config.Bind("Editor.Display",
+            "DisplayOptionsReload",
+            Display.WhenActive,
+            $"When to display \"{CustomManager.menuReloadOptions[0]}\" in editor.");
 
         displayEventTemplates = Config.Bind("Editor.Display",
             "DisplayEventTemplates",
@@ -322,8 +330,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Start")]
     private static class MixtapeLoaderCustomStartPatch
     {
-        public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, int> totalRef =
-            AccessTools.FieldRefAccess<MixtapeLoaderCustom, int>("total");
         static void Prefix(MixtapeLoaderCustom __instance, out MixtapeLoaderCustom __state)
         {
             __state = __instance;
@@ -331,11 +337,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         static IEnumerator Postfix(IEnumerator __result, MixtapeLoaderCustom __state)
         {
             bool hasInited = false;
-            totalRef(__state) = 0;
+            __state.Total() = 0;
 
             while (__result.MoveNext())
             {
-                if (totalRef(__state) > 0 && !hasInited)
+                if (__state.Total() > 0 && !hasInited)
                 {
                     // after BeginInternal for all games, before jukebox is ready
                     Manager.Prepare(__state);
@@ -366,7 +372,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
-            if (displayEditorOptions.Value == Display.Never)
+            if (displayCopyOptions.Value == Display.Never && displayReloadOptions.Value == Display.Never)
             {
                 return instructions;
             }
@@ -418,10 +424,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         private static void Internal(MixtapeEditorScript __instance, int branch)
         {
-            if (AreMenuOptionsVisible())
+            if (couldFindMenu)
             {
                 Manager.HandleMenuOption(__instance,
-                    (CustomManager.MenuOption)(branch - 8),
+                    branch - 8,
+                    displayCopyOptions.Value, 
+                    displayReloadOptions.Value,
                     saveCustomFiles.Value,
                     displayEventTemplates.Value,
                     eventTemplatesIndex.Value);
@@ -429,17 +437,14 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(MixtapeEditorScript), "Awake")]
-    private static class MixtapeEditorScriptAwakePatch
+    [HarmonyPatch(typeof(MixtapeEditorScript), "FormatMenu")]
+    private static class MixtapeEditorScriptFormatOptionsPatch
     {
-        public static readonly AccessTools.FieldRef<MixtapeEditorScript, string[]> menuOptionsRef =
-            AccessTools.FieldRefAccess<MixtapeEditorScript, string[]>("menuOptions");
         static void Postfix(MixtapeEditorScript __instance)
         {
-            if (AreMenuOptionsVisible())
-            {
-                menuOptionsRef(__instance) = menuOptionsRef(__instance).ToList().Concat(CustomManager.menuOptions).ToArray();
-            }
+            Manager.FormatMenu(__instance, 
+                displayCopyOptions.Value, 
+                displayReloadOptions.Value);
         }
     }
 
@@ -473,11 +478,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         return (TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader) ? loadOutdatedPluginPlayer.Value :
             loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla;
-    }
-
-    public static bool AreMenuOptionsVisible()
-    {
-        return couldFindMenu && (displayEditorOptions.Value == Display.Always || displayEditorOptions.Value == Display.WhenActive && Manager.hasCustomAssets);
     }
 
     private ConfigEntry<T> UpgradeOrBind<T>(string oldSection, string newSection, string key, T defaultValue, string description)

@@ -1,7 +1,4 @@
-﻿using HarmonyLib;
-using UnityEngine;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
 
@@ -14,15 +11,6 @@ namespace BopCustomTextures.Customs;
 public class BaseCustomManager(ILogger logger)
 {
     public ILogger logger = logger;
-
-    public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Dictionary<SceneKey, GameObject>> rootObjectsRef =
-        AccessTools.FieldRefAccess<MixtapeLoaderCustom, Dictionary<SceneKey, GameObject>>("rootObjects");
-
-    public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, bool> cancelLoadRef =
-        AccessTools.FieldRefAccess<MixtapeLoaderCustom, bool>("cancelLoad");
-
-    public static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Entity[]> entitiesRef =
-        AccessTools.FieldRefAccess<MixtapeLoaderCustom, Entity[]>("entities");
 
     private static readonly Regex SceneKeyRegex = new Regex("^(.*?)(?:Custom|Mixtape)?$", RegexOptions.Compiled);
 

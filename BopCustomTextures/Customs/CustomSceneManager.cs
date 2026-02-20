@@ -124,7 +124,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
     {
         if (!CustomScenes.ContainsKey(sceneKey) ||
-            !rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj) ||
+            !__instance.RootObjects.TryGetValue(sceneKey, out var rootObj) ||
             !CustomScenes[sceneKey].TryGetValue(key, out var mobj))
         {
             return;
@@ -136,7 +136,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     public void InitCustomSceneDeferred(MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
     {
         if (!CustomScenes.ContainsKey(sceneKey) ||
-            !rootObjectsRef(__instance).TryGetValue(sceneKey, out var rootObj) ||
+            !__instance.RootObjects.TryGetValue(sceneKey, out var rootObj) ||
             !CustomScenes[sceneKey].TryGetValue(key, out var mobj))
         {
             return;
@@ -150,7 +150,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         var mobjsResolved = new Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>>();
         foreach (var pair in CustomScenes)
         {
-            if (!rootObjectsRef(__instance).TryGetValue(pair.Key, out var rootObj))
+            if (!__instance.RootObjects.TryGetValue(pair.Key, out var rootObj))
             {
                 continue;
             }
@@ -177,7 +177,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
                     logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
                     continue;
                 }
-                if (!rootObjectsRef(__instance).TryGetValue(scene, out var rootObj))
+                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                 {
                     logger.LogError($"Cannot apply scene mod to missing scene {scene}");
                     continue;

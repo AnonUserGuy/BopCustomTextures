@@ -1,5 +1,6 @@
 ﻿using BopCustomTextures.Config;
 using BopCustomTextures.Logging;
+using BopCustomTextures.Extensions;
 using BopCustomTextures.EventTemplates;
 using SFB;
 using Newtonsoft.Json;
@@ -10,6 +11,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using TMPro;
 
 namespace BopCustomTextures.Customs;
 
@@ -18,9 +20,11 @@ namespace BopCustomTextures.Customs;
 /// </summary>
 public class CustomManager : BaseCustomManager
 {
-    public static readonly List<string> menuOptions = [
+    public static readonly string[] menuCopyOptions = [
         "Copy Customs from File",
         "Copy Customs from Folder",
+    ];
+    public static readonly string[] menuReloadOptions = [
         "Reload Custom Assets"
     ];
     public enum MenuOption
@@ -346,12 +350,12 @@ public class CustomManager : BaseCustomManager
 
     public void Prepare(MixtapeLoaderCustom __instance)
     {
-        foreach (var dict in rootObjectsRef(__instance))
+        foreach (var dict in __instance.RootObjects)
         {
             textureManager.InitCustomTextures(__instance, dict.Key);
             sceneManager.InitCustomSceneDeferred(__instance, dict.Key);
         }
-        PrepareEvents(__instance, entitiesRef(__instance));
+        PrepareEvents(__instance, __instance.Entities());
     }
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
@@ -366,18 +370,13 @@ public class CustomManager : BaseCustomManager
             sceneManager.UpdateEventTemplates() |
             textureManager.UpdateEventTemplates();
 
-        switch (displayEventTemplates)
+        if (DisplayActive(displayEventTemplates, needsTemplates))
         {
-            case Display.Never:
-                entities.Remove(MyPluginInfo.PLUGIN_GUID);
-                break;
-            case Display.WhenActive:
-                if (needsTemplates) AddEventTemplates(eventTemplatesIndex);
-                else entities.Remove(MyPluginInfo.PLUGIN_GUID);
-                break;
-            case Display.Always:
-                AddEventTemplates(eventTemplatesIndex);
-                break;
+            AddEventTemplates(eventTemplatesIndex);
+        }
+        else
+        {
+            entities.Remove(MyPluginInfo.PLUGIN_GUID);
         }
     }
 
@@ -400,18 +399,46 @@ public class CustomManager : BaseCustomManager
         }
     }
 
-    public void HandleMenuOption(MixtapeEditorScript __instance, MenuOption option, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    public void FormatMenu(MixtapeEditorScript __instance, Display showCopyOptions, Display showReloadOptions)
     {
-        switch (option)
+        string text = __instance.menuText.text;
+        bool changed = false;
+        if (DisplayActive(showCopyOptions, hasCustomAssets))
         {
-            case MenuOption.OpenCustomsArchive:
+            text += "\n" + string.Join("\n", menuCopyOptions);
+            changed = true;
+        }
+        if (DisplayActive(showReloadOptions, hasCustomAssets))
+        {
+            text += "\n" + string.Join("\n", menuReloadOptions);
+            changed = true;
+        }
+        if (changed)
+        {
+            __instance.menuText.text = text;
+            __instance.menuText.ForceMeshUpdate();
+        }
+    }
+
+    public void HandleMenuOption(MixtapeEditorScript __instance, int index, Display showCopyOptions, Display showReloadOptions, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        if (!DisplayActive(showCopyOptions, hasCustomAssets))
+        {
+            index += 2;
+        }
+        switch (index)
+        {
+            case 0:
                 FileOpenCustomsArchive(__instance, backup, displayEventTemplates, eventTemplatesIndex);
                 break;
-            case MenuOption.OpenCustomsDirectory:
+            case 1:
                 FileOpenCustomsDirectory(__instance, backup, displayEventTemplates, eventTemplatesIndex);
                 break;
-            case MenuOption.ReloadCustomAssets:
-                ResetAndReload(lastPath, backup, displayEventTemplates, eventTemplatesIndex);
+            case 2:
+                if (DisplayActive(showReloadOptions, hasCustomAssets))
+                {
+                    ResetAndReload(lastPath, backup, displayEventTemplates, eventTemplatesIndex);
+                }
                 break;
         }
     }
@@ -560,5 +587,10 @@ public class CustomManager : BaseCustomManager
         {
             logger.LogError($"Error writing version data: {e}");
         }
+    }
+
+    public static bool DisplayActive(Display display, bool predicate)
+    {
+        return display == Display.Always || display == Display.WhenActive && predicate;
     }
 }
