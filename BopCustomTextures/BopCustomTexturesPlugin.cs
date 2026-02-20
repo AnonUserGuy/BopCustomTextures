@@ -10,10 +10,12 @@ using HarmonyLib;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
 
 namespace BopCustomTextures;
@@ -45,12 +47,15 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     public static CustomManager Manager;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
 
+    private static bool couldFindMenu = false;
+
     private static ConfigEntry<bool> loadCustomAssets;
 
     private static ConfigEntry<bool> saveCustomFiles;
     private static ConfigEntry<bool> upgradeOldMixtapes;
     private static ConfigEntry<bool> loadOutdatedPluginEditor;
 
+    private static ConfigEntry<Display> displayEditorOptions;
     private static ConfigEntry<Display> displayEventTemplates;
     private static ConfigEntry<int> eventTemplatesIndex;
 
@@ -142,6 +147,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "LoadOutdatedPluginEditor",
             true,
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
+
+
+        displayEditorOptions = Config.Bind("Editor.Display",
+            "displayEditorOptions",
+            Display.Never,
+            $"When to display \"{CustomManager.menuOptions[0]}\" and \"{CustomManager.menuOptions[1]}\" in editor.");
 
         displayEventTemplates = Config.Bind("Editor.Display",
             "DisplayEventTemplates",
@@ -349,6 +360,89 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
+    [HarmonyPatch(typeof(MixtapeEditorScript), "UpdateInternal")]
+    private static class MixtapeEditorScriptUpdateInternalPatch
+    {
+
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        {
+            if (displayEditorOptions.Value == Display.Never)
+            {
+                return instructions;
+            }
+
+            var codeMatcher = new CodeMatcher(instructions, il);
+
+            codeMatcher.MatchForward(false, [
+                new CodeMatch(ci =>
+                    ci.opcode == OpCodes.Br ||
+                    ci.opcode == OpCodes.Br_S),
+                new CodeMatch(ci =>
+                    ci.opcode == OpCodes.Ldloc ||
+                    ci.opcode == OpCodes.Ldloc_S),
+                new CodeMatch(OpCodes.Ldc_I4_7),
+                new CodeMatch(ci =>
+                    ci.opcode == OpCodes.Bne_Un ||
+                    ci.opcode == OpCodes.Bne_Un_S),
+                new CodeMatch(OpCodes.Ldarg_0),
+                new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(MixtapeEditorScript), "FileQuit"))
+            ]);
+            if (!codeMatcher.IsValid)
+            {
+                Logger.LogError("Could not find mixtape editor menu handler, so mixtape editor will not include modded menu options.");
+                return instructions;
+            }
+
+            var breakInstruction = codeMatcher.Instruction;
+            codeMatcher.Advance(1);
+            var ldlocInstruction = codeMatcher.Instruction;
+            codeMatcher.Advance(2);
+            int branchPos = codeMatcher.Pos;
+
+            codeMatcher.Advance(3);
+            codeMatcher.Insert([
+                breakInstruction,
+                new CodeInstruction(OpCodes.Ldarg_0),
+                ldlocInstruction,
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MixtapeEditorScriptUpdateInternalPatch), "Internal"))
+            ]);
+            codeMatcher.Advance(1);
+            codeMatcher.CreateLabel(out var label);
+
+            codeMatcher.Start().Advance(branchPos);
+            codeMatcher.SetOperandAndAdvance(label);
+
+            couldFindMenu = true;
+            return codeMatcher.InstructionEnumeration();
+        }
+
+        private static void Internal(MixtapeEditorScript __instance, int branch)
+        {
+            if (AreMenuOptionsVisible())
+            {
+                Manager.HandleMenuOption(__instance,
+                    (CustomManager.MenuOption)(branch - 8),
+                    saveCustomFiles.Value,
+                    displayEventTemplates.Value,
+                    eventTemplatesIndex.Value);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "Awake")]
+    private static class MixtapeEditorScriptAwakePatch
+    {
+        public static readonly AccessTools.FieldRef<MixtapeEditorScript, string[]> menuOptionsRef =
+            AccessTools.FieldRefAccess<MixtapeEditorScript, string[]>("menuOptions");
+        static void Postfix(MixtapeEditorScript __instance)
+        {
+            if (AreMenuOptionsVisible())
+            {
+                menuOptionsRef(__instance) = menuOptionsRef(__instance).ToList().Concat(CustomManager.menuOptions).ToArray();
+            }
+        }
+    }
+
     private void OnProcessExit(object sender, EventArgs e)
     {
         Manager.DeleteTempDirectory();
@@ -379,6 +473,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         return (TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader) ? loadOutdatedPluginPlayer.Value :
             loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla;
+    }
+
+    public static bool AreMenuOptionsVisible()
+    {
+        return couldFindMenu && (displayEditorOptions.Value == Display.Always || displayEditorOptions.Value == Display.WhenActive && Manager.hasCustomAssets);
     }
 
     private ConfigEntry<T> UpgradeOrBind<T>(string oldSection, string newSection, string key, T defaultValue, string description)

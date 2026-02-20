@@ -1,11 +1,13 @@
 ﻿using BopCustomTextures.Config;
 using BopCustomTextures.Logging;
 using BopCustomTextures.EventTemplates;
+using SFB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -16,6 +18,18 @@ namespace BopCustomTextures.Customs;
 /// </summary>
 public class CustomManager : BaseCustomManager
 {
+    public static readonly List<string> menuOptions = [
+        "Copy Customs from File",
+        "Copy Customs from Folder",
+        "Reload Custom Assets"
+    ];
+    public enum MenuOption
+    {
+        OpenCustomsArchive,
+        OpenCustomsDirectory,
+        ReloadCustomAssets
+    }
+
     public string version;
     public uint release;
     public bool hasCustomAssets = false;
@@ -269,12 +283,17 @@ public class CustomManager : BaseCustomManager
         }
     }
 
-    public void ResetAll(Display displayEventTemplates, int eventTemplatesIndex)
+    public void Unload()
     {
         sceneManager.UnloadCustomScenes();
         textureManager.UnloadCustomTextures();
         variantManager.UnloadCustomTextureVariants();
         fileManager.DeleteTempDirectory();
+    }
+
+    public void ResetAll(Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        Unload();
         lastPath = null;
         lastModified = default;
         hasCustomAssets = false;
@@ -293,6 +312,23 @@ public class CustomManager : BaseCustomManager
         {
             logger.LogInfo("Avoided customs reload for reopened mixtape");
             readNecessary = false;
+        }
+        lastPath = path;
+        lastModified = modified;
+    }
+
+    public void ResetAndReload(string path, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        var modified = File.GetLastWriteTime(lastPath);
+        if (lastPath != path || modified != lastModified)
+        {
+            Unload();
+            ReadPath(path, backup);
+            UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
+        } 
+        else
+        {
+            logger.LogInfo("Custom assets appear to be unmodified");
         }
         lastPath = path;
         lastModified = modified;
@@ -361,6 +397,87 @@ public class CustomManager : BaseCustomManager
         foreach (var pair in list)
         {
             entities[pair.Key] = pair.Value;
+        }
+    }
+
+    public void HandleMenuOption(MixtapeEditorScript __instance, MenuOption option, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        switch (option)
+        {
+            case MenuOption.OpenCustomsArchive:
+                FileOpenCustomsArchive(__instance, backup, displayEventTemplates, eventTemplatesIndex);
+                break;
+            case MenuOption.OpenCustomsDirectory:
+                FileOpenCustomsDirectory(__instance, backup, displayEventTemplates, eventTemplatesIndex);
+                break;
+            case MenuOption.ReloadCustomAssets:
+                ResetAndReload(lastPath, backup, displayEventTemplates, eventTemplatesIndex);
+                break;
+        }
+    }
+
+    public void FileOpenCustomsArchive(MixtapeEditorScript __instance, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        __instance.StartCoroutine(OpenCustomsArchive(backup, displayEventTemplates, eventTemplatesIndex));
+    }
+
+    public IEnumerator OpenCustomsArchive(bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        ExtensionFilter[] extensions =
+        [
+            new ExtensionFilter("All Mixtape Files", "bop", "riq", "zip"),
+            new ExtensionFilter("Mixtape Files", "bop"),
+            new ExtensionFilter("RIQ Files", "riq"),
+            new ExtensionFilter("Zip Files", "zip"),
+
+        ];
+        string path = null;
+        bool complete = false;
+        yield return null;
+        StandaloneFileBrowser.OpenFilePanelAsync("Open File", "", extensions, multiselect: false, delegate (string[] paths)
+        {
+            complete = true;
+            if (paths.Length != 0 && paths[0] != "")
+            {
+                path = paths[0];
+            }
+        });
+        while (!complete)
+        {
+            yield return null;
+        }
+        if (path != null)
+        {
+            ResetAndReload(path, backup, displayEventTemplates, eventTemplatesIndex);
+        }
+    }
+
+
+    public void FileOpenCustomsDirectory(MixtapeEditorScript __instance, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        __instance.StartCoroutine(OpenCustomsDirectory(backup, displayEventTemplates, eventTemplatesIndex));
+    }
+
+    public IEnumerator OpenCustomsDirectory(bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        string path = null;
+        bool complete = false;
+        yield return null;
+        StandaloneFileBrowser.OpenFolderPanelAsync("Open Folder", "", multiselect: false, delegate (string[] paths)
+        {
+            complete = true;
+            if (paths.Length != 0 && paths[0] != "")
+            {
+                path = paths[0];
+            }
+        });
+        while (!complete)
+        {
+            yield return null;
+        }
+        if (path != null)
+        {
+            ResetAndReload(path, backup, displayEventTemplates, eventTemplatesIndex);
         }
     }
 
