@@ -1,6 +1,6 @@
 ﻿using HarmonyLib;
 
-namespace BopCustomTextures.Extensions;
+namespace BopCustomTextures.AccessExtensions;
 public static class MixtapeLoaderCustomExtensions
 {
     private static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Entity[]> entitiesRef =

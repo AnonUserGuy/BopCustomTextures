@@ -29,18 +29,17 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         return PathRegex.IsMatch(path);
     }
 
-    public int LocateCustomScenes(string path, uint release)
+    public IEnumerable<string> LocateCustomScenes(string path, int index, uint release)
     {
-        int filesLoaded = 0;
         var filepaths = Directory.EnumerateFiles(path);
         foreach (var filepath in filepaths)
         {
             if (CheckIsCustomScene(filepath, release))
             {
-                filesLoaded++;
+                string localPath = filepath.Substring(index);
+                yield return localPath;
             }
         }
-        return filesLoaded;
     }
 
     public bool CheckIsCustomScene(string path, uint release)

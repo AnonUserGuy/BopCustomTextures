@@ -98,9 +98,8 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         return PathRegex.IsMatch(path);
     }
 
-    public int LocateCustomTextures(string path)
+    public IEnumerable<string> LocateCustomTextures(string path, int index)
     {
-        int filesLoaded = 0;
         var subpaths = Directory.EnumerateDirectories(path);
         foreach (var subpath in subpaths)
         {
@@ -115,20 +114,22 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
                 continue;
             }
             int variant = VariantManager.GetOrAddVariant(scene, match.Groups[2].Value);
-            filesLoaded += LocateCustomTexturesRecursive(subpath, scene, variant);
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant)) 
+            {
+                yield return file;
+            }
         }
-        return filesLoaded;
     }
 
-    public int LocateCustomTexturesRecursive(string path, SceneKey scene, int variant)
+    public IEnumerable<string> LocateCustomTexturesRecursive(string path, int index, SceneKey scene, int variant)
     {
-        int filesLoaded = 0;
         var filepaths = Directory.EnumerateFiles(path);
         foreach (var filepath in filepaths)
         {
-            if (CheckIsCustomTexture(filepath, scene, variant))
+            if (CheckIsCustomTexture(filepath, index, scene, variant))
             {
-                filesLoaded++;
+                var localPath = filepath.Substring(index);
+                yield return localPath;
             }
         }
         var subpaths = Directory.EnumerateDirectories(path);
@@ -140,12 +141,14 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             {
                 variant2 = VariantManager.GetOrAddVariant(scene, match.Groups[1].Value);
             }
-            filesLoaded += LocateCustomTexturesRecursive(subpath, scene, variant2);
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant2))
+            {
+                yield return file;
+            }
         }
-        return filesLoaded;
     }
 
-    public bool CheckIsCustomTexture(string path, SceneKey scene, int variant)
+    public bool CheckIsCustomTexture(string path, int index, SceneKey scene, int variant)
     {
         if (!FileRegex.IsMatch(path))
         {
@@ -156,48 +159,47 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         if (match.Success)
         {
             logger.LogFileLoading($"Found custom atlas texture: {scene}#{variant} ~ {filename}");
-            LoadCustomAtlasTexture(path, scene, int.Parse(match.Groups[1].Value), variant);
-            return true;
+            return LoadCustomAtlasTexture(path, index, scene, int.Parse(match.Groups[1].Value), variant);
         }
         match = FileRegexSeperate.Match(filename);
         if (match.Success)
         {
             logger.LogFileLoading($"Found custom seperate texture: {scene}#{variant} ~ {filename}");
-            LoadCustomSeperateTexture(path, scene, match.Groups[1].Value, variant);
-            return true;
+            return LoadCustomSeperateTexture(path, index, scene, match.Groups[1].Value, variant);
         }
         return false;
     }
 
-    public void LoadCustomAtlasTexture(string path, SceneKey scene, int index, int variant)
+    public bool LoadCustomAtlasTexture(string path, int index, SceneKey scene, int atlasIndex, int variant)
     {
-        Texture2D tex = LoadImage(path);
+        Texture2D tex = LoadImage(path, index);
         if (tex == null)
         {
-            return;
+            return false;
         }
         if (!AtlasTextures.ContainsKey(scene))
         {
             AtlasTextures[scene] = [];
         }
-        if (!AtlasTextures[scene].ContainsKey(index))
+        if (!AtlasTextures[scene].ContainsKey(atlasIndex))
         {
-            AtlasTextures[scene][index] = [];
+            AtlasTextures[scene][atlasIndex] = [];
         }
-        else if (AtlasTextures[scene][index].ContainsKey(variant))
+        else if (AtlasTextures[scene][atlasIndex].ContainsKey(variant))
         {
-            logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {index}");
-            Object.Destroy(AtlasTextures[scene][index][variant]);
+            logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {atlasIndex}");
+            Object.Destroy(AtlasTextures[scene][atlasIndex][variant]);
         }
-        AtlasTextures[scene][index][variant] = tex;
+        AtlasTextures[scene][atlasIndex][variant] = tex;
+        return true;
     }
 
-    public void LoadCustomSeperateTexture(string path, SceneKey scene, string name, int variant)
+    public bool LoadCustomSeperateTexture(string path, int index, SceneKey scene, string name, int variant)
     {
-        Texture2D tex = LoadImage(path);
+        Texture2D tex = LoadImage(path, index);
         if (tex == null)
         {
-            return;
+            return false;
         }
         if (!SeperateTextures.ContainsKey(scene))
         {
@@ -217,21 +219,22 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         SeperateTextures[scene][name][variant] = tex;
         SeperateTexturesNotInited[scene][tex] = (name, variant);
+        return true;
     }
 
-    public Texture2D LoadImage(string path)
+    public Texture2D LoadImage(string path, int index)
     {
-        string filename = Path.GetFileName(path);
         byte[] bytes = File.ReadAllBytes(path);
         Texture2D tex = new Texture2D(2, 2);
         if (!tex.LoadImage(bytes))
         {
-            logger.LogWarning($"Couldn't load custom texture: {filename} (is it a PNG/JPG?)");
+            string localPath = path.Substring(index);
+            logger.LogWarning($"Couldn't load custom texture: {localPath} (is it a PNG/JPG?)");
             Object.Destroy(tex);
             return null;
         }
         tex.wrapMode = TextureWrapMode.Clamp;
-        tex.name = filename;
+        tex.name = Path.GetFileName(path);
         return tex;
     }
 

@@ -1,7 +1,7 @@
 ﻿using HarmonyLib;
 using System.Reflection;
 
-namespace BopCustomTextures.Extensions;
+namespace BopCustomTextures.AccessExtensions;
 internal static class RiqLoaderExtensions
 {
     private static readonly MethodInfo startMixtapeMethod = AccessTools.Method(typeof(RiqLoader), "StartMixtape", []);

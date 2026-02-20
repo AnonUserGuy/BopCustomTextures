@@ -1,5 +1,5 @@
 ﻿using BopCustomTextures.Customs;
-using BopCustomTextures.Extensions;
+using BopCustomTextures.AccessExtensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

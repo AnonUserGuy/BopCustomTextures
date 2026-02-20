@@ -2,8 +2,8 @@
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
 using BopCustomTextures.Scripts;
-using BopCustomTextures.Extensions;
 using BopCustomTextures.EventTemplates;
+using BopCustomTextures.AccessExtensions;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Configuration;
@@ -11,14 +11,12 @@ using HarmonyLib;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
-using TMPro;
 
 namespace BopCustomTextures;
 
@@ -422,15 +420,17 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             return codeMatcher.InstructionEnumeration();
         }
 
-        private static void Internal(MixtapeEditorScript __instance, int branch)
+        private static void Internal(MixtapeEditorScript __instance, int option)
         {
             if (couldFindMenu)
             {
                 Manager.HandleMenuOption(__instance,
-                    branch - 8,
+                    option - 8,
                     displayCopyOptions.Value, 
                     displayReloadOptions.Value,
                     saveCustomFiles.Value,
+                    upgradeOldMixtapes.Value,
+                    GetOutdatedPluginHandling(),
                     displayEventTemplates.Value,
                     eventTemplatesIndex.Value);
             }
@@ -442,9 +442,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeEditorScript __instance)
         {
-            Manager.FormatMenu(__instance, 
-                displayCopyOptions.Value, 
-                displayReloadOptions.Value);
+            if (couldFindMenu)
+            {
+                Manager.FormatMenu(__instance,
+                    displayCopyOptions.Value,
+                    displayReloadOptions.Value);
+            }
         }
     }
 

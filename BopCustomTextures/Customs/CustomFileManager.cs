@@ -2,6 +2,8 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace BopCustomTextures.Customs;
 
@@ -50,12 +52,37 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
 
     public void BackupDirectory(string path, string dest)
     {
+        CheckLock();
+        CopyDirectory(path, Path.Combine(tempPath, dest));
+    }
+
+    public int BackupFiles(IEnumerable<string> files, string parentPath)
+    {
+        CheckLock();
+        int found = 0;
+        foreach (var file in files)
+        {
+            found++;
+            string srcPath = Path.Combine(parentPath, file);
+            if (!File.Exists(srcPath))
+            {
+                logger.LogError($"File not found: {file}");
+                continue;
+            }
+            string destPath = Path.Combine(tempPath, file);
+            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+            File.Copy(srcPath, destPath);
+        }
+        return found;
+    }
+
+    private void CheckLock()
+    {
         if (tempLock == null)
         {
             Directory.CreateDirectory(tempPath);
             tempLock = new FileStream(Path.Combine(tempPath, ".tmp"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
-        CopyDirectory(path, Path.Combine(tempPath, dest));
     }
 
     public void DeleteTempDirectory()
