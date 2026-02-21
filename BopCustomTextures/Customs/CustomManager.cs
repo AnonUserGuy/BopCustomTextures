@@ -307,7 +307,7 @@ public class CustomManager : BaseCustomManager
     public void ResetAndReload(string path, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
     {
         var modified = File.GetLastWriteTime(path);
-        if (lastPath != path || modified != lastModified)
+        if (lastPath != path || modified != lastModified || Directory.Exists(path))
         {
             Unload();
             ReadPath(path, backup);
