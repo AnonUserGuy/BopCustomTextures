@@ -1,0 +1,660 @@
+﻿using BopCustomTextures.Config;
+using BopCustomTextures.Logging;
+using BopCustomTextures.EventTemplates;
+using BopCustomTextures.AccessExtensions;
+using SFB;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+
+namespace BopCustomTextures.Customs;
+
+/// <summary>
+/// Manages all custom assets using specific manager classes.
+/// </summary>
+public class CustomManager : BaseCustomManager
+{
+    public static readonly string[] menuCopyOptions = [
+        "Copy Customs from File",
+        "Copy Customs from Folder",
+    ];
+    public static readonly string[] menuReloadOptions = [
+        "Reload Custom Assets"
+    ];
+    private const int versionMaxLength = 50;
+    public static readonly Regex VersionRegex = new Regex("<.*?>", RegexOptions.Compiled);
+    public static readonly Regex PathRegex = new Regex(@"[\\/](?:res(?:ource)?s?|BopCustomTextures)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public string version;
+    public uint release;
+    public bool hasCustomAssets = false;
+
+    public string lastPath;
+    public DateTime lastModified;
+    public bool readNecessary = true;
+    public bool interruptLoad = false;
+
+    public CustomSceneManager sceneManager;
+    public CustomTextureManager textureManager;
+    public CustomVariantNameManager variantManager;
+    public CustomFileManager fileManager;
+    
+    public Dictionary<string, List<MixtapeEventTemplate>> entities;
+
+
+    /// <param name="logger">Plugin-specific logger.</param>
+    /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded.</param>
+    /// <param name="sceneModTemplate">Mixtape event template for applying scene mods.</param>
+    /// <param name="textureTemplates">Mixtape event templates concerning custom textures.</param>
+    /// <param name="entities">List of all mixtape event categories and events.</param>
+    public CustomManager(ILogger logger, 
+        string tempPath, 
+        MixtapeEventTemplate sceneModTemplate, 
+        MixtapeEventTemplate[] textureTemplates,
+        Dictionary<string, List<MixtapeEventTemplate>> entities) : base(logger)
+    {
+        variantManager = new CustomVariantNameManager(logger);
+        sceneManager = new CustomSceneManager(logger, variantManager, sceneModTemplate);
+        textureManager = new CustomTextureManager(logger, variantManager, textureTemplates);
+        fileManager = new CustomFileManager(logger, tempPath);
+        this.entities = entities;
+    }
+
+    public static bool IsCustomResourceDirectory(string path)
+    {
+        return PathRegex.IsMatch(path);
+    }
+
+    public void CheckVersionThenReadDirectory(string path, 
+        bool backup, 
+        bool upgrade, 
+        OutdatedPluginHandling outdatedPluginHandling,
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        if (!readNecessary || !CheckMixtapeVersion(path, backup, upgrade, outdatedPluginHandling))
+        {
+            return;
+        }
+
+        ReadDirectory(path, backup);
+        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
+        return;
+    }
+
+    public void ReadDirectory(string path, bool backup = false)
+    {
+        int filesLoaded = 0;
+        bool hasResourceFolder = false;
+        var subpaths = Directory.EnumerateDirectories(path);
+        foreach (var subpath in subpaths)
+        {
+            if (IsCustomResourceDirectory(subpath))
+            {
+                hasResourceFolder = true;
+                filesLoaded += LocateResources(subpath, path, backup, true);
+            }
+        }
+        if (!hasResourceFolder)
+        {
+            filesLoaded += LocateResources(path, path, backup, false);
+        }
+
+        if (filesLoaded > 0)
+        {
+            logger.LogInfo($"Loaded {filesLoaded} custom assets");
+            if (!hasCustomAssets && backup)
+            {
+                logger.LogUpgradeMixtape(
+                    "This mixtape with custom assets is missing a \"BopCustomTextues.json\" file specifying version. " +
+                    "Save this mixtape in the editor to add a \"BopCustomTextures.json\" file automatically!"
+                );
+                hasCustomAssets = true;
+            }
+        }
+        else
+        {
+            logger.LogInfo("No custom assets found");
+        }
+    }
+
+    public void ReadArchive(string path, bool backup = false)
+    {
+        string rootPath = null;
+        try
+        {
+            rootPath = fileManager.ExtractArchiveToTempDirectory(path, Path.GetFileNameWithoutExtension(path));
+            ReadDirectory(rootPath, backup);
+        } 
+        catch (Exception e)
+        {
+            logger.LogError(e);
+        } 
+        finally
+        {
+            if (!string.IsNullOrEmpty(rootPath))
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
+        }
+    }
+
+    public void ReadPath(string path, bool backup = false)
+    {
+        if (File.Exists(path))
+        {
+            ReadArchive(path, backup);
+        } 
+        else if (Directory.Exists(path)) 
+        {
+            ReadDirectory(path, backup);
+        }
+        else
+        {
+            logger.LogError($"Path is not a .bop file or directory: {path}");
+        }
+    }
+
+    public void ReadLastPath(bool backup = false)
+    {
+        ReadPath(lastPath, backup);
+    }
+
+    public int LocateResources(string path, string parentPath, bool backup, bool isResources)
+    {
+        int filesLoaded = 0;
+        int index = parentPath.Length + 1;
+        var subpaths = Directory.EnumerateDirectories(path);
+        foreach (var subpath in subpaths)
+        {
+            if (CustomTextureManager.IsCustomTextureDirectory(subpath))
+            {
+                if (backup)
+                {
+                    filesLoaded += fileManager.BackupFiles(textureManager.LocateCustomTextures(subpath, index, isResources), parentPath);
+                }
+                else
+                {
+                    filesLoaded += textureManager.LocateCustomTextures(subpath, index, isResources).Count();
+                }
+            }
+        }
+        foreach (var subpath in subpaths)
+        {
+            if (CustomSceneManager.IsCustomSceneDirectory(subpath))
+            {
+                if (backup)
+                {
+                    filesLoaded += fileManager.BackupFiles(sceneManager.LocateCustomScenes(subpath, index, release), parentPath);
+                }
+                else
+                {
+                    filesLoaded += sceneManager.LocateCustomScenes(subpath, index, release).Count();
+                }
+            }
+        }
+        return filesLoaded;
+    }
+
+    public void WriteDirectory(string path, bool upgrade)
+    {
+        if (hasCustomAssets)
+        {
+            logger.LogInfo("Saving with custom files");
+            fileManager.WriteDirectory(path);
+            WriteMixtapeVersion(path, upgrade);
+        };
+    }
+    
+    // NOTE: Bits & Bops currently supports RIQ v1 only.
+    public void CheckVersionThenReadRiqArchive(string riqPath, 
+        bool backup, 
+        bool upgrade, 
+        OutdatedPluginHandling outdatedPluginHandling, 
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        string rootPath = null;
+        if (!readNecessary)
+        {
+            return;
+        }
+        try
+        {
+            rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetFileNameWithoutExtension(riqPath));
+            CheckVersionThenReadDirectory(rootPath, backup, upgrade, outdatedPluginHandling, displayEventTemplates, eventTemplatesIndex);
+        }
+        catch (Exception e)
+        {
+            logger.LogError($"Failed to load custom assets from RIQ v1 file: {e}");
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(rootPath))
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
+        }
+    }
+
+    // NOTE: Bits & Bops currently supports RIQ v1 only.
+    public void SaveAsRiq(string riqPath, bool upgrade)
+    {
+        if (!hasCustomAssets)
+        {
+            return;
+        }
+
+        try
+        {
+            var rootPath = fileManager.ExtractArchiveToTempDirectory(riqPath, Path.GetDirectoryName(riqPath));
+            if (fileManager.WriteDirectory(rootPath))
+            {
+                logger.LogInfo("Saving RIQ v1 with custom files");
+                WriteMixtapeVersion(rootPath, upgrade);
+                fileManager.PackDirectoryToArchive(rootPath, riqPath);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError($"Failed to save custom assets into RIQ v1 file: {e}");
+        }
+    }
+
+    public void Unload()
+    {
+        sceneManager.UnloadCustomScenes();
+        textureManager.UnloadCustomTextures();
+        variantManager.UnloadCustomTextureVariants();
+        fileManager.DeleteTempDirectory();
+    }
+
+    public void ResetAll(Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        Unload();
+        lastPath = null;
+        lastModified = default;
+        hasCustomAssets = false;
+        readNecessary = true;
+        UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
+    }
+
+    public void ResetIfNecessary(string path, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        var modified = File.GetLastWriteTime(path);
+        if (lastPath != path || lastModified != modified)
+        {
+            ResetAll(displayEventTemplates, eventTemplatesIndex);
+        }
+        else
+        {
+            logger.LogInfo("Avoided customs reload for reopened mixtape");
+            readNecessary = false;
+        }
+        lastPath = path;
+        lastModified = modified;
+    }
+
+    public void ResetAndReload(string path, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        var modified = File.GetLastWriteTime(path);
+        if (lastPath != path || modified != lastModified || Directory.Exists(path))
+        {
+            Unload();
+            ReadPath(path, backup);
+            UpdateEventTemplates(displayEventTemplates, eventTemplatesIndex);
+        } 
+        else
+        {
+            logger.LogInfo("Custom assets appear to be unmodified");
+        }
+        lastPath = path;
+        lastModified = modified;
+    }
+
+    public void DeleteTempDirectory()
+    {
+        fileManager.DeleteTempDirectory();
+    }
+
+    public void InitScene(MixtapeLoaderCustom __instance, SceneKey sceneKey)
+    {
+        sceneManager.InitCustomScene(__instance, sceneKey);
+    }
+
+    public void Prepare(MixtapeLoaderCustom __instance)
+    {
+        foreach (var dict in __instance.RootObjects)
+        {
+            textureManager.InitCustomTextures(__instance, dict.Key);
+            sceneManager.InitCustomSceneDeferred(__instance, dict.Key);
+        }
+        PrepareEvents(__instance, __instance.Entities());
+    }
+
+    public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
+    {
+        sceneManager.PrepareEvents(__instance, entities);
+        textureManager.PrepareEvents(__instance, entities);
+    }
+
+    public void UpdateEventTemplates(Display displayEventTemplates, int eventTemplatesIndex)
+    {
+        bool needsTemplates = 
+            sceneManager.UpdateEventTemplates() |
+            textureManager.UpdateEventTemplates();
+
+        if (DisplayActive(displayEventTemplates, needsTemplates))
+        {
+            AddEventTemplates(eventTemplatesIndex);
+        }
+        else
+        {
+            entities.Remove(MyPluginInfo.PLUGIN_GUID);
+        }
+    }
+
+    public void AddEventTemplates(int index)
+    {
+        if (entities.ContainsKey(MyPluginInfo.PLUGIN_GUID))
+        {
+            return;
+        }
+        var list = entities.ToList();
+        if (index > list.Count || index < 1)
+        {
+            index = list.Count;
+        }
+        list.Insert(index, new KeyValuePair<string, List<MixtapeEventTemplate>>(MyPluginInfo.PLUGIN_GUID, new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.templates)));
+        entities.Clear();
+        foreach (var pair in list)
+        {
+            entities[pair.Key] = pair.Value;
+        }
+    }
+
+    public void FormatMenu(MixtapeEditorScript __instance, Display showCopyOptions, Display showReloadOptions)
+    {
+        string text = __instance.menuText.text;
+        bool changed = false;
+        if (DisplayActive(showCopyOptions, hasCustomAssets))
+        {
+            text += "\n" + string.Join("\n", menuCopyOptions);
+            changed = true;
+        }
+        if (DisplayActive(showReloadOptions, hasCustomAssets))
+        {
+            text += "\n" + string.Join("\n", menuReloadOptions);
+            changed = true;
+        }
+        if (changed)
+        {
+            __instance.menuText.text = text;
+            __instance.menuText.ForceMeshUpdate();
+        }
+    }
+
+    public void HandleMenuOption(MixtapeEditorScript __instance, int index, 
+        Display showCopyOptions, 
+        Display showReloadOptions, 
+        bool backup,
+        bool upgrade,
+        OutdatedPluginHandling outdatedPluginHandling,
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        if (!DisplayActive(showCopyOptions, hasCustomAssets))
+        {
+            index += 2;
+        }
+        switch (index)
+        {
+            case 0:
+                FileOpenCustomsArchive(__instance, backup, displayEventTemplates, eventTemplatesIndex);
+                break;
+            case 1:
+                FileOpenCustomsDirectory(__instance, backup, displayEventTemplates, eventTemplatesIndex);
+                break;
+            case 2:
+                if (DisplayActive(showReloadOptions, hasCustomAssets))
+                {
+                    ResetAndReload(lastPath, backup, displayEventTemplates, eventTemplatesIndex);
+                }
+                break;
+        }
+    }
+
+    public void FileOpenCustomsArchive(MixtapeEditorScript __instance,
+        bool backup,
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        __instance.StartCoroutine(OpenCustomsArchive(__instance, backup, displayEventTemplates, eventTemplatesIndex));
+    }
+
+    public IEnumerator OpenCustomsArchive(MixtapeEditorScript __instance,
+        bool backup,
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        ExtensionFilter[] extensions =
+        [
+            new ExtensionFilter("All Mixtape Files", "bop", "riq", "zip"),
+            new ExtensionFilter("Mixtape Files", "bop"),
+            new ExtensionFilter("RIQ Files", "riq"),
+            new ExtensionFilter("Zip Files", "zip"),
+            new ExtensionFilter("All Files", "*" ),
+
+        ];
+        string path = null;
+        bool complete = false;
+        yield return null;
+        StandaloneFileBrowser.OpenFilePanelAsync("Open File", Path.GetDirectoryName(lastPath), extensions, multiselect: false, delegate (string[] paths)
+        {
+            complete = true;
+            if (paths.Length != 0 && paths[0] != "")
+            {
+                path = paths[0];
+            }
+        });
+        while (!complete)
+        {
+            yield return null;
+        }
+        if (path != null)
+        {
+            ResetAndReload(path, backup, displayEventTemplates, eventTemplatesIndex);
+            __instance.FormatMenu();
+        }
+    }
+
+
+    public void FileOpenCustomsDirectory(MixtapeEditorScript __instance,
+        bool backup, 
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        __instance.StartCoroutine(OpenCustomsDirectory(__instance, backup, displayEventTemplates, eventTemplatesIndex));
+    }
+
+    public IEnumerator OpenCustomsDirectory(MixtapeEditorScript __instance,
+        bool backup, 
+        Display displayEventTemplates, 
+        int eventTemplatesIndex)
+    {
+        string path = null;
+        bool complete = false;
+        yield return null;
+        StandaloneFileBrowser.OpenFolderPanelAsync("Open Folder", Path.GetDirectoryName(lastPath), multiselect: false, delegate (string[] paths)
+        {
+            complete = true;
+            if (paths.Length != 0 && paths[0] != "")
+            {
+                path = paths[0];
+            }
+        });
+        while (!complete)
+        {
+            yield return null;
+        }
+        if (path != null)
+        {
+            if (IsCustomResourceDirectory(path))
+            {
+                path = Path.GetDirectoryName(path);
+            }
+            ResetAndReload(path, backup, displayEventTemplates, eventTemplatesIndex);
+            __instance.FormatMenu();
+        }
+    }
+
+    public bool GetMixtapeVersion(string path)
+    {
+        string filePath = Path.Combine(path, $"{MyPluginInfo.PLUGIN_GUID}.json");
+        if (!File.Exists(filePath))
+        {
+            version = BopCustomTexturesPlugin.LowestVersion;
+            release = BopCustomTexturesPlugin.LowestRelease;
+            return false;
+        }
+
+        try
+        {
+            byte[] bytes = File.ReadAllBytes(filePath);
+            MemoryStream memStream = new MemoryStream(bytes);
+            using StreamReader reader = new StreamReader(memStream);
+            using JsonTextReader jsonReader = new JsonTextReader(reader);
+            var jobj = JObject.Load(jsonReader);
+
+            if (jobj.TryGetValue("release", out var jrelease))
+            {
+                if (jrelease.Type == JTokenType.Integer)
+                {
+                    release = (uint)jrelease;
+                } 
+                else
+                {
+                    logger.LogWarning($"Release is a {jrelease.Type} when it should be an int, will treat as latest.");
+                    release = BopCustomTexturesPlugin.LowestRelease;
+                }
+            } 
+            else
+            {
+                logger.LogWarning("Version data missing release, will treat as latest.");
+                release = BopCustomTexturesPlugin.LowestRelease;
+            }
+            if (jobj.TryGetValue("version", out var jversion))
+            {
+                if (jversion.Type == JTokenType.String)
+                {
+                    version = SanitizeVersion((string)jversion);
+                }
+                else
+                {
+                    logger.LogWarning($"Version is a {jversion.Type} when it should be an int, will treat as latest.");
+                    version = BopCustomTexturesPlugin.LowestVersion;
+                }
+            }
+            else
+            {
+                logger.LogWarning("Version data missing version, will treat as latest.");
+                version = BopCustomTexturesPlugin.LowestVersion;
+            }
+
+        }
+        catch (JsonReaderException e)
+        {
+            logger.LogError($"Error reading verison data, will treat as latest: {e}");
+            version = BopCustomTexturesPlugin.LowestVersion;
+            release = BopCustomTexturesPlugin.LowestRelease;
+        }
+        
+        return true;
+    }
+
+    public void WriteMixtapeVersion(string path, bool upgrade)
+    {
+        var jobj = new JObject();
+        jobj["version"] = new JValue(upgrade ? BopCustomTexturesPlugin.LowestVersion : version);
+        jobj["release"] = new JValue(upgrade ? BopCustomTexturesPlugin.LowestRelease : release);
+
+        try
+        {
+            using StreamWriter outputFile = new StreamWriter(Path.Combine(path, $"{MyPluginInfo.PLUGIN_GUID}.json"));
+            outputFile.Write(JsonConvert.SerializeObject(jobj));
+        } 
+        catch (Exception e)
+        {
+            logger.LogError($"Error writing version data: {e}");
+        }
+    }
+
+    public bool CheckMixtapeVersion(string path, bool backup, bool upgrade, OutdatedPluginHandling outdatedPluginHandling)
+    {
+        hasCustomAssets = GetMixtapeVersion(path);
+        if (release > BopCustomTexturesPlugin.LowestRelease)
+        {
+            if (outdatedPluginHandling == OutdatedPluginHandling.LoadVanilla)
+            {
+                logger.LogOutdatedPlugin(
+                    $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} v{version}+, " +
+                    $"but you are on v{MyPluginInfo.PLUGIN_VERSION}, so loading custom assets was cancelled."
+                );
+                interruptLoad = false;
+                return false;
+            }
+            logger.LogOutdatedPlugin(
+                $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} v{version}+, " +
+                $"but you are on v{MyPluginInfo.PLUGIN_VERSION}. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly."
+            );
+            if (outdatedPluginHandling == OutdatedPluginHandling.ShowDisclaimer)
+            {
+                interruptLoad = true;
+                return false;
+            }
+        }
+        else if (release < BopCustomTexturesPlugin.LowestRelease && backup && upgrade)
+        {
+            logger.LogUpgradeMixtape(
+                $"Mixtape was made for {MyPluginInfo.PLUGIN_GUID} v{version}, " +
+                $"while you are on v{MyPluginInfo.PLUGIN_VERSION}. Save this mixtape in the editor to update its version!"
+            );
+        }
+        return true;
+    }
+
+    public string GetDescriptionAppended(string description)
+    {
+        if (hasCustomAssets)
+        {
+            return $"{description}\n" +
+                $"\n" +
+                $"This mixtape optionally supports custom textures through the mod {MyPluginInfo.PLUGIN_GUID} v{version}, " +
+                $"which can be downloaded here: {BopCustomTexturesPlugin.PluginRepoUrl}/releases";
+        } 
+        else
+        {
+            return description;
+        }
+    }
+
+    public static bool DisplayActive(Display display, bool active)
+    {
+        return display == Display.Always || display == Display.WhenActive && active;
+    }
+
+    public static string SanitizeVersion(string version)
+    {
+        version = VersionRegex.Replace(version, "");
+        if (version.Length > versionMaxLength)
+        {
+            version = version.Substring(0, versionMaxLength - 3) + "...";
+        }
+        return version;
+    }
+}

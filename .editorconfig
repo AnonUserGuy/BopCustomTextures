@@ -1,0 +1,7 @@
+﻿[*.cs]
+
+# IDE0160: Convert to block scoped namespace
+csharp_style_namespace_declarations = file_scoped
+
+# IDE0090: Use 'new(...)'
+dotnet_diagnostic.IDE0090.severity = silent

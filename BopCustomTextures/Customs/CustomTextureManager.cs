@@ -1,0 +1,909 @@
+﻿using BopCustomTextures.Scripts;
+using BopCustomTextures.Logging;
+using Unity.Collections;
+using UnityEngine;
+using UnityEngine.U2D;
+using UnityEngine.Rendering;
+using System.IO;
+using System.Linq;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using ILogger = BopCustomTextures.Logging.ILogger;
+
+namespace BopCustomTextures.Customs;
+
+/// <summary>
+/// Manages custom textures, including loading them from source files and applying them when the mixtape is played.
+/// </summary>
+/// <param name="logger">Plugin-specific logger.</param>
+/// <param name="variantManager">Used for mapping custom texture variant external names to internal indices. Shared with CustomJsonInitializer.</param>
+/// <param name="mixtapeEventTemplates">BopCustomTexture mixtape event templates concerning custom textures.</param>
+public class CustomTextureManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate[] mixtapeEventTemplates) : BaseCustomManager(logger)
+{
+    private static class Operation
+    {
+        public const byte Add = 0;
+        public const byte Remove = 1;
+        public const byte Set = 2;
+    }
+    /// <summary>
+    /// BopCustomTexture mixtape event templates concerning custom textures. 
+    /// Updated to only include scenes with custom textures as options in their "scene" parameters.
+    /// </summary>
+    public MixtapeEventTemplate[] mixtapeEventTemplates = mixtapeEventTemplates;
+
+    /// <summary>
+    /// Img files for altas textures.
+    /// </summary>
+    public readonly Dictionary<SceneKey, Dictionary<int, Dictionary<int, Texture2D>>> AtlasTextures = [];
+    
+    /// <summary>
+    /// Img files for seperate textures.
+    /// </summary>
+    public readonly Dictionary<SceneKey, Dictionary<string, Dictionary<int, Texture2D>>> SeperateTextures = [];
+
+    /// <summary>
+    /// List of all seperate textures that haven't had sprite generated for them.
+    /// Necessary as some sprites aren't atlas packed and thus cannot have their game identified from them.
+    /// Said sprites are covered by iterating through this list and finding matches by name.
+    /// </summary>
+    public readonly Dictionary<SceneKey, Dictionary<Texture2D, (string, int)>> SeperateTexturesNotInited = [];
+
+    /// <summary>
+    /// List of games that have been loaded at some point, and thus have generated custom their sprites.
+    /// </summary>
+    public readonly HashSet<SceneKey> SpritesInited = [];
+
+    /// <summary>
+    /// Mapping of vanilla sprites to custom sprites. Maps by 'Original Texture Object' -> 'Original Sprite Name' 
+    /// because just mapping by Original Sprite object didn't work when I tried it.
+    /// </summary>
+    public readonly Dictionary<Texture2D, Dictionary<string, Dictionary<int, Sprite>>> SpriteMaps = [];
+
+    /// <summary>
+    /// List of all custom sprites. Necessary to avoid generating custom sprites based on them.
+    /// </summary>
+    public readonly HashSet<Sprite> CustomSprites = [];
+
+    /// <summary>
+    /// Maps a vanilla texture to its scenekey and sprite atlas index of a sprite atlas texture.
+    /// For sprite atlas textures this can be solely determined by name, but otherwise it has to be determined via a sprite name matching search.
+    /// </summary>
+    public readonly Dictionary<Texture2D, (SceneKey, int)> TextureMaps = [];
+
+    /// <summary>
+    /// List of variants active per scene. Kind of like a layer system: gameobjects will use sprites from the last variant in 
+    /// the list unless said variant doesn't have a sprite, iterating backwards until a sprite can be found.
+    /// If one is never found, the vanilla sprite is used.
+    /// </summary>
+    public readonly Dictionary<SceneKey, List<int>> Variants = [];
+
+    /// <summary>
+    /// Used to map external custom texture variant names to their internal indices. Shared with CustomJsonInitializer.
+    /// </summary>
+    public readonly CustomVariantNameManager VariantManager = variantManager;
+
+    public static readonly Regex PathRegex = new Regex(@"[\\/]tex(?:ture)?s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex SubpathRegex = new Regex(@"[\\/]([a-z]+)(?:[^a-z\\/]*|[^a-z\\/]+?(\w+))$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex VariantFolderRegex = new Regex(@"[\\/]_(\w*)$", RegexOptions.Compiled);
+
+    public static readonly Regex FileRegex = new Regex(@"\.(?:png|j(?:pe?g|pe|f?if|fi))$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex FileRegexAtlas = new Regex(@"^sactx-(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex FileRegexSeperate = new Regex(@"^(\w+)", RegexOptions.Compiled);
+
+    public static readonly Regex SceneAndSpriteAtlasIndexRegex = new Regex(@"^sactx-(\d+)-\d+x\d+-DXT5\|BC3-_(\w+)Atlas", RegexOptions.Compiled);
+    public static readonly Regex MixtapeEventRegex = new Regex(@"^(\w*)/(\w*) texture variant$", RegexOptions.Compiled);
+
+    public static bool IsCustomTextureDirectory(string path)
+    {
+        return PathRegex.IsMatch(path);
+    }
+
+    public IEnumerable<string> LocateCustomTextures(string path, int index, bool isResources)
+    {
+        var subpaths = Directory.EnumerateDirectories(path);
+        foreach (var subpath in subpaths)
+        {
+            Match match = SubpathRegex.Match(subpath);
+            if (!match.Success)
+            {
+                continue;
+            }
+            SceneKey scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
+            if (scene == SceneKey.Invalid)
+            {
+                continue;
+            }
+            int variant = VariantManager.GetOrAddVariant(scene, match.Groups[2].Value);
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant, isResources)) 
+            {
+                yield return file;
+            }
+        }
+    }
+
+    public IEnumerable<string> LocateCustomTexturesRecursive(string path, int index, SceneKey scene, int variant, bool isResources)
+    {
+        var filepaths = Directory.EnumerateFiles(path);
+        foreach (var filepath in filepaths)
+        {
+            if (CheckIsCustomTexture(filepath, index, scene, variant))
+            {
+                var localPath = filepath.Substring(index);
+                yield return localPath;
+            }
+        }
+        var subpaths = Directory.EnumerateDirectories(path);
+        foreach (var subpath in subpaths)
+        {
+            int variant2 = variant;
+            Match match = VariantFolderRegex.Match(subpath);
+            if (match.Success)
+            {
+                if (!isResources)
+                {
+                    logger.Log(LogLevel.Error | LogLevel.MixtapeEditor, "To use variant subfolders, you must put all custom resources in a \"resources\" or \"BopCustomTextures\" folder.");
+                }
+                else
+                {
+                    variant2 = VariantManager.GetOrAddVariant(scene, match.Groups[1].Value);
+                }
+            }
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant2, isResources))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    public bool CheckIsCustomTexture(string path, int index, SceneKey scene, int variant)
+    {
+        if (!FileRegex.IsMatch(path))
+        {
+            return false;
+        }
+        string filename = Path.GetFileName(path);
+        Match match = FileRegexAtlas.Match(filename);
+        if (match.Success)
+        {
+            logger.LogFileLoading($"Found custom atlas texture: {scene}#{variant} ~ {filename}");
+            return LoadCustomAtlasTexture(path, index, scene, int.Parse(match.Groups[1].Value), variant);
+        }
+        match = FileRegexSeperate.Match(filename);
+        if (match.Success)
+        {
+            logger.LogFileLoading($"Found custom seperate texture: {scene}#{variant} ~ {filename}");
+            return LoadCustomSeperateTexture(path, index, scene, match.Groups[1].Value, variant);
+        }
+        return false;
+    }
+
+    public bool LoadCustomAtlasTexture(string path, int index, SceneKey scene, int atlasIndex, int variant)
+    {
+        Texture2D tex = LoadImage(path, index);
+        if (tex == null)
+        {
+            return false;
+        }
+        if (!AtlasTextures.ContainsKey(scene))
+        {
+            AtlasTextures[scene] = [];
+        }
+        if (!AtlasTextures[scene].ContainsKey(atlasIndex))
+        {
+            AtlasTextures[scene][atlasIndex] = [];
+        }
+        else if (AtlasTextures[scene][atlasIndex].ContainsKey(variant))
+        {
+            logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {atlasIndex}");
+            Object.Destroy(AtlasTextures[scene][atlasIndex][variant]);
+        }
+        AtlasTextures[scene][atlasIndex][variant] = tex;
+        return true;
+    }
+
+    public bool LoadCustomSeperateTexture(string path, int index, SceneKey scene, string name, int variant)
+    {
+        Texture2D tex = LoadImage(path, index);
+        if (tex == null)
+        {
+            return false;
+        }
+        if (!SeperateTextures.ContainsKey(scene))
+        {
+            SeperateTextures[scene] = [];
+            SeperateTexturesNotInited[scene] = [];
+        }
+        if (!SeperateTextures[scene].ContainsKey(name))
+        {
+            SeperateTextures[scene][name] = [];
+        }
+        else if (SeperateTextures[scene][name].ContainsKey(variant))
+        {
+            logger.LogWarning($"Duplicate seperate texture for {scene}#{variant} ~ {name}");
+            var oldTex = SeperateTextures[scene][name][variant];
+            SeperateTexturesNotInited[scene].Remove(oldTex);
+            Object.Destroy(oldTex);
+        }
+        SeperateTextures[scene][name][variant] = tex;
+        SeperateTexturesNotInited[scene][tex] = (name, variant);
+        return true;
+    }
+
+    public Texture2D LoadImage(string path, int index)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        Texture2D tex = new Texture2D(2, 2);
+        if (!tex.LoadImage(bytes))
+        {
+            string localPath = path.Substring(index);
+            logger.LogWarning($"Couldn't load custom texture: {localPath} (is it a PNG/JPG?)");
+            Object.Destroy(tex);
+            return null;
+        }
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.name = Path.GetFileName(path);
+        return tex;
+    }
+
+    public void UnloadCustomTextures()
+    {
+        foreach (var q in SpriteMaps)
+        {
+            Texture2D tex = q.Key;
+            var spriteMap = q.Value;
+            logger.LogUnloading($"Unloading custom sprites: {tex.name}");
+            foreach (var w in spriteMap)
+            {
+                foreach (var e in w.Value)
+                {
+                    var sprite = e.Value;
+                    if (!sprite.packed)
+                    {
+                        Object.Destroy(sprite);
+                    }
+                }
+            }
+        }
+        SpriteMaps.Clear();
+        CustomSprites.Clear();
+        SpritesInited.Clear();
+        foreach (var q in AtlasTextures)
+        {
+            SceneKey scene = q.Key;
+            var textures = q.Value;
+            logger.LogUnloading($"Unloading custom atlas textures: {scene}");
+            foreach (var w in textures)
+            {
+                foreach (var e in w.Value)
+                {
+                    Object.Destroy(e.Value);
+                }
+            }
+        }
+        AtlasTextures.Clear();
+        foreach (var q in SeperateTextures)
+        {
+            SceneKey scene = q.Key;
+            var textures = q.Value;
+            logger.LogUnloading($"Unloading custom seperate textures: {scene}");
+            foreach (var w in textures)
+            {
+                foreach (var e in w.Value)
+                {
+                    Object.Destroy(e.Value);
+                }
+            }
+        }
+        SeperateTextures.Clear();
+        SeperateTexturesNotInited.Clear();
+        TextureMaps.Clear();
+    }
+
+    public void InitCustomTextures(MixtapeLoaderCustom __instance, SceneKey sceneKey)
+    {
+        if (!(AtlasTextures.ContainsKey(sceneKey) || SeperateTextures.ContainsKey(sceneKey)))
+        {
+            return;
+        }
+        if (!SpritesInited.Contains(sceneKey))
+        {
+            Variants[sceneKey] = [0];
+            SpritesInited.Add(sceneKey);
+            logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
+            InitCustomSprites();
+        }
+        logger.LogInfo($"Applying custom sprites: {sceneKey}");
+        GameObject rootObj = __instance.RootObjects[sceneKey];
+        InitCustomSpriteRenderers(rootObj, sceneKey);
+    }
+
+    public void InitCustomSpriteRenderers(GameObject rootObj, SceneKey scene)
+    {
+        var spriteRenderers = rootObj.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (var spriteRenderer in spriteRenderers)
+        {
+            CustomSpriteSwapper script = spriteRenderer.gameObject.AddComponent<CustomSpriteSwapper>();
+            script.LastVanilla = spriteRenderer.sprite;
+            spriteRenderer.sprite = ReplaceCustomSprite(script.LastVanilla);
+            script.Last = spriteRenderer.sprite; // doing anything in Awake() is insufficient
+            script.SpriteRenderer = spriteRenderer;
+            script.TextureManager = this;
+        }
+    }
+
+    public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
+    {
+        var sceneSpriteSwappers = new Dictionary<SceneKey, CustomSpriteSwapper[]>();
+        foreach (Entity entity in entities)
+        {
+            PrepareEvent(__instance, entity, sceneSpriteSwappers);
+        }
+    }
+
+    public void PrepareEvent(MixtapeLoaderCustom __instance, Entity entity, Dictionary<SceneKey, CustomSpriteSwapper[]> sceneSpriteSwappers)
+    {
+        if (!entity.dataModel.StartsWith(MyPluginInfo.PLUGIN_GUID))
+        {
+            return;
+        }
+        var match = MixtapeEventRegex.Match(entity.dataModel);
+        if (match.Success)
+        {
+            byte operation = Operation.Add;
+            if (match.Groups[2].Value == "remove")
+            {
+                operation = Operation.Remove;
+            }
+            else if (match.Groups[2].Value == "set")
+            {
+                operation = Operation.Set;
+            }
+            else if (match.Groups[2].Value != "add")
+            {
+                return;
+            }
+            PrepareVariantEvent(__instance, entity, operation, sceneSpriteSwappers);
+        }
+        else if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/toggle custom textures")
+        {
+            PrepareToggleEvent(__instance, entity, sceneSpriteSwappers);
+        }
+    }
+
+    public void PrepareVariantEvent(MixtapeLoaderCustom __instance, Entity entity, byte operation, Dictionary<SceneKey, CustomSpriteSwapper[]> sceneSpriteSwappers)
+    {
+        Dictionary<SceneKey, List<int>> scenes;
+        var sceneStr = entity.GetString("scene");
+        if (sceneStr == "all")
+        {
+            if (!VariantManager.TryGetVariantsAll(entity.GetString("variant"), out scenes))
+            {
+                return;
+            }
+            List<SceneKey> toRemove = [];
+            foreach (var pair in scenes)
+            {
+                var scene = pair.Key;
+                if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
+                {
+                    if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+                    {
+                        toRemove.Add(scene);
+                        continue;
+                    }
+                    spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
+                    sceneSpriteSwappers[scene] = spriteSwappers;
+                }
+            }
+            foreach (var scene in toRemove)
+            {
+                scenes.Remove(scene);
+            }
+            if (scenes.Count < 1)
+            {
+                logger.LogError($"Cannot use variant event with no scenes");
+                return;
+            }
+        }
+        else
+        {
+            var scene = ToSceneKeyOrInvalid(sceneStr);
+            if (scene == SceneKey.Invalid)
+            {
+                logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                return;
+            }
+            if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
+            {
+                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+                {
+                    logger.LogError($"Cannot use variant event for missing scene {scene}");
+                    return;
+                }
+                spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
+                sceneSpriteSwappers[scene] = spriteSwappers;
+            }
+            if (!VariantManager.TryGetVariants(scene, entity.GetString("variant"), out var variants))
+            {
+                return;
+            }
+            scenes = [];
+            scenes[scene] = variants;
+        }
+
+        switch (operation)
+        {
+            case Operation.Add:
+                __instance.scheduler.Schedule(entity.beat, delegate
+                {
+                    foreach (var pair in scenes)
+                    {
+                        var destVariants = Variants[pair.Key];
+                        foreach (var variant in pair.Value)
+                        {
+                            destVariants.Remove(variant);
+                            destVariants.Add(variant);
+                        }
+                        foreach (var spriteSwapper in sceneSpriteSwappers[pair.Key])
+                        {
+                            spriteSwapper.Replace();
+                        }
+                    }
+                });
+                break;
+            case Operation.Remove:
+                __instance.scheduler.Schedule(entity.beat, delegate
+                {
+                    foreach (var pair in scenes)
+                    {
+                        var destVariants = Variants[pair.Key];
+                        foreach (var variant in pair.Value)
+                        {
+                            destVariants.Remove(variant);
+                        }
+                        foreach (var spriteSwapper in sceneSpriteSwappers[pair.Key])
+                        {
+                            spriteSwapper.Replace();
+                        }
+                    }
+                });
+                break;
+            case Operation.Set:
+                __instance.scheduler.Schedule(entity.beat, delegate
+                {
+                    foreach (var pair in scenes)
+                    {
+                        Variants[pair.Key] = pair.Value;
+                        foreach (var spriteSwapper in sceneSpriteSwappers[pair.Key])
+                        {
+                            spriteSwapper.Replace();
+                        }
+                    }
+                });
+                break;
+        }
+    }
+
+    public void PrepareToggleEvent(MixtapeLoaderCustom __instance, Entity entity, Dictionary<SceneKey, CustomSpriteSwapper[]> sceneSpriteSwappers)
+    {
+        List<SceneKey> scenes;
+        var sceneStr = entity.GetString("scene");
+        if (sceneStr == "all")
+        {
+            scenes = [];
+            foreach (var scene in SpritesInited)
+            {
+                if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
+                {
+                    if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+                    {
+                        continue;
+                    }
+                    spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
+                    sceneSpriteSwappers[scene] = spriteSwappers;
+                }
+                scenes.Add(scene);
+            }
+            if (scenes.Count < 1)
+            {
+                logger.LogError($"Cannot use toggle texture event with no scenes");
+                return;
+            }
+        }
+        else
+        {
+            var scene = ToSceneKeyOrInvalid(sceneStr);
+            if (scene == SceneKey.Invalid)
+            {
+                logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                return;
+            }
+            if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
+            {
+                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+                {
+                    logger.LogError($"Cannot use toggle texture event for missing scene {scene}");
+                    return;
+                }
+                spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
+                sceneSpriteSwappers[scene] = spriteSwappers;
+            }
+            scenes = [scene];
+        }
+
+        if (entity.GetBool("toggle"))
+        {
+            __instance.scheduler.Schedule(entity.beat, delegate
+            {
+                foreach (var scene in scenes)
+                {
+                    foreach (var spriteSwapper in sceneSpriteSwappers[scene])
+                    {
+                        spriteSwapper.enabled = true;
+                    }
+                }
+            });
+        } 
+        else
+        {
+            __instance.scheduler.Schedule(entity.beat, delegate
+            {
+                foreach (var scene in scenes)
+                {
+                    foreach (var spriteSwapper in sceneSpriteSwappers[scene])
+                    {
+                        spriteSwapper.enabled = false;
+                    }
+                }
+            });
+        }
+    }
+
+    public bool UpdateEventTemplates()
+    {
+        var hasCustomTextures = AtlasTextures.Keys.ToHashSet().Union(SeperateTextures.Keys.ToHashSet()).ToList();
+        object scenes;
+        bool result;
+        if (hasCustomTextures.Count < 1)
+        {
+            scenes = "";
+            result = false;
+        }
+        else
+        {
+            string[] choices = new string[hasCustomTextures.Count + 1];
+            choices[0] = "all";
+            for (int i = 0; i < hasCustomTextures.Count; i++)
+            {
+                choices[i + 1] = FromSceneKeyOrInvalid(hasCustomTextures[i]);
+            }
+            scenes = new MixtapeEventTemplates.ChoiceField<string>(choices);
+            result = true;
+        }
+        foreach (var mixtapeEventTemplate in mixtapeEventTemplates)
+        {
+            mixtapeEventTemplate.properties["scene"] = scenes;
+        }
+        return result;
+    }
+
+    public Sprite ReplaceCustomSprite(Sprite sprite)
+    {
+        if (sprite == null ||
+            !SpriteMaps.TryGetValue(sprite.texture, out var spriteMaps2) ||
+            !spriteMaps2.TryGetValue(sprite.name, out var sprites) ||
+            !TextureMaps.TryGetValue(sprite.texture, out var sceneTuple))
+        {
+            return sprite;
+        }
+        var (scene, _) = sceneTuple;
+        var variants = Variants[scene];
+        for (int i = variants.Count - 1; i >= 0; i--)
+        {
+            if (sprites.TryGetValue(variants[i], out var sprite2))
+            {
+                return sprite2;
+            }
+        }
+        return sprite;
+    }
+    public Sprite ReplaceCustomSprite(Sprite sprite, List<int> localVariants)
+    {
+        if (sprite == null ||
+            !SpriteMaps.TryGetValue(sprite.texture, out var spriteMaps2) ||
+            !spriteMaps2.TryGetValue(sprite.name, out var sprites) ||
+            !TextureMaps.TryGetValue(sprite.texture, out var sceneTuple)) 
+        {
+            return sprite;
+        }
+        var (scene, _) = sceneTuple;
+        for (int i = localVariants.Count - 1; i >= 0; i--)
+        {
+            if (sprites.TryGetValue(localVariants[i], out var sprite2))
+            {
+                return sprite2;
+            }
+        }
+        var variants = Variants[scene];
+        for (int i = variants.Count - 1; i >= 0; i--)
+        {
+            if (sprites.TryGetValue(variants[i], out var sprite2))
+            {
+                return sprite2;
+            }
+        }
+        return sprite;
+    }
+
+    public void InitCustomSprites()
+    {
+        // No way to obtain sprites only used by a certain scene, so all sprites have to be iterated through
+        Sprite[] sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        HashSet<Sprite> nonPackedSprites = [];
+        foreach (var sprite in sprites)
+        {
+            if (!CreateCustomSprite(sprite))
+            {
+                nonPackedSprites.Add(sprite);
+            }
+        }
+
+        // CreateCustomSprites only covers base sprites included in a sprite atlas.
+        // for base sprites not included in a sprite atlas (like a handful from molecano), the following will fix
+        List<SceneKey> toRemove = [];
+        foreach (var scenePair in SeperateTexturesNotInited)
+        {
+            var scene = scenePair.Key;
+            if (!SpritesInited.Contains(scene))
+            {
+                continue;
+            }
+            toRemove.Add(scene);
+            foreach (var texPair in scenePair.Value)
+            {
+                Texture2D tex = texPair.Key;
+                var (name, variant) = texPair.Value;
+                Sprite ogSprite = null;
+                foreach (var sprite in nonPackedSprites)
+                {
+                    if (sprite.texture.name == name)
+                    {
+                        if (!SpriteMaps.ContainsKey(sprite.texture))
+                        {
+                            SpriteMaps[sprite.texture] = [];
+                        }
+                        if (!SpriteMaps[sprite.texture].ContainsKey(sprite.name))
+                        {
+                            SpriteMaps[sprite.texture][sprite.name] = [];
+                        }
+                        CreateCustomSeperateSprite(sprite, tex, variant);
+                        TextureMaps[sprite.texture] = (scene, -1);
+                        ogSprite = sprite;
+                        break;
+                    }
+                }
+                if (ogSprite == null)
+                {
+                    logger.LogWarning($"Found seperate texture that doesn't correspond to any game texture: {scene} ~ {tex.name}");
+                }
+                else
+                {
+                    nonPackedSprites.Remove(ogSprite);
+                }
+            }
+        }
+        foreach (var scene in toRemove)
+        {
+            SeperateTexturesNotInited.Remove(scene);
+        }
+    }
+
+    public bool CreateCustomSprite(Sprite original)
+    {
+        if (!original.packed)
+        {
+            if (!CustomSprites.Contains(original))
+            {
+                // is a nonpacked, vanilla sprite
+                // sprite may need replacing by step 2 of InitCustomSprites
+                return false;
+            } 
+            else
+            {
+                // is a custom sprite
+                return true;
+            }
+        }
+        var (scene, spriteAtlasIndex) = GetSceneAndSpriteAtlasIndex(original);
+        if (scene == SceneKey.Invalid || !(AtlasTextures.ContainsKey(scene) || SeperateTextures.ContainsKey(scene)))
+        {
+            // is some sort of menu sprite
+            return true;
+        }
+        if (!SpritesInited.Contains(scene))
+        {
+            Variants[scene] = [0];
+            SpritesInited.Add(scene);
+        }
+        if (!SpriteMaps.ContainsKey(original.texture))
+        {
+            SpriteMaps[original.texture] = [];
+        }
+        else if (SpriteMaps[original.texture].ContainsKey(original.name))
+        {
+            // is a vanilla sprite we've already inited
+            return true;
+        }
+        SpriteMaps[original.texture][original.name] = [];
+        if (SeperateTextures.ContainsKey(scene) && SeperateTextures[scene].ContainsKey(original.name))
+        {
+            logger.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
+            var texs = SeperateTextures[scene][original.name];
+            foreach (var tex in texs)
+            {
+                CreateCustomSeperateSprite(original, tex.Value, tex.Key);
+                SeperateTexturesNotInited[scene].Remove(tex.Value);
+            }
+        }
+        if (AtlasTextures.ContainsKey(scene) && AtlasTextures[scene].ContainsKey(spriteAtlasIndex))
+        {
+            logger.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
+            var texs = AtlasTextures[scene][spriteAtlasIndex];
+            foreach (var tex in texs)
+            {
+                CreateCustomAtlasSprite(original, tex.Value, tex.Key);
+            }
+        }
+        return true;
+    }
+
+    public void CreateCustomSeperateSprite(Sprite original, Texture2D tex, int variant)
+    {
+        if (SpriteMaps[original.texture][original.name].ContainsKey(variant))
+        {
+            return;
+        }
+        Sprite replacement = Sprite.Create(
+            tex,
+            new Rect(0, 0, tex.width, tex.height),
+            original.pivot / original.rect.size,
+            original.pixelsPerUnit,
+            0,
+            SpriteMeshType.FullRect,
+            original.border
+        );
+        replacement.name = original.name;
+
+        // create new sprite with bounds adjusted if new texture larger than old texture
+        Rect vertexBox = GetBoundingBox(original.vertices);
+        vertexBox = GetWithDimensionsCentered(vertexBox, tex.width / original.pixelsPerUnit, tex.height / original.pixelsPerUnit);
+
+        // apply new sprites bounds
+        Vector3[] vertices = [
+            new Vector3(vertexBox.xMin, vertexBox.yMax, 0),
+            new Vector3(vertexBox.xMax, vertexBox.yMax, 0),
+            new Vector3(vertexBox.xMin, vertexBox.yMin, 0),
+            new Vector3(vertexBox.xMax, vertexBox.yMin, 0)
+        ];
+        Vector2[] uvs = [
+            new Vector2(0, 1),
+            new Vector2(1, 1),
+            new Vector2(0, 0),
+            new Vector2(1, 0)
+        ];
+        NativeArray<Vector3> verticesNative = new NativeArray<Vector3>(vertices, Allocator.Temp);
+        NativeArray<Vector2> uvsNative = new NativeArray<Vector2>(uvs, Allocator.Temp);
+        replacement.SetVertexAttribute(VertexAttribute.Position, verticesNative);
+        replacement.SetVertexAttribute(VertexAttribute.TexCoord0, uvsNative);
+        verticesNative.Dispose();
+        uvsNative.Dispose();
+
+        CustomSprites.Add(replacement);
+        SpriteMaps[original.texture][original.name][variant] = replacement; 
+    }
+
+    public void CreateCustomAtlasSprite(Sprite original, Texture2D tex, int variant)
+    {
+        if (SpriteMaps[original.texture][original.name].ContainsKey(variant))
+        {
+            return;
+        }
+        Sprite replacement = Sprite.Create(
+            tex,
+            original.rect,
+            original.pivot / original.rect.size,
+            original.pixelsPerUnit,
+            0,
+            SpriteMeshType.Tight,
+            original.border
+        );
+        CopySpriteMesh(original, replacement); // Source of huge load time for custom atlas textures, should (somehow) be optimized
+        replacement.name = original.name;
+        
+        CustomSprites.Add(replacement);
+        SpriteMaps[original.texture][original.name][variant] = replacement;
+    }
+
+    public static void CopySpriteMesh(Sprite srcSprite, Sprite destSprite)
+    {
+        int vertexCount = srcSprite.GetVertexCount();
+        destSprite.SetVertexCount(vertexCount);
+        CopyVertexAttribute<Vector3>(srcSprite, destSprite, VertexAttribute.Position); // can this be done with OverrideGeometry? Would that help?
+        CopyIndices(srcSprite, destSprite); // ditto this
+        CopyVertexAttribute<Vector2>(srcSprite, destSprite, VertexAttribute.TexCoord0); // unavoidable
+    }
+
+    public static void CopyVertexAttribute<T>(Sprite srcSprite, Sprite destSprite, VertexAttribute attribute)
+        where T : struct
+    {
+        NativeSlice<T> src = srcSprite.GetVertexAttribute<T>(attribute);
+        NativeArray<T> dest = new NativeArray<T>(src.Length, Allocator.Temp);
+        src.CopyTo(dest);
+        destSprite.SetVertexAttribute(attribute, dest);
+        dest.Dispose();
+    }
+
+    public static void CopyIndices(Sprite srcSprite, Sprite destSprite)
+    {
+        NativeArray<ushort> src = srcSprite.GetIndices();
+        NativeArray<ushort> dest = new NativeArray<ushort>(src.Length, Allocator.Temp);
+        src.CopyTo(dest);
+        destSprite.SetIndices(dest);
+        dest.Dispose();
+    }
+
+    public (SceneKey, int) GetSceneAndSpriteAtlasIndex(Sprite sprite)
+    {
+        if (!TextureMaps.ContainsKey(sprite.texture))
+        {
+            Match match = SceneAndSpriteAtlasIndexRegex.Match(sprite.texture.name);
+            if (match.Success)
+            {
+                var index = int.Parse(match.Groups[1].Value);
+                var scene = ToSceneKeyOrInvalid(match.Groups[2].Value);
+                TextureMaps[sprite.texture] = (scene, index);
+            }
+            else
+            {
+                TextureMaps[sprite.texture] = (SceneKey.Invalid, -1);
+            }
+        }
+        return TextureMaps[sprite.texture];
+    }
+
+
+
+    public static Rect GetBoundingBox(Vector2[] vertices)
+    {
+        float minX = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float minY = float.PositiveInfinity;
+        float maxY = float.NegativeInfinity;
+        foreach (var vertex in vertices)
+        {
+            if (vertex.x < minX)
+            {
+                minX = vertex.x;
+            }
+            if (vertex.x > maxX)
+            {
+                maxX = vertex.x;
+            }
+            if (vertex.y < minY)
+            {
+                minY = vertex.y;
+            }
+            if (vertex.y > maxY)
+            {
+                maxY = vertex.y;
+            }
+        }
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    public static Rect GetWithDimensionsCentered(Rect rect, float width, float height)
+    {
+        return new Rect(rect.x + (rect.width - width) / 2, rect.y + (rect.height - height) / 2, width, height);
+    }
+}

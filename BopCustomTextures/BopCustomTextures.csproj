@@ -3,8 +3,8 @@
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
 		<AssemblyName>BopCustomTextures</AssemblyName>
-		<Product>CustomTex</Product>
-		<Version>0.1.2</Version>
+		<Product>Bop Custom Textures</Product>
+		<Version>0.2.0</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
@@ -14,7 +14,6 @@
 		</RestoreAdditionalProjectSources>
 		<RootNamespace>BopCustomTextures</RootNamespace>
 		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
-		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -22,6 +21,7 @@
 		<PackageReference Include="BepInEx.Core" Version="5.*" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
 		<PackageReference Include="UnityEngine.Modules" Version="2021.3.45" IncludeAssets="compile" />
+		<PackageReference Include="Unity3D.UnityEngine.UI" Version="2018.3.5.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
 	</ItemGroup>
 
@@ -31,15 +31,19 @@
 
 	<ItemGroup>
 		<Reference Include="Assembly-CSharp">
-			<HintPath>.\lib\Assembly-CSharp.dll</HintPath>
+			<HintPath>..\lib\Assembly-CSharp.dll</HintPath>
+		</Reference>
+		<Reference Include="TempoStudio.Core">
+			<HintPath>..\lib\TempoStudio.Core.dll</HintPath>
 		</Reference>
 		<Reference Include="Unity.TextMeshPro">
-			<HintPath>.\lib\Unity.TextMeshPro.dll</HintPath>
+			<HintPath>..\lib\Unity.TextMeshPro.dll</HintPath>
 		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Compile Include="src\**\*.cs" />
+		<Reference Include="StandaloneFileBrowser">
+			<HintPath>..\lib\StandaloneFileBrowser.dll</HintPath>
+		</Reference>
+		<Reference Include="System.IO.Compression" />
+		<Reference Include="System.IO.Compression.FileSystem" />
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$(PostBuildCopyDestination) != ''">
