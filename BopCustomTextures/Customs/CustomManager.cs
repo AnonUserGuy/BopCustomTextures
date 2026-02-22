@@ -26,12 +26,9 @@ public class CustomManager : BaseCustomManager
     public static readonly string[] menuReloadOptions = [
         "Reload Custom Assets"
     ];
-    public enum MenuOption
-    {
-        OpenCustomsArchive,
-        OpenCustomsDirectory,
-        ReloadCustomAssets
-    }
+    private const int versionMaxLength = 50;
+    public static readonly Regex VersionRegex = new Regex("<.*?>", RegexOptions.Compiled);
+    public static readonly Regex PathRegex = new Regex(@"[\\/](?:res(?:ource)?s?|BopCustomTextures)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public string version;
     public uint release;
@@ -49,7 +46,6 @@ public class CustomManager : BaseCustomManager
     
     public Dictionary<string, List<MixtapeEventTemplate>> entities;
 
-    public static readonly Regex PathRegex = new Regex(@"[\\/](?:res(?:ource)?s?|BopCustomTextures)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <param name="logger">Plugin-specific logger.</param>
     /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded.</param>
@@ -101,12 +97,12 @@ public class CustomManager : BaseCustomManager
             if (IsCustomResourceDirectory(subpath))
             {
                 hasResourceFolder = true;
-                filesLoaded += LocateResources(subpath, path, backup);
+                filesLoaded += LocateResources(subpath, path, backup, true);
             }
         }
         if (!hasResourceFolder)
         {
-            filesLoaded += LocateResources(path, path, backup);
+            filesLoaded += LocateResources(path, path, backup, false);
         }
 
         if (filesLoaded > 0)
@@ -169,7 +165,7 @@ public class CustomManager : BaseCustomManager
         ReadPath(lastPath, backup);
     }
 
-    public int LocateResources(string path, string parentPath, bool backup)
+    public int LocateResources(string path, string parentPath, bool backup, bool isResources)
     {
         int filesLoaded = 0;
         int index = parentPath.Length + 1;
@@ -180,11 +176,11 @@ public class CustomManager : BaseCustomManager
             {
                 if (backup)
                 {
-                    filesLoaded += fileManager.BackupFiles(textureManager.LocateCustomTextures(subpath, index), parentPath);
+                    filesLoaded += fileManager.BackupFiles(textureManager.LocateCustomTextures(subpath, index, isResources), parentPath);
                 }
                 else
                 {
-                    filesLoaded += textureManager.LocateCustomTextures(subpath, index).Count();
+                    filesLoaded += textureManager.LocateCustomTextures(subpath, index, isResources).Count();
                 }
             }
         }
@@ -556,7 +552,7 @@ public class CustomManager : BaseCustomManager
             {
                 if (jversion.Type == JTokenType.String)
                 {
-                    version = (string)jversion;
+                    version = SanitizeVersion((string)jversion);
                 }
                 else
                 {
@@ -632,8 +628,33 @@ public class CustomManager : BaseCustomManager
         return true;
     }
 
+    public string GetDescriptionAppended(string description)
+    {
+        if (hasCustomAssets)
+        {
+            return $"{description}\n" +
+                $"\n" +
+                $"This mixtape optionally supports custom textures through the mod {MyPluginInfo.PLUGIN_GUID} v{version}, " +
+                $"which can be downloaded here: {BopCustomTexturesPlugin.PluginRepoUrl}/releases";
+        } 
+        else
+        {
+            return description;
+        }
+    }
+
     public static bool DisplayActive(Display display, bool active)
     {
         return display == Display.Always || display == Display.WhenActive && active;
+    }
+
+    public static string SanitizeVersion(string version)
+    {
+        version = VersionRegex.Replace(version, "");
+        if (version.Length > versionMaxLength)
+        {
+            version = version.Substring(0, versionMaxLength - 3) + "...";
+        }
+        return version;
     }
 }

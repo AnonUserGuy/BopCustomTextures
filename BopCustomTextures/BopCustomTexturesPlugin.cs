@@ -53,6 +53,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
     private static ConfigEntry<bool> saveCustomFiles;
     private static ConfigEntry<bool> upgradeOldMixtapes;
+    private static ConfigEntry<bool> uploadAppendDescription;
     private static ConfigEntry<bool> loadOutdatedPluginEditor;
 
     private static ConfigEntry<Display> displayCopyOptions;
@@ -81,7 +82,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         LoadConfigs();
 
         var customlogger = new ManualLogSourceCustom(Logger,
-            MyPluginInfo.PLUGIN_NAME,
             logFileLoading,
             logUnloading,
             logSeperateTextureSprites,
@@ -143,6 +143,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             true,
             "When opening a modded mixtape for an older version of the plugin in the editor, " +
             "upgrade the mixtape version to the current one when saving.");
+
+        uploadAppendDescription = Config.Bind("Editor",
+            "UploadAppendDescription",
+            false,
+            "When uploading a modded mixtape to the Steam Workshop, add a blurb to the end of the description with a link to download BopCustomTextures.");
 
         loadOutdatedPluginEditor = Config.Bind("Editor",
             "LoadOutdatedPluginEditor",
@@ -447,6 +452,44 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                 Manager.FormatMenu(__instance,
                     displayCopyOptions.Value,
                     displayReloadOptions.Value);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SteamUploadManager), "UploadCoroutine", MethodType.Enumerator)]
+    private static class SteamUploadManagerUploadCoroutinePatch
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        {
+            if (!uploadAppendDescription.Value)
+            {
+                return instructions;
+            }
+
+            var codeMatcher = new CodeMatcher(instructions, il);
+            codeMatcher.MatchForward(false, [
+                new CodeMatch(OpCodes.Ldfld, AccessTools.Field(typeof(BopMixtapeV0), "description"))
+            ]);
+            if (!codeMatcher.IsValid)
+            {
+                Logger.LogError("Could not find upload description instruction, so mixtape will not be uploaded with an appended description.");
+                return instructions;
+            }
+
+            codeMatcher.Set(OpCodes.Call, AccessTools.Method(typeof(SteamUploadManagerUploadCoroutinePatch), "Internal"));
+
+            return codeMatcher.InstructionEnumeration();
+        }
+
+        private static string Internal(BopMixtapeV0 mixtape)
+        {
+            if (uploadAppendDescription.Value)
+            {
+                return Manager.GetDescriptionAppended(mixtape.description);
+            } 
+            else
+            {
+                return mixtape.description;
             }
         }
     }

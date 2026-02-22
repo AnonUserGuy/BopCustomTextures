@@ -1,4 +1,5 @@
 ﻿using BopCustomTextures.Scripts;
+using BopCustomTextures.Logging;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.U2D;
@@ -98,7 +99,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         return PathRegex.IsMatch(path);
     }
 
-    public IEnumerable<string> LocateCustomTextures(string path, int index)
+    public IEnumerable<string> LocateCustomTextures(string path, int index, bool isResources)
     {
         var subpaths = Directory.EnumerateDirectories(path);
         foreach (var subpath in subpaths)
@@ -114,14 +115,14 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
                 continue;
             }
             int variant = VariantManager.GetOrAddVariant(scene, match.Groups[2].Value);
-            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant)) 
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant, isResources)) 
             {
                 yield return file;
             }
         }
     }
 
-    public IEnumerable<string> LocateCustomTexturesRecursive(string path, int index, SceneKey scene, int variant)
+    public IEnumerable<string> LocateCustomTexturesRecursive(string path, int index, SceneKey scene, int variant, bool isResources)
     {
         var filepaths = Directory.EnumerateFiles(path);
         foreach (var filepath in filepaths)
@@ -139,9 +140,16 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             Match match = VariantFolderRegex.Match(subpath);
             if (match.Success)
             {
-                variant2 = VariantManager.GetOrAddVariant(scene, match.Groups[1].Value);
+                if (!isResources)
+                {
+                    logger.Log(LogLevel.Error | LogLevel.MixtapeEditor, "To use variant subfolders, you must put all custom resources in a \"resources\" or \"BopCustomTextures\" folder.");
+                }
+                else
+                {
+                    variant2 = VariantManager.GetOrAddVariant(scene, match.Groups[1].Value);
+                }
             }
-            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant2))
+            foreach (var file in LocateCustomTexturesRecursive(subpath, index, scene, variant2, isResources))
             {
                 yield return file;
             }

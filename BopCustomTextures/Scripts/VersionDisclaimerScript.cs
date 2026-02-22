@@ -37,7 +37,6 @@ public class VersionDisclaimerScript : MonoBehaviour
     public TMP_Text TitleText;
     public TMP_Text Text;
 
-    public const int versionMaxLength = 50;
     public static int defaultPosition = 0;
     public int position = defaultPosition;
     private int cachedPosition = -1;
@@ -56,7 +55,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         script.Manager = manager;
         script.Loader = riqLoader;
         script.TitleText.text =
-            $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} <color=yellow>v<noparse>{script.SanitizeVersion(manager.version)}</noparse>+</color>, " +
+            $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} <color=yellow>v{manager.version}+</color>, " +
             $"but you are on <color=yellow>v{MyPluginInfo.PLUGIN_VERSION}</color>. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly.";
         return obj;
     }
@@ -170,14 +169,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         }
     }
 
-    private string SanitizeVersion(string version)
-    {
-        if (version.Length > versionMaxLength)
-        {
-            version = version.Substring(0, versionMaxLength - 3) + "...";
-        }
-        return version;
-    }
+
 
     private static TMP_FontAsset FindFontOrAny(string name)
     {

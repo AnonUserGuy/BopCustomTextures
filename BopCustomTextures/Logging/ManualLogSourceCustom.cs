@@ -2,6 +2,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using System.Linq;
 using TMPro;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace BopCustomTextures.Logging;
@@ -16,7 +17,7 @@ namespace BopCustomTextures.Logging;
 /// <param name="logUnloading">Log level for asset unloading messages</param>
 /// <param name="logSeperateTextureSprites">Log level for sprite creation from seperate textures</param>
 /// <param name="logAtlasTextureSprites">Log level for sprite creation from atlas textures</param>
-public class ManualLogSourceCustom(ManualLogSource logger, string pluginName, 
+public class ManualLogSourceCustom(ManualLogSource logger, 
     ConfigEntry<LogLevel> logFileLoading,
     ConfigEntry<LogLevel> logUnloading,
     ConfigEntry<LogLevel> logSeperateTextureSprites,
@@ -25,13 +26,14 @@ public class ManualLogSourceCustom(ManualLogSource logger, string pluginName,
     ConfigEntry<LogLevel> logUpgradeMixtape) : ILogger
 {
     private readonly ManualLogSource logger = logger;
-    private readonly string pluginName = pluginName;
     private readonly ConfigEntry<LogLevel> logFileLoading = logFileLoading;
     private readonly ConfigEntry<LogLevel> logUnloading = logUnloading;
     private readonly ConfigEntry<LogLevel> logSeperateTextureSprites = logSeperateTextureSprites;
     private readonly ConfigEntry<LogLevel> logAtlasTextureSprites = logAtlasTextureSprites;
     private readonly ConfigEntry<LogLevel> logOutdatedPlugin = logOutdatedPlugin;
     private readonly ConfigEntry<LogLevel> logUpgradeMixtape = logUpgradeMixtape;
+
+    private GameObject ErrorCanvas = null;
 
     public void LogFileLoading(object data)
     {
@@ -61,20 +63,23 @@ public class ManualLogSourceCustom(ManualLogSource logger, string pluginName,
 
     public void LogEditor(object data)
     {
-        Scene scene = SceneManager.GetActiveScene();
-        if (scene.name != "MixtapeEditor")
+        if (ErrorCanvas == null)
         {
-            return;
+            Scene scene = SceneManager.GetActiveScene();
+            if (scene.name != "MixtapeEditor")
+            {
+                return;
+            }
+
+            var objs = scene.GetRootGameObjects();
+            ErrorCanvas = objs.FirstOrDefault(obj => obj.name == "ErrorCanvas");
+            if (ErrorCanvas == null)
+            {
+                return;
+            }
         }
-        
-        var objs = scene.GetRootGameObjects();
-        var obj = objs.FirstOrDefault(obj => obj.name == "ErrorCanvas");
-        if (obj == null)
-        {
-            return;
-        }
-        obj.SetActive(true);
-        obj.GetComponentInChildren<TMP_Text>().text = $"[{pluginName}] <noparse>{data}</noparse>";
+        ErrorCanvas.SetActive(true);
+        ErrorCanvas.GetComponentInChildren<TMP_Text>().text = $"[{MyPluginInfo.PLUGIN_GUID}] {data}";
     }
 
     public void Log(LogLevel level, object data)
