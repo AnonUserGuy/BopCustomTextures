@@ -146,7 +146,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         uploadAppendDescription = Config.Bind("Editor",
             "UploadAppendDescription",
-            false,
+            true,
             "When uploading a modded mixtape to the Steam Workshop, add a blurb to the end of the description with a link to download BopCustomTextures.");
 
         loadOutdatedPluginEditor = Config.Bind("Editor",
