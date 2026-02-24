@@ -22,27 +22,7 @@ public class MGameObject(string name): MObject<GameObject>
         if (active != null) obj.SetActive((bool)active);
         foreach (var mcomponent in components)
         {
-            switch (mcomponent)
-            {
-                case MTransform mtransform:
-                    mtransform.Apply(obj.transform);
-                    break;
-                case MCamera mcamera:
-                    if (obj.TryGetComponent<Camera>(out var camera)) mcamera.Apply(camera);
-                    break;
-                case MSpriteRenderer mspriteRenderer:
-                    if (obj.TryGetComponent<SpriteRenderer>(out var spriteRenderer)) mspriteRenderer.Apply(spriteRenderer);
-                    break;
-                case MImage mimage:
-                    if (obj.TryGetComponent<Image>(out var image)) mimage.Apply(image);
-                    break;
-                case MParallaxObjectScript mparallaxObjectScript:
-                    if (obj.TryGetComponent<ParallaxObjectScript>(out var parallaxObjectScript)) mparallaxObjectScript.Apply(parallaxObjectScript);
-                    break;
-                case MCustomSpriteSwapper mcustomSpriteSwapper:
-                    if (obj.TryGetComponent<CustomSpriteSwapper>(out var customSpriteSwapper)) mcustomSpriteSwapper.Apply(customSpriteSwapper);
-                    break;
-            }
+            mcomponent.Apply(obj);
         }
 
         ApplyDeferred(obj);
