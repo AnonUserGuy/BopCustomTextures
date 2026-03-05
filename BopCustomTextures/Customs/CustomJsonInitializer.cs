@@ -1,7 +1,6 @@
 ﻿using BopCustomTextures.SceneMods;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Linq;
 using System.Globalization;
 using System.Collections.Generic;
@@ -154,7 +153,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         if (TryGetJVector3(jcomponent, "LocalPosition", out var vector3)) mcomponent.localPosition = vector3;
         if (TryGetJQuaternion(jcomponent, "LocalRotation", out var quaternion)) mcomponent.localRotation = quaternion;
         if (TryGetJEulerAngles(jcomponent, "LocalEulerAngles", out vector3)) mcomponent.localEulerAngles = vector3;
-        if (TryGetJVector3(jcomponent, "LocalEulerAngles", out vector3)) mcomponent.localEulerAngles = vector3;
         if (TryGetJVector3(jcomponent, "LocalScale", out vector3)) mcomponent.localScale = vector3;
         return mcomponent;
     }
@@ -396,7 +394,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 return true;
             case JTokenType.Float:
             case JTokenType.Integer:
-                eulerAngles = new Vector3(float.NaN, (float)jvector3, float.NaN);
+                eulerAngles = new Vector3(float.NaN, float.NaN, (float)jvector3);
                 return true;
         }
         logger.LogWarning($"JSON eulerAngles \"{key}\" is a {jvector3.Type} when it should be an object, array, float, or integer");
