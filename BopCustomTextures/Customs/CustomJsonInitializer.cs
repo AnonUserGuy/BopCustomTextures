@@ -1,10 +1,11 @@
 ﻿using BopCustomTextures.SceneMods;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
+using System;
 using System.Linq;
-using ILogger = BopCustomTextures.Logging.ILogger;
 using System.Globalization;
+using System.Collections.Generic;
+using ILogger = BopCustomTextures.Logging.ILogger;
 
 namespace BopCustomTextures.Customs;
 
@@ -490,6 +491,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     public Color InitCustomColor(string str)
     {
         str = str.TrimStart('#');
+        if (str.Length > 8)
+        {
+            str = str.Substring(0, 8);
+        }
         Color jcolor = new Color(float.NaN, float.NaN, float.NaN, float.NaN);
         if (!int.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
         {
@@ -497,7 +502,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         }
         else
         {
-            for (int i = 0; i < str.Length / 2 && i < 4; i++)
+            for (int i = str.Length / 2 - 1; i >= 0; i--)
             {
                 jcolor[i] = (rgb & 0xFF) / 255.0f;
                 rgb >>= 8;

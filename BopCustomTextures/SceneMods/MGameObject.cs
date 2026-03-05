@@ -1,7 +1,5 @@
 ﻿using BopCustomTextures.Customs;
-using BopCustomTextures.Scripts;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BopCustomTextures.SceneMods;
 

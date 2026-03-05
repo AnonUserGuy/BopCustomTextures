@@ -29,11 +29,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// <summary>
     /// lowest version string saved mixtapes will support
     /// </summary>
-    public static readonly string LowestVersion = "0.2.0";
+    public static readonly string LowestVersion = "0.2.1";
     /// <summary>
     /// lowest release number saved mixtapes will support
     /// </summary>
-    public static readonly uint LowestRelease = 2;
+    public static readonly uint LowestRelease = 3;
     /// <summary>
     /// plugin name within logger
     /// </summary>
