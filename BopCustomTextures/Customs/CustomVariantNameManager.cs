@@ -12,7 +12,7 @@ namespace BopCustomTextures.Customs;
 public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger)
 {
     public readonly Dictionary<SceneKey, Dictionary<string, int>> VariantMaps = [];
-    public static readonly Regex VariantRegex = new Regex(@"(?:^\s*""?\s*(\w+)[^\w\\/]+|^\s*""?\s*)(\w+)\s*""?\s*$", RegexOptions.RightToLeft | RegexOptions.Compiled);
+    public static readonly Regex VariantRegex = new Regex(@"(?:^\s*""?\s*([a-z]+)[^a-z\\/]\s*|^\s*""?\s*)(\w+)\s*""?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     public static readonly Regex VariantsRegex = new Regex(@"\s*""?(\w*)""?\s*(?:,|$)", RegexOptions.Compiled);
     
     public void UnloadCustomTextureVariants()
