@@ -1,3 +1,4 @@
+using BopCustomTextures.Json;
 using BopCustomTextures.SceneMods;
 using UnityEngine;
 using Newtonsoft.Json;

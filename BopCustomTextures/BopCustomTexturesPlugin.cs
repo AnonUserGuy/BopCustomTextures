@@ -2,6 +2,7 @@
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
 using BopCustomTextures.Scripts;
+using BopCustomTextures.SceneMods;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using BepInEx;
@@ -100,6 +101,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         {
             Manager.AddEventTemplates(eventTemplatesIndex.Value);
         }
+        RegisterMComponentParsers();
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -116,6 +118,16 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                 customlogger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
             };
         }
+    }
+
+    private void RegisterMComponentParsers()
+    {
+        MCamera.Register();
+        MCustomSpriteSwapper.Register();
+        MImage.Register();
+        MParallaxObjectScript.Register();
+        MSpriteRenderer.Register();
+        MTransform.Register();
     }
 
     private void LoadConfigs()

@@ -1,10 +1,12 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene mod UI.Image definition
+/// Scene mod UI.<see cref="Image"/> definition
 /// </summary>
 public class MImage : MComponent<Image>, IMRenderable
 {
@@ -13,6 +15,18 @@ public class MImage : MComponent<Image>, IMRenderable
 
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
+
+    public static void Register()
+    {
+        MComponentParserRegistry.Register("Image", JsonParse);
+    }
+
+    public static MImage JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    {
+        var mcomponent = new MImage();
+        MRenderable.JsonParse(ctx, jcomponent, mcomponent);
+        return mcomponent;
+    }
 
     public override Image Apply(Image component)
     {

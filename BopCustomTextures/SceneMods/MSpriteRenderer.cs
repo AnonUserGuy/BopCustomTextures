@@ -1,9 +1,11 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene mod SpriteRenderer definition
+/// Scene mod <see cref="SpriteRenderer"/> definition
 /// </summary>
 public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
 {
@@ -16,6 +18,23 @@ public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
 
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
+
+    public static void Register()
+    {
+        MComponentParserRegistry.Register("SpriteRenderer", JsonParse);
+    }
+
+    public static MSpriteRenderer JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    {
+        var mcomponent = new MSpriteRenderer();
+        if (ctx.TryGetJColor(jcomponent, "Color", out var color)) mcomponent.color = color;
+        if (ctx.TryGetJVector2(jcomponent, "Size", out var vector2)) mcomponent.size = vector2;
+        JValue jval;
+        if (ctx.TryGetJValue(jcomponent, "FlipX", JTokenType.Boolean, out jval)) mcomponent.flipX = (bool)jval;
+        if (ctx.TryGetJValue(jcomponent, "FlipY", JTokenType.Boolean, out jval)) mcomponent.flipY = (bool)jval;
+        MRenderable.JsonParse(ctx, jcomponent, mcomponent);
+        return mcomponent;
+    }
 
     public override SpriteRenderer Apply(SpriteRenderer component)
     {

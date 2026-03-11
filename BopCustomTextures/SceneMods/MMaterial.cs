@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene mod material definition.
+/// Scene mod <see cref="Material"/> definition.
 /// </summary>
 public class MMaterial: MObject<Material>
 {

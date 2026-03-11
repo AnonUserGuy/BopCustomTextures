@@ -3,7 +3,7 @@
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene Mod generic component definition.
+/// Scene Mod generic <see cref="Component"/> definition.
 /// </summary>
 public abstract class MComponent: MObject
 {

@@ -3,10 +3,10 @@
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Wrapper for MGameObject with reference to actual GameObject.
+/// Wrapper for <see cref="MGameObject"/> with reference to actual <see cref="GameObject"/>.
 /// </summary>
-/// <param name="mobj">MGameObject describing modifications to make to the GameObject.</param>
-/// <param name="obj">GameObject to modify.</param>
+/// <param name="mobj"><see cref="MGameObject"/> describing modifications to make to the <see cref="GameObject"/>.</param>
+/// <param name="obj"><see cref="GameObject"/> to modify.</param>
 public class MGameObjectResolved(MGameObject mobj, GameObject obj): MObject
 {
     public MGameObject mobj = mobj;

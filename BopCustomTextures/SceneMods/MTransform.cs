@@ -1,9 +1,11 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene mod Transform definition
+/// Scene mod <see cref="Transform"/> definition
 /// </summary>
 public class MTransform: MComponent<Transform>
 {
@@ -11,6 +13,20 @@ public class MTransform: MComponent<Transform>
     public Quaternion? localRotation;
     public Vector3? localEulerAngles;
     public Vector3? localScale;
+
+    public static void Register()
+    {
+        MComponentParserRegistry.Register("Transform", JsonParse);
+    }
+    public static MTransform JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    {
+        var mcomponent = new MTransform();
+        if (ctx.TryGetJVector3(jcomponent, "LocalPosition", out var vector3)) mcomponent.localPosition = vector3;
+        if (ctx.TryGetJQuaternion(jcomponent, "LocalRotation", out var quaternion)) mcomponent.localRotation = quaternion;
+        if (ctx.TryGetJEulerAngles(jcomponent, "LocalEulerAngles", out vector3)) mcomponent.localEulerAngles = vector3;
+        if (ctx.TryGetJVector3(jcomponent, "LocalScale", out vector3)) mcomponent.localScale = vector3;
+        return mcomponent;
+    }
 
     public override Transform Apply(Transform component)
     {
