@@ -7,6 +7,7 @@ namespace BopCustomTextures.SceneMods;
 /// <summary>
 /// Scene mod <see cref="Camera"/> definition.
 /// </summary>
+[MComponent("Camera")]
 public class MCamera : MComponent<Camera>
 {
     public bool? orthographic;
@@ -14,19 +15,13 @@ public class MCamera : MComponent<Camera>
     public float? aspect;
     public Color? backgroundColor;
 
-    public static void Register()
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        MComponentParserRegistry.Register("Camera", JsonParse);
-    }
-
-    public static MCamera JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
-    {
-        var mcomponent = new MCamera();
-        if (ctx.TryGetJValue(jcomponent, "Orthographic", JTokenType.Boolean, out var jval)) mcomponent.orthographic = (bool)jval;
-        if (ctx.TryGetJFloat(jcomponent, "OrthographicSize", out var jfloat)) mcomponent.orthographicSize = jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "Aspect", out jfloat)) mcomponent.aspect = jfloat;
-        if (ctx.TryGetJColor(jcomponent, "BackgroundColor", out var color)) mcomponent.backgroundColor = color;
-        return mcomponent;
+        if (ctx.TryGetJValue(jcomponent, "Orthographic", JTokenType.Boolean, out var jval)) orthographic = (bool)jval;
+        if (ctx.TryGetJFloat(jcomponent, "OrthographicSize", out var jfloat)) orthographicSize = jfloat;
+        if (ctx.TryGetJFloat(jcomponent, "Aspect", out jfloat)) aspect = jfloat;
+        if (ctx.TryGetJColor(jcomponent, "BackgroundColor", out var color)) backgroundColor = color;
+        return true;
     }
 
     public override Camera Apply(Camera component)

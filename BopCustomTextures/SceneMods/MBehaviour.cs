@@ -11,11 +11,12 @@ public abstract class MBehaviour<T> : MComponent<T> where T: Behaviour
 {
     public bool? enabled;
 
-    public static MBehaviour<T> JsonParse<T>(CustomJsonInitializer ctx, JObject jcomponent, MBehaviour<T> mcomponent) where T : Behaviour
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        if (ctx.TryGetJValue(jcomponent, "Enabled", JTokenType.Boolean, out var jbool)) mcomponent.enabled = (bool)jbool;
-        return mcomponent;
+        if (ctx.TryGetJValue(jcomponent, "Enabled", JTokenType.Boolean, out var jbool)) enabled = (bool)jbool;
+        return true;
     }
+
     public override T Apply(T component)
     {
         if (enabled != null) component.enabled = (bool)enabled;

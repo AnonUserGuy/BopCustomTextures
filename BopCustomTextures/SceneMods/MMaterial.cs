@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods;
@@ -31,7 +30,6 @@ public class MMaterial: MObject<Material>
         }
         foreach (var keyword in enableKeywords)
         {
-            Console.WriteLine(keyword);
             material.EnableKeyword(keyword);
         }
         foreach (var keyword in disableKeywords)

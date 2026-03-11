@@ -6,24 +6,19 @@ namespace BopCustomTextures.SceneMods;
 /// <summary>
 /// Scene mod <see cref="ParallaxObjectScript"/> definition
 /// </summary>
+[MComponent("ParallaxObjectScript")]
 public class MParallaxObjectScript : MBehaviour<ParallaxObjectScript>
 {
     public float? parallaxScale;
     public float? loopDistance;
 
-    public static void Register()
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        MComponentParserRegistry.Register("ParallaxObjectScript", JsonParse);
-    }
-
-    public static MParallaxObjectScript JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
-    {
-        var mcomponent = new MParallaxObjectScript();
-        JsonParse(ctx, jcomponent, mcomponent);
+        base.JsonParse(ctx, jcomponent);
         float jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "ParallaxScale", out jfloat)) mcomponent.parallaxScale = jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "LoopDistance", out jfloat)) mcomponent.loopDistance = jfloat;
-        return mcomponent;
+        if (ctx.TryGetJFloat(jcomponent, "ParallaxScale", out jfloat)) parallaxScale = jfloat;
+        if (ctx.TryGetJFloat(jcomponent, "LoopDistance", out jfloat)) loopDistance = jfloat;
+        return true;
     }
 
     public override ParallaxObjectScript Apply(ParallaxObjectScript component)

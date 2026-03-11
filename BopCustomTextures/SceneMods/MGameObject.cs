@@ -11,14 +11,12 @@ namespace BopCustomTextures.SceneMods;
 public class MGameObject(string name): MObject<GameObject>
 {
     public string name = name;
-    public bool? active;
     public MGameObject[] childObjs;
     public MGameObject[] childObjsDeferred;
-    public MComponent[] components;
+    public IMComponent[] components;
 
     public override GameObject Apply(GameObject obj)
     {
-        if (active != null) obj.SetActive((bool)active);
         foreach (var mcomponent in components)
         {
             mcomponent.Apply(obj);

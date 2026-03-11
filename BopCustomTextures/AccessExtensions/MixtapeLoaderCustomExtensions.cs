@@ -1,6 +1,10 @@
 ﻿using HarmonyLib;
 
 namespace BopCustomTextures.AccessExtensions;
+
+/// <summary>
+/// Extension methods for <see cref="MixtapeLoaderCustom"/> exposing private fields and methods.
+/// </summary>
 public static class MixtapeLoaderCustomExtensions
 {
     private static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Entity[]> entitiesRef =

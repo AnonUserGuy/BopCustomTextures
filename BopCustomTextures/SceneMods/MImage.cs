@@ -8,6 +8,7 @@ namespace BopCustomTextures.SceneMods;
 /// <summary>
 /// Scene mod UI.<see cref="Image"/> definition
 /// </summary>
+[MComponent("Image")]
 public class MImage : MComponent<Image>, IMRenderable
 {
     public Material material;
@@ -16,16 +17,10 @@ public class MImage : MComponent<Image>, IMRenderable
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
 
-    public static void Register()
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        MComponentParserRegistry.Register("Image", JsonParse);
-    }
-
-    public static MImage JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
-    {
-        var mcomponent = new MImage();
-        MRenderable.JsonParse(ctx, jcomponent, mcomponent);
-        return mcomponent;
+        MRenderable.JsonParse(ctx, jcomponent, this);
+        return true;
     }
 
     public override Image Apply(Image component)

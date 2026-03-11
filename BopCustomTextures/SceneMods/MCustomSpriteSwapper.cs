@@ -8,36 +8,31 @@ namespace BopCustomTextures.SceneMods;
 /// <summary>
 /// Scene mod <see cref="CustomSpriteSwapper"/> definition.
 /// </summary>
+[MComponent("CustomSpriteSwapper")]
 public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
 {
     public List<int> variants;
     public Dictionary<int, int> variantsIndexed;
 
-    public static void Register()
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        MComponentParserRegistry.Register("CustomSpriteSwapper", JsonParse);
-    }
-
-    public static MCustomSpriteSwapper JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
-    {
-        var mcomponent = new MCustomSpriteSwapper();
-        JsonParse(ctx, jcomponent, mcomponent);
+        base.JsonParse(ctx, jcomponent);
         if (jcomponent.TryGetValue("Variants", out var jvariants))
         {
             switch (jvariants.Type)
             {
                 case JTokenType.Array:
-                    mcomponent.variants = [];
+                    variants = [];
                     foreach (var jel in (JArray)jvariants)
                     {
                         if (ctx.TryGetVariant(jel, out var variant))
                         {
-                            mcomponent.variants.Add(variant);
+                            variants.Add(variant);
                         }
                     }
                     break;
                 case JTokenType.Object:
-                    mcomponent.variantsIndexed = [];
+                    variantsIndexed = [];
                     var jobj = (JObject)jvariants;
                     foreach (var pair in jobj)
                     {
@@ -48,7 +43,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                         }
                         if (ctx.TryGetVariant(pair.Value, out var variant))
                         {
-                            mcomponent.variantsIndexed[index] = variant;
+                            variantsIndexed[index] = variant;
                         }
                     }
                     break;
@@ -56,7 +51,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                 case JTokenType.Integer:
                     if (ctx.TryGetVariant(jvariants, out var variant2))
                     {
-                        mcomponent.variants = [variant2];
+                        variants = [variant2];
                     }
                     break;
                 default:
@@ -64,7 +59,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                     break;
             }
         }
-        return mcomponent;
+        return true;
     }
 
     public override CustomSpriteSwapper Apply(CustomSpriteSwapper component)

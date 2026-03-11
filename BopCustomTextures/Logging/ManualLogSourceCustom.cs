@@ -12,7 +12,6 @@ namespace BopCustomTextures.Logging;
 /// and outputing messages to the mixtape editor's dialogue box.
 /// </summary>
 /// <param name="logger">Internal BepInEx ManualLogSource</param>
-/// <param name="pluginName">Plugin name to display when using LogEditor</param>
 /// <param name="logFileLoading">Log level for file loading messages</param>
 /// <param name="logUnloading">Log level for asset unloading messages</param>
 /// <param name="logSeperateTextureSprites">Log level for sprite creation from seperate textures</param>
@@ -23,6 +22,7 @@ public class ManualLogSourceCustom(ManualLogSource logger,
     ConfigEntry<LogLevel> logSeperateTextureSprites,
     ConfigEntry<LogLevel> logAtlasTextureSprites,
     ConfigEntry<LogLevel> logOutdatedPlugin,
+    ConfigEntry<LogLevel> logMComponentRegistering,
     ConfigEntry<LogLevel> logUpgradeMixtape) : ILogger
 {
     private readonly ManualLogSource logger = logger;
@@ -31,6 +31,7 @@ public class ManualLogSourceCustom(ManualLogSource logger,
     private readonly ConfigEntry<LogLevel> logSeperateTextureSprites = logSeperateTextureSprites;
     private readonly ConfigEntry<LogLevel> logAtlasTextureSprites = logAtlasTextureSprites;
     private readonly ConfigEntry<LogLevel> logOutdatedPlugin = logOutdatedPlugin;
+    private readonly ConfigEntry<LogLevel> logMComponentRegistering = logMComponentRegistering;
     private readonly ConfigEntry<LogLevel> logUpgradeMixtape = logUpgradeMixtape;
 
     private GameObject ErrorCanvas = null;
@@ -50,6 +51,11 @@ public class ManualLogSourceCustom(ManualLogSource logger,
     public void LogAtlasTextureSprites(object data)
     {
         Log(logAtlasTextureSprites.Value, data);
+    }
+
+    public void LogMComponentRegistering(object data)
+    {
+        Log(logMComponentRegistering.Value, data);
     }
 
     public void LogOutdatedPlugin(object data)
@@ -79,7 +85,7 @@ public class ManualLogSourceCustom(ManualLogSource logger,
             }
         }
         ErrorCanvas.SetActive(true);
-        ErrorCanvas.GetComponentInChildren<TMP_Text>().text = $"[{MyPluginInfo.PLUGIN_GUID}] {data}";
+        ErrorCanvas.GetComponentInChildren<TMP_Text>().text = $"[{logger.SourceName}] {data}";
     }
 
     public void Log(LogLevel level, object data)

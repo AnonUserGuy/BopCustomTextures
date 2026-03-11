@@ -6,7 +6,7 @@ namespace BopCustomTextures.Customs;
 
 /// <summary>
 /// Manager of mapping custom texture variant external names to internal indices.
-/// Needed so CustomTextureManager and CustomJsoninitializer can work together.
+/// Needed so <see cref="CustomTextureManager"/> and <see cref="Json.CustomJsonInitializer"/> can work together.
 /// </summary>
 /// <param name="logger">Plugin-specific logger.</param>
 public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger)

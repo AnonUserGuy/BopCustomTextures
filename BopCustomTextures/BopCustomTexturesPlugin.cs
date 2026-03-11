@@ -1,8 +1,8 @@
-﻿using BopCustomTextures.Config;
+﻿using BopCustomTextures.Json;
+using BopCustomTextures.Config;
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
 using BopCustomTextures.Scripts;
-using BopCustomTextures.SceneMods;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using BepInEx;
@@ -69,6 +69,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     private static ConfigEntry<LogLevel> logUnloading;
     private static ConfigEntry<LogLevel> logSeperateTextureSprites;
     private static ConfigEntry<LogLevel> logAtlasTextureSprites;
+    private static ConfigEntry<LogLevel> logMComponentRegistering;
+
     private static ConfigEntry<LogLevel> logSceneIndices;
 
     private static ConfigEntry<OutdatedPluginHandling> loadOutdatedPluginPlayer;
@@ -88,10 +90,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             logSeperateTextureSprites,
             logAtlasTextureSprites,
             logOutdatedPlugin,
+            logMComponentRegistering,
             logUpgradeMixtape
         );
 
         Harmony.PatchAll();
+        MComponentParserRegistry.Initialize(customlogger);
 
         Manager = new CustomManager(customlogger, GetTempPath(), 
             BopCustomTexturesEventTemplates.sceneModTemplate,
@@ -101,7 +105,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         {
             Manager.AddEventTemplates(eventTemplatesIndex.Value);
         }
-        RegisterMComponentParsers();
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -118,16 +121,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                 customlogger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
             };
         }
-    }
-
-    private void RegisterMComponentParsers()
-    {
-        MCamera.Register();
-        MCustomSpriteSwapper.Register();
-        MImage.Register();
-        MParallaxObjectScript.Register();
-        MSpriteRenderer.Register();
-        MTransform.Register();
     }
 
     private void LoadConfigs()
@@ -221,6 +214,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "LogAtlasTextureSprites",
             LogLevel.Debug,
             "Log level for verbose custom sprite creation from atlas textures.");
+
+        logMComponentRegistering = Config.Bind("Logging.Debugging",
+            "LogMComponentRegistering",
+            LogLevel.Debug,
+            "Log level for registering of MComponents.");
 
 
         logSceneIndices = UpgradeOrBind("Logging", "Logging.Modding",

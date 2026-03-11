@@ -10,6 +10,7 @@ public interface ILogger
     public void LogUnloading(object data);
     public void LogSeperateTextureSprites(object data);
     public void LogAtlasTextureSprites(object data);
+    public void LogMComponentRegistering(object data);
 
     public void LogOutdatedPlugin(object data);
     public void LogUpgradeMixtape(object data);

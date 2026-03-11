@@ -230,7 +230,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
 
     public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject obj, string path)
     {
-        string[] names = Regex.Split(path, @"[\\/]");
+        string[] names = Regex.Split(path.TrimEnd(['\\','/']), @"[\\/]");
         return FindGameObjectsInChildren(obj, names);
     }
     public static IEnumerable<GameObject> FindGameObjectsInChildren(GameObject rootObj, string[] names, int i = 0)

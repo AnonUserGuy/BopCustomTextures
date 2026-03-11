@@ -13,9 +13,12 @@ public interface IMRenderable
     Material Material { get; set; }
 }
 
+/// <summary>
+/// Static class providing JSON parsing method for <see cref="IMComponent"/>s implementing <see cref="IMRenderable"/>.
+/// </summary>
 public static class MRenderable
 {
-    public static IMRenderable JsonParse(CustomJsonInitializer ctx, JObject jcomponent, IMRenderable mcomponent)
+    public static void JsonParse(CustomJsonInitializer ctx, JObject jcomponent, IMRenderable mcomponent)
     {
         if (jcomponent.TryGetValue("Material", out var jmat))
         {
@@ -42,6 +45,5 @@ public static class MRenderable
         {
             mcomponent.Material = mat;
         }
-        return mcomponent;
     }
 }

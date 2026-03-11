@@ -594,6 +594,16 @@ public class CustomManager : BaseCustomManager
         }
     }
 
+    /// <summary>
+    /// Gets the mixtape version and checks it, possibly interrupting a load if mixtape is for a newer version of the plugin.
+    /// </summary>
+    /// <param name="path">Mixtape root directory path to check.</param>
+    /// <param name="backup">Whether or not source custom files backup is enabled.</param>
+    /// <param name="upgrade">Whether or not outdated mixtape upgrading is enabled.</param>
+    /// <param name="outdatedPluginHandling">Outdated plugin handling setting.</param>
+    /// <returns><see langword="true"/> if assets should be loaded immediately after, and <see langword="true"/> otherwise. 
+    /// May return false if a disclaimer screen should be shown before loading, or if 
+    /// loading is completely disabled for a mixtape of this version.</returns>
     public bool CheckMixtapeVersion(string path, bool backup, bool upgrade, OutdatedPluginHandling outdatedPluginHandling)
     {
         hasCustomAssets = GetMixtapeVersion(path);

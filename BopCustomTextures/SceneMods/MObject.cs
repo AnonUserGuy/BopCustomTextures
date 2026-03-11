@@ -3,18 +3,20 @@
 namespace BopCustomTextures.SceneMods;
 
 /// <summary>
-/// Scene Mod generic unity object definition.
+/// Scene Mod generic unity <see cref="Object"/> definition.
 /// </summary>
-public abstract class MObject
+public abstract class MObject<T> where T: Object
 {
-    public Vector2 ApplyVector2(Vector2 src, Vector2 dest)
+    public abstract T Apply(T obj);
+
+    public static Vector2 ApplyVector2(Vector2 src, Vector2 dest)
     {
         if (!float.IsNaN(src.x)) dest.x = src.x;
         if (!float.IsNaN(src.y)) dest.y = src.y;
         return dest;
     }
 
-    public Vector3 ApplyVector3(Vector3 src, Vector3 dest)
+    public static Vector3 ApplyVector3(Vector3 src, Vector3 dest)
     {
         if (!float.IsNaN(src.x)) dest.x = src.x;
         if (!float.IsNaN(src.y)) dest.y = src.y;
@@ -22,7 +24,7 @@ public abstract class MObject
         return dest;
     }
 
-    public Quaternion ApplyQuaternion(Quaternion src, Quaternion dest)
+    public static Quaternion ApplyQuaternion(Quaternion src, Quaternion dest)
     {
         if (!float.IsNaN(src.x)) dest.x = src.x;
         if (!float.IsNaN(src.y)) dest.y = src.y;
@@ -31,7 +33,7 @@ public abstract class MObject
         return dest;
     }
 
-    public Color ApplyColor(Color src, Color dest)
+    public static Color ApplyColor(Color src, Color dest)
     {
         if (!float.IsNaN(src.r)) dest.r = src.r;
         if (!float.IsNaN(src.g)) dest.g = src.g;
@@ -39,9 +41,5 @@ public abstract class MObject
         if (!float.IsNaN(src.a)) dest.a = src.a;
         return dest;
     }
-}
-public abstract class MObject<T>: MObject where T: Object
-{
-    public abstract T Apply(T obj);
 }
 

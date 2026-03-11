@@ -7,6 +7,7 @@ namespace BopCustomTextures.SceneMods;
 /// <summary>
 /// Scene mod <see cref="SpriteRenderer"/> definition
 /// </summary>
+[MComponent("SpriteRenderer")]
 public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
 {
     public Color? color;
@@ -19,21 +20,15 @@ public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
 
-    public static void Register()
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
-        MComponentParserRegistry.Register("SpriteRenderer", JsonParse);
-    }
-
-    public static MSpriteRenderer JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
-    {
-        var mcomponent = new MSpriteRenderer();
-        if (ctx.TryGetJColor(jcomponent, "Color", out var color)) mcomponent.color = color;
-        if (ctx.TryGetJVector2(jcomponent, "Size", out var vector2)) mcomponent.size = vector2;
+        if (ctx.TryGetJColor(jcomponent, "Color", out var jcolor)) color = jcolor;
+        if (ctx.TryGetJVector2(jcomponent, "Size", out var vector2)) size = vector2;
         JValue jval;
-        if (ctx.TryGetJValue(jcomponent, "FlipX", JTokenType.Boolean, out jval)) mcomponent.flipX = (bool)jval;
-        if (ctx.TryGetJValue(jcomponent, "FlipY", JTokenType.Boolean, out jval)) mcomponent.flipY = (bool)jval;
-        MRenderable.JsonParse(ctx, jcomponent, mcomponent);
-        return mcomponent;
+        if (ctx.TryGetJValue(jcomponent, "FlipX", JTokenType.Boolean, out jval)) flipX = (bool)jval;
+        if (ctx.TryGetJValue(jcomponent, "FlipY", JTokenType.Boolean, out jval)) flipY = (bool)jval;
+        MRenderable.JsonParse(ctx, jcomponent, this);
+        return true;
     }
 
     public override SpriteRenderer Apply(SpriteRenderer component)

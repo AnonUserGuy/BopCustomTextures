@@ -28,47 +28,57 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     public MGameObject InitGameObject(JObject jobj, SceneKey scene, string name = "", bool isDeferred = false)
     {
         lastScene = scene;
+        return InitGameObject(jobj, name, isDeferred);
+    }
+
+    public MGameObject InitGameObject(JObject jobj, string name = "", bool isDeferred = false)
+    {
+        /*
+        // attempt to simplify 
+        while (jobj.Count == 1)
+        {
+            var dict = jobj.Properties().First();
+            if (dict.Value.Type != JTokenType.Object ||
+                dict.Name.StartsWith("!") ||
+                dict.Name.StartsWith("~"))
+            {
+                break;
+            }
+            if (name.EndsWith("/") || name.EndsWith("\\"))
+            {
+                name += dict.Name;
+            } 
+            else
+            {
+                name += "/" + dict.Name;
+            }
+            jobj = (JObject)dict.Value;
+        }
+        */
         var mobj = new MGameObject(name);
-        var components = new List<MComponent>();
+        var components = new List<IMComponent>();
         var childObjs = new List<MGameObject>();
         var childObjsDeferred = new List<MGameObject>();
+
         foreach (KeyValuePair<string, JToken> dict in jobj)
         {
             if (dict.Key.StartsWith("!"))
             {
-                if (dict.Key == "!Active")
+                string componentName = dict.Key.Substring(1);
+                if (MComponentParserRegistry.Instance.TryParse(this, componentName, dict.Value, out var mcomponent))
                 {
-                    if (dict.Value.Type != JTokenType.Boolean)
-                    {
-                        logger.LogWarning($"JSON Active \"{dict.Key}\" is a {dict.Value.Type} when it should be a Boolean");
-                        continue;
-                    }
-                    mobj.active = (bool)dict.Value;
+                    components.Add(mcomponent);
                 }
                 else
                 {
-                    if (dict.Value.Type != JTokenType.Object)
-                    {
-                        logger.LogWarning($"JSON Componnent \"{dict.Key}\" is a {dict.Value.Type} when it should be a Object");
-                        continue;
-                    }
-                    string componentName = dict.Key.Substring(1);
-                    var mcomponent = MComponentParserRegistry.Parse(this, componentName, (JObject)dict.Value);
-                    if (mcomponent != null)
-                    {
-                        components.Add(mcomponent);
-                    }
-                    else
-                    {
-                        logger.LogWarning($"JSON Componnent \"{componentName}\" is an unknown/unsupported component");
-                    }
+                    logger.LogWarning($"JSON Component \"{componentName}\" in \"{name}\" failed to parse.");
                 }
             }
             else
             {
                 if (dict.Value.Type != JTokenType.Object)
                 {
-                    logger.LogWarning($"JSON GameObject \"{dict.Key}\" is a {dict.Value.Type} when it should be a Object");
+                    logger.LogWarning($"JSON GameObject \"{dict.Key}\" in \"{name}\" is a {dict.Value.Type} when it should be a Object");
                     continue;
                 }
 
@@ -80,7 +90,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                     childName = childName.Substring(1);
                 }
 
-                var mchildObj = InitGameObject((JObject)dict.Value, scene, childName, isChildDeferred);
+                var mchildObj = InitGameObject((JObject)dict.Value, childName, isChildDeferred);
                 if (isChildDeferred)
                 {
                     childObjsDeferred.Add(mchildObj);
@@ -266,17 +276,17 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jvector2)
         {
             case JObject jobj2:
-                vector2 = InitCustomVector2(jobj2);
+                vector2 = InitJVector2(jobj2);
                 return true;
             case JArray jarray2:
-                vector2 = InitCustomVector2(jarray2);
+                vector2 = InitJVector2(jarray2);
                 return true;
         }
         logger.LogWarning($"JSON vector2 \"{key}\" is a {jvector2.Type} when it should be an object or array");
         vector2 = default;
         return false;
     }
-    public Vector2 InitCustomVector2(JObject jvector2)
+    public Vector2 InitJVector2(JObject jvector2)
     {
         float jfloat;
         return new Vector2(
@@ -284,7 +294,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             TryGetJFloat(jvector2, "y", out jfloat) ? jfloat : float.NaN
         );
     }
-    public Vector2 InitCustomVector2(JArray jvector2)
+    public Vector2 InitJVector2(JArray jvector2)
     {
         float jfloat;
         return new Vector2(
@@ -303,17 +313,17 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jvector3)
         {
             case JObject jobj2:
-                vector3 = InitCustomVector3(jobj2);
+                vector3 = InitJVector3(jobj2);
                 return true;
             case JArray jarray2:
-                vector3 = InitCustomVector3(jarray2);
+                vector3 = InitJVector3(jarray2);
                 return true;
         }
         logger.LogWarning($"JSON vector3 \"{key}\" is a {jvector3.Type} when it should be an object or array");
         vector3 = default;
         return false;
     }
-    public Vector3 InitCustomVector3(JObject jvector3)
+    public Vector3 InitJVector3(JObject jvector3)
     {
         float jfloat;
         return new Vector3(
@@ -322,7 +332,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             TryGetJFloat(jvector3, "z", out jfloat) ? jfloat : float.NaN
         );
     }
-    public Vector3 InitCustomVector3(JArray jvector3)
+    public Vector3 InitJVector3(JArray jvector3)
     {
         float jfloat;
         return new Vector3(
@@ -342,10 +352,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jvector3.Type)
         {
             case JTokenType.Object:
-                eulerAngles = InitCustomVector3((JObject)jvector3);
+                eulerAngles = InitJVector3((JObject)jvector3);
                 return true;
             case JTokenType.Array:
-                eulerAngles = InitCustomVector3((JArray)jvector3);
+                eulerAngles = InitJVector3((JArray)jvector3);
                 return true;
             case JTokenType.Float:
             case JTokenType.Integer:
@@ -367,17 +377,17 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jquaternion)
         {
             case JObject jobj2:
-                quaternion = InitCustomQuaternion(jobj2);
+                quaternion = InitJQuaternion(jobj2);
                 return true;
             case JArray jarray2:
-                quaternion = InitCustomQuaternion(jarray2);
+                quaternion = InitJQuaternion(jarray2);
                 return true;
         }
         logger.LogWarning($"JSON quaternion \"{key}\" is a {jquaternion.Type} when it should be an object or array");
         quaternion = default;
         return false;
     }
-    public Quaternion InitCustomQuaternion(JObject jquaternion)
+    public Quaternion InitJQuaternion(JObject jquaternion)
     {
         float jfloat;
         return new Quaternion(
@@ -387,7 +397,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             TryGetJFloat(jquaternion, "w", out jfloat) ? jfloat : float.NaN
         );
     }
-    public Quaternion InitCustomQuaternion(JArray jquaternion)
+    public Quaternion InitJQuaternion(JArray jquaternion)
     {
         float jfloat;
         return new Quaternion(
@@ -408,20 +418,20 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jcolor.Type)
         {
             case JTokenType.Object:
-                color = InitCustomColor((JObject)jcolor);
+                color = InitJColor((JObject)jcolor);
                 return true;
             case JTokenType.Array:
-                color = InitCustomColor((JArray)jcolor);
+                color = InitJColor((JArray)jcolor);
                 return true;
             case JTokenType.String:
-                color = InitCustomColor((string)jcolor);
+                color = InitJColor((string)jcolor);
                 return true;
         }
         logger.LogWarning($"JSON color \"{key}\" is a {jcolor.Type} when it should be an object, array, or string");
         color = default;
         return false;
     }
-    public Color InitCustomColor(JObject jcolor)
+    public Color InitJColor(JObject jcolor)
     {
         float jfloat;
         return new Color(
@@ -431,7 +441,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             TryGetJColorChannel(jcolor, "a", out jfloat) ? jfloat : float.NaN
         );
     }
-    public Color InitCustomColor(JArray jcolor)
+    public Color InitJColor(JArray jcolor)
     {
         float jfloat;
         return new Color(
@@ -441,7 +451,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             TryGetJColorChannel(jcolor, 3, out jfloat) ? jfloat : float.NaN
         );
     }
-    public Color InitCustomColor(string str)
+    public Color InitJColor(string str)
     {
         str = str.TrimStart('#');
         if (str.Length > 8)
@@ -522,7 +532,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float or integer");
+        logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
         return false;
     }
     public bool TryGetJFloat(JArray jarray, int index, out float jfloat)
@@ -537,7 +547,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float or integer");
+        logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
         return false;
     }
     public bool TryGetJFloat(JToken jtoken, out float jfloat)
