@@ -23,6 +23,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     private readonly Dictionary<string, Material> ShaderMaterials = [];
     private readonly CustomVariantNameManager VariantManager = variantManager;
 
+    private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public MGameObject InitGameObject(JObject jobj, SceneKey scene, string name = "", bool isDeferred = false)
@@ -34,10 +35,11 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     public MGameObject InitGameObject(JObject jobj, string name = "", bool isDeferred = false)
     {
         /*
-        // attempt to simplify 
+        // attempt to simplify name
         while (jobj.Count == 1)
         {
             var dict = jobj.Properties().First();
+            logger.LogWarning($"{name} - {dict.Name}");
             if (dict.Value.Type != JTokenType.Object ||
                 dict.Name.StartsWith("!") ||
                 dict.Name.StartsWith("~"))
@@ -52,9 +54,34 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             {
                 name += "/" + dict.Name;
             }
+            logger.LogError(name);
             jobj = (JObject)dict.Value;
         }
         */
+
+        // check if is a single component on a gameobject
+        var match = TerminalComponentRegex.Match(name);
+        if (match.Success)
+        {
+            var mobj2 = new MGameObject(match.Groups[1].Value);
+            mobj2.childObjs = [];
+            mobj2.childObjsDeferred = [];
+
+            if (MComponentParserRegistry.Instance.TryParse(this, match.Groups[2].Value, jobj, out var mcomponent))
+            {
+                mobj2.components = [mcomponent];
+            }
+            else
+            {
+                logger.LogWarning($"JSON Component \"{match.Groups[2].Value}\" in \"{name}\" failed to parse.");
+                mobj2.components = [];
+                // you could also just not add the mobj because it doesn't do anything?
+                // TODO: don't add mobjs if they don't do anything
+                // but also why would someone have empty mobjs? wouldn't parsing for that be kind of pointless?
+            }
+            return mobj2;
+        }
+
         var mobj = new MGameObject(name);
         var components = new List<IMComponent>();
         var childObjs = new List<MGameObject>();

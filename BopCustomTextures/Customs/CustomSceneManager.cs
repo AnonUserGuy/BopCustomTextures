@@ -22,6 +22,8 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     public MixtapeEventTemplate mixtapeEventTemplate = mixtapeEventTemplate;
     public CustomJsonInitializer jsonInitializer = new CustomJsonInitializer(logger, variantManager);
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObject>> CustomScenes = [];
+    public readonly Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>> CustomScenesResolved = [];
+    private MixtapeLoaderCustom lastMixtapeLoader = null;
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     public static readonly Regex FileRegex = new Regex(@"(\w+).jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -118,75 +120,100 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         {
             logger.LogUnloading("Unloading all custom scenes");
             CustomScenes.Clear();
+            CustomScenesResolved.Clear();
+            lastMixtapeLoader = null;
         }
     }
 
-    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
+    public bool TryGetCustomSceneResolved(MixtapeLoaderCustom __instance, SceneKey scene, string key, out MGameObjectResolved mobjResolved)
     {
-        if (!CustomScenes.ContainsKey(sceneKey) ||
-            !__instance.RootObjects.TryGetValue(sceneKey, out var rootObj) ||
-            !CustomScenes[sceneKey].TryGetValue(key, out var mobj))
+        // check if same mixtape loader, meaning root game objects haven't changed
+        if (__instance != lastMixtapeLoader)
         {
-            return;
+            lastMixtapeLoader = __instance;
+            CustomScenesResolved.Clear();
         }
-        logger.LogInfo($"Applying custom scene: {sceneKey}");
-        ResolveGameObject(rootObj, mobj).Apply();
+
+        // check if game present and game has custom scenes and game has custom scene of name key
+        if (!CustomScenes.ContainsKey(scene) ||
+            !CustomScenes[scene].TryGetValue(key, out var mobj) || 
+            !__instance.RootObjects.TryGetValue(scene, out var rootObj))
+        {
+            mobjResolved = null;
+            return false;
+        }
+
+        // check game has resolved some custom scenes
+        if (!CustomScenesResolved.TryGetValue(scene, out var mobjsResolved))
+        {
+            mobjsResolved = [];
+            CustomScenesResolved[scene] = mobjsResolved;
+        }
+
+        // check this custom scene has been resolved
+        if (!mobjsResolved.TryGetValue(key, out mobjResolved))
+        {
+            mobjResolved = ResolveGameObject(rootObj, mobj);
+        }
+        return true;
     }
 
-    public void InitCustomSceneDeferred(MixtapeLoaderCustom __instance, SceneKey sceneKey, string key = "")
+    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey scene, string key = "")
     {
-        if (!CustomScenes.ContainsKey(sceneKey) ||
-            !__instance.RootObjects.TryGetValue(sceneKey, out var rootObj) ||
-            !CustomScenes[sceneKey].TryGetValue(key, out var mobj))
+        if (!TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
         {
             return;
         }
-        logger.LogInfo($"Applying custom scene (deferred): {sceneKey}");
-        ResolveGameObject(rootObj, mobj).Apply();
+        logger.LogInfo($"Applying custom scene: {scene}");
+        mobjResolved.Apply();
+    }
+
+    public void InitCustomSceneDeferred(MixtapeLoaderCustom __instance, SceneKey scene, string key = "")
+    {
+        if (!TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
+        {
+            return;
+        }
+        logger.LogInfo($"Applying custom scene (deferred): {scene}");
+        mobjResolved.Apply();
     }
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
     {
-        var mobjsResolved = new Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>>();
-        foreach (var pair in CustomScenes)
-        {
-            if (!__instance.RootObjects.TryGetValue(pair.Key, out var rootObj))
-            {
-                continue;
-            }
-            mobjsResolved[pair.Key] = new Dictionary<string, MGameObjectResolved>();
-            foreach (var eventPair in pair.Value)
-            {
-                mobjsResolved[pair.Key][eventPair.Key] = ResolveGameObject(rootObj, eventPair.Value);
-            }
-        }
         foreach (Entity entity in entities)
         {
-            if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
-            {
-                var key = entity.GetString("key");
-                var sceneStr = entity.GetString("scene");
-                var scene = ToSceneKeyOrInvalid(sceneStr);
-                if (scene == SceneKey.Invalid)
-                {
-                    logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
-                    continue;
-                }
-                if (!CustomScenes.ContainsKey(scene))
-                {
-                    logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
-                    continue;
-                }
-                if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
-                {
-                    logger.LogError($"Cannot apply scene mod to missing scene {scene}");
-                    continue;
-                }
-                if (mobjsResolved[scene].TryGetValue(key, out var mobjResolved))
-                {
-                    __instance.scheduler.Schedule(entity.beat, mobjResolved.Apply);
-                }
-            }
+            PrepareEvent(__instance, entity);
+        }
+    }
+
+    public void PrepareEvent(MixtapeLoaderCustom __instance, Entity entity)
+    {
+        if (entity.dataModel != $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
+        {
+            return;
+        }
+
+        var key = entity.GetString("key");
+        var sceneStr = entity.GetString("scene");
+        var scene = ToSceneKeyOrInvalid(sceneStr);
+        if (scene == SceneKey.Invalid)
+        {
+            logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+            return;
+        }
+        if (!CustomScenes.ContainsKey(scene))
+        {
+            logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
+            return;
+        }
+        if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+        {
+            logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+            return;
+        }
+        if (TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
+        {
+            __instance.scheduler.Schedule(entity.beat, mobjResolved.Apply);
         }
     }
 
