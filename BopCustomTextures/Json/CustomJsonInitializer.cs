@@ -26,16 +26,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public MGameObject InitGameObject(JObject jobj, SceneKey scene, string name = "", bool isDeferred = false)
+    public MGameObject InitGameObject(JToken jtoken, SceneKey scene, string name = "", bool isDeferred = false)
     {
         lastScene = scene;
-        return InitGameObject(jobj, name, isDeferred);
+        return InitGameObject(jtoken, name, isDeferred);
     }
 
-    public MGameObject InitGameObject(JObject jobj, string name = "", bool isDeferred = false)
+    public MGameObject InitGameObject(JToken jtoken, string name = "", bool isDeferred = false)
     {
         /*
-        // attempt to simplify name
         while (jobj.Count == 1)
         {
             var dict = jobj.Properties().First();
@@ -63,31 +62,29 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         var match = TerminalComponentRegex.Match(name);
         if (match.Success)
         {
-            var mobj2 = new MGameObject(match.Groups[1].Value);
-            mobj2.childObjs = [];
-            mobj2.childObjsDeferred = [];
-
-            if (MComponentParserRegistry.Instance.TryParse(this, match.Groups[2].Value, jobj, out var mcomponent))
+            if (MComponentParserRegistry.Instance.TryParse(this, match.Groups[2].Value, jtoken, out var mcomponent))
             {
-                mobj2.components = [mcomponent];
+                var mobj2 = new MGameObject(match.Groups[1].Value, [], [], [mcomponent]);
+                return mobj2;
             }
             else
             {
                 logger.LogWarning($"JSON Component \"{match.Groups[2].Value}\" in \"{name}\" failed to parse.");
-                mobj2.components = [];
-                // you could also just not add the mobj because it doesn't do anything?
-                // TODO: don't add mobjs if they don't do anything
-                // but also why would someone have empty mobjs? wouldn't parsing for that be kind of pointless?
+                return null;
             }
-            return mobj2;
         }
 
-        var mobj = new MGameObject(name);
+        if (jtoken.Type != JTokenType.Object)
+        {
+            logger.LogWarning($"JSON GameObject \"{name}\" is a {jtoken.Type} when it should be a Object.");
+            return null;
+        }
+
         var components = new List<IMComponent>();
         var childObjs = new List<MGameObject>();
         var childObjsDeferred = new List<MGameObject>();
 
-        foreach (KeyValuePair<string, JToken> dict in jobj)
+        foreach (KeyValuePair<string, JToken> dict in (JObject)jtoken)
         {
             if (dict.Key.StartsWith("!"))
             {
@@ -103,12 +100,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             }
             else
             {
-                if (dict.Value.Type != JTokenType.Object)
-                {
-                    logger.LogWarning($"JSON GameObject \"{dict.Key}\" in \"{name}\" is a {dict.Value.Type} when it should be a Object");
-                    continue;
-                }
-
                 string childName = dict.Key;
                 bool isChildDeferred = isDeferred;
                 if (childName.StartsWith("~"))
@@ -117,7 +108,11 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                     childName = childName.Substring(1);
                 }
 
-                var mchildObj = InitGameObject((JObject)dict.Value, childName, isChildDeferred);
+                var mchildObj = InitGameObject(dict.Value, childName, isChildDeferred);
+                if (mchildObj == null)
+                {
+                    continue;
+                } 
                 if (isChildDeferred)
                 {
                     childObjsDeferred.Add(mchildObj);
@@ -128,9 +123,17 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 }
             }
         }
-        mobj.components = components.ToArray();
-        mobj.childObjs = childObjs.ToArray();
-        mobj.childObjsDeferred = childObjsDeferred.ToArray();
+
+        if (components.Count == 0 && childObjs.Count == 0 && childObjsDeferred.Count == 0)
+        {
+            logger.LogWarning($"JSON GameObject \"{name}\" doesn't do anything.");
+            return null;
+        }
+        var mobj = new MGameObject(name,
+            childObjs.ToArray(),
+            childObjsDeferred.ToArray(),
+            components.ToArray()
+        );
         return mobj;
     }
 

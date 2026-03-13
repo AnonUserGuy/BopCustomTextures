@@ -6,7 +6,6 @@ using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using BepInEx;
-using BepInEx.Logging;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine.SceneManagement;
@@ -44,13 +43,15 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// </summary>
     public static readonly string PluginRepoUrl = "https://github.com/AnonUserGuy/BopCustomTextures";
 
-    public static new ManualLogSource Logger;
-    public static CustomManager Manager;
+    public static new ManualLogSourceCustom Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
+    public static CustomManager Manager;
 
     private static bool couldFindMenu = false;
 
     private static ConfigEntry<bool> loadCustomAssets;
+
+    private static ConfigEntry<OutdatedPluginHandling> loadOutdatedPluginPlayer;
 
     private static ConfigEntry<bool> saveCustomFiles;
     private static ConfigEntry<bool> upgradeOldMixtapes;
@@ -73,31 +74,18 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
     private static ConfigEntry<LogLevel> logSceneIndices;
 
-    private static ConfigEntry<OutdatedPluginHandling> loadOutdatedPluginPlayer;
 
     private void Awake()
     {
         // Plugin startup logic
-        BepInEx.Logging.Logger.Sources.Remove(base.Logger);
-        Logger = BepInEx.Logging.Logger.CreateLogSource(LoggerName);
+        LoadConfigs();
+        InitLogger();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
-        LoadConfigs();
-
-        var customlogger = new ManualLogSourceCustom(Logger,
-            logFileLoading,
-            logUnloading,
-            logSeperateTextureSprites,
-            logAtlasTextureSprites,
-            logOutdatedPlugin,
-            logMComponentRegistering,
-            logUpgradeMixtape
-        );
-
         Harmony.PatchAll();
-        MComponentParserRegistry.Initialize(customlogger);
+        MComponentParserRegistry.Initialize(Logger);
 
-        Manager = new CustomManager(customlogger, GetTempPath(), 
+        Manager = new CustomManager(Logger, GetTempPath(), 
             BopCustomTexturesEventTemplates.sceneModTemplate,
             BopCustomTexturesEventTemplates.textureVariantTemplates,
             MixtapeEventTemplates.entities);
@@ -118,9 +106,29 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             // Apply hook to log scene loading if enabled in config
             SceneManager.sceneLoaded += delegate (Scene scene, LoadSceneMode mode)
             {
-                customlogger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
+                Logger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
             };
         }
+    }
+
+    private void InitLogger()
+    {
+        if (Logger != null)
+        {
+            Logger.LogWarning("Tried to initialize logger twice in one session!");
+            return;
+        }
+        BepInEx.Logging.Logger.Sources.Remove(base.Logger);
+        var vanillaLogger = BepInEx.Logging.Logger.CreateLogSource(LoggerName);
+        Logger = new ManualLogSourceCustom(vanillaLogger,
+            logFileLoading,
+            logUnloading,
+            logSeperateTextureSprites,
+            logAtlasTextureSprites,
+            logOutdatedPlugin,
+            logMComponentRegistering,
+            logUpgradeMixtape
+        );
     }
 
     private void LoadConfigs()

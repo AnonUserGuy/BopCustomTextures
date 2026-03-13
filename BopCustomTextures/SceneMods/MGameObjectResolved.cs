@@ -13,12 +13,25 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj)
     public GameObject obj = obj;
     public MGameObjectResolved[] childObjs;
 
-    public void Apply()
+    /// <summary>
+    /// Apply the resolved scene mod.
+    /// </summary>
+    /// <param name="rootObj">Root <see cref="GameObject"/> of game. 
+    /// Deferred child selectors won't be able to ascend past it with "..".</param>
+    public void Apply(GameObject rootObj)
     {
-        mobj.Apply(obj);
+        mobj.Apply(obj, rootObj);
         foreach (var childObj in childObjs)
         {
-            childObj.Apply();
+            childObj.Apply(rootObj);
         }
+    }
+
+    /// <summary>
+    /// Apply the resolved scene mod.
+    /// </summary>
+    public void Apply()
+    {
+        Apply(obj);
     }
 }

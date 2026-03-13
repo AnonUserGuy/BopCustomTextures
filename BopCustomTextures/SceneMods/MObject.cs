@@ -7,6 +7,11 @@ namespace BopCustomTextures.SceneMods;
 /// </summary>
 public abstract class MObject<T> where T: Object
 {
+    /// <summary>
+    /// Apply the scene mod object to the corresponding Unity <see cref="Object"/>.
+    /// </summary>
+    /// <param name="obj">Unity <see cref="Object"/> to apply scene mod to.</param>
+    /// <returns>Unity <see cref="Object"/> with scene mod applied to it.</returns>
     public abstract T Apply(T obj);
 
     public static Vector2 ApplyVector2(Vector2 src, Vector2 dest)

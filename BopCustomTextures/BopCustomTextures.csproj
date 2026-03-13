@@ -16,6 +16,14 @@
 		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
 		<PackageReference Include="BepInEx.Core" Version="5.*" />
@@ -47,6 +55,10 @@
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$(PostBuildCopyDestination) != ''">
-		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PostBuildCopyDestination)" />
+		<Copy SourceFiles="
+				$(TargetPath);
+				$(TargetDir)$(TargetName).pdb"
+			DestinationFolder="$(PostBuildCopyDestination)"
+			SkipUnchangedFiles="true"/>
 	</Target>
 </Project>
