@@ -306,9 +306,9 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         {
             return;
         }
+        Variants[sceneKey] = [0];
         if (!SpritesInited.Contains(sceneKey))
         {
-            Variants[sceneKey] = [0];
             SpritesInited.Add(sceneKey);
             logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
             InitCustomSprites();
