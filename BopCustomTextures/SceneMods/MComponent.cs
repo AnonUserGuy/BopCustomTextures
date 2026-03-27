@@ -1,6 +1,8 @@
 ﻿using BopCustomTextures.Json;
 using Newtonsoft.Json.Linq;
+using System;
 using UnityEngine;
+using static HarmonyLib.AccessTools;
 
 namespace BopCustomTextures.SceneMods;
 
@@ -27,8 +29,9 @@ public interface IMComponent
 /// <summary>
 /// Scene Mod generic <see cref="Component"/> definition. Can be applied to a component of type T.
 /// </summary>
-public abstract class MComponent<T>: MObject<T>, IMComponent where T: Component
+public class MComponent<T>: MObject<T>, IMComponent where T: Component
 {
+    public Action<T>[] dynamicFields;
 
     /// <summary>
     /// Parse a scene mod component definition from a given <see cref="JToken"/> if it corresponds to a JSON object.
@@ -53,7 +56,16 @@ public abstract class MComponent<T>: MObject<T>, IMComponent where T: Component
     /// <param name="ctx">The invoking <see cref="CustomJsonInitializer"/>, for logging and general parsing methods.</param>
     /// <param name="jcomponent"><see cref="JObject"/> containing component defintion.</param>
     /// <returns><see langword="true"/> is JSON component parsed successfully, <see langword="false"/> otherwise.</returns>
-    public abstract bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent);
+    public bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    {
+        foreach (var pair in jcomponent)
+        {
+            if (ctx.TryGetComponentField(typeof(T), pair.Key))
+            {
+
+            }
+        }
+    }
 
     /// <summary>
     /// Apply scene mod to <see cref="Component"/> on <see cref="GameObject"/>, if it has it.
@@ -66,5 +78,14 @@ public abstract class MComponent<T>: MObject<T>, IMComponent where T: Component
         {
             Apply(component);
         }
+    }
+
+    public override T Apply(T component)
+    {
+        foreach (var dynamicField in dynamicFields)
+        {
+            dynamicField(component);
+        }
+        return component;
     }
 }

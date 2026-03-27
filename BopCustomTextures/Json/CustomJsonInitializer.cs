@@ -7,6 +7,8 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using System;
+using HarmonyLib;
 
 namespace BopCustomTextures.Json;
 
@@ -21,6 +23,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     private readonly Dictionary<string, Material> Materials = [];
     private readonly Dictionary<string, Shader> Shaders = [];
     private readonly Dictionary<string, Material> ShaderMaterials = [];
+    private readonly Dictionary<string, Type> componentTypes = [];
     private readonly CustomVariantNameManager VariantManager = variantManager;
 
     private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
@@ -135,6 +138,46 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             components.ToArray()
         );
         return mobj;
+    }
+
+    public bool TryGetComponent(string name, JToken jcomponent, out IMComponent mcomponent)
+    {
+        if (MComponentParserRegistry.Instance.TryParse(this, name, jcomponent, out mcomponent))
+        {
+            return true;
+        }
+        else
+        {
+
+        }
+        Type type = typeof(Transform);
+        AccessTools.Field(type, "localPostition");
+    }
+
+    public bool TryGetComponentField(Type type, string name)
+    {
+
+    }
+
+    public bool TryGetComponentType(string name, out Type type)
+    {
+        if (componentTypes.TryGetValue(name, out type))
+        {
+            return true;
+        }
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            foreach (var t in assembly.GetTypes())
+            {
+                if (typeof(Component).IsAssignableFrom(t) && t.FullName.EndsWith(name))
+                {
+                    componentTypes[name] = t;
+                    type = t;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public MMaterial InitMaterial(JObject jmaterial)
