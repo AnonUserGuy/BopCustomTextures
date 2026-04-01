@@ -84,7 +84,9 @@ This is similar to the approach the game itself uses for swapping sprites such a
 ### Scene Mods
 The scene mod implementation is comparatively much simpler than the custom texture system. During rhythm game loading for a custom mixtape, when a rhythm game finishes loading the corresponding JSON file included in the .bop archive is iterated through, searching for GameObjects and components using the syntax given previously. If the GameObject and component can be found the component is updated with the custom values included in the JSON, and otherwise a warning message is printed to the console informing the mixtape author of the missing GameObject or component. 
 
-The process requires implementing assignment methods for every individual Unity component which is less than ideal, but there's not much way around it without completely circumventing normal scene management in the Unity runtime.    
+<s>The process requires implementing assignment methods for every individual Unity component which is less than ideal, but there's not much way around it without completely circumventing normal scene management in the Unity runtime.</s>    
+
+***Reimplementing scene mods using reflection/dynamic code generation could enable scene mods to modify any Unity component independent of implementation, which may be something looked into in the future. As of now however, scene mods can only modify specific supported Unity components.***
 
 ## Todo
 - Implement custom AssetBundle loading.
