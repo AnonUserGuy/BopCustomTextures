@@ -8,6 +8,7 @@ using BopCustomTextures.AccessExtensions;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
@@ -17,6 +18,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
+using Display = BopCustomTextures.Config.Display;
 
 namespace BopCustomTextures;
 
@@ -46,8 +48,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     public static new ManualLogSourceCustom Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
     public static CustomManager Manager;
-
-    private static bool couldFindMenu = false;
 
     private static ConfigEntry<bool> loadCustomAssets;
 
@@ -390,72 +390,30 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     [HarmonyPatch(typeof(MixtapeEditorScript), "UpdateInternal")]
     private static class MixtapeEditorScriptUpdateInternalPatch
     {
+        // this method can't be patched with a transpiler
+        // https://github.com/AnonUserGuy/BopCustomTextures/issues/9
 
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        static void Postfix(MixtapeEditorScript __instance)
         {
-            if (displayCopyOptions.Value == Display.Never && displayReloadOptions.Value == Display.Never)
+            Vector3 mousePosition = Input.mousePosition;
+            Vector3 vector = __instance.mainCamera.ScreenToWorldPoint(mousePosition);
+            if (Input.GetKeyDown(KeyCode.Mouse0) && MixtapeEditorScript.HitTest(__instance.menu, vector))
             {
-                return instructions;
-            }
-
-            var codeMatcher = new CodeMatcher(instructions, il);
-
-            codeMatcher.MatchForward(false, [
-                new CodeMatch(ci =>
-                    ci.opcode == OpCodes.Br ||
-                    ci.opcode == OpCodes.Br_S),
-                new CodeMatch(ci =>
-                    ci.opcode == OpCodes.Ldloc ||
-                    ci.opcode == OpCodes.Ldloc_S),
-                new CodeMatch(OpCodes.Ldc_I4_7),
-                new CodeMatch(ci =>
-                    ci.opcode == OpCodes.Bne_Un ||
-                    ci.opcode == OpCodes.Bne_Un_S),
-                new CodeMatch(OpCodes.Ldarg_0),
-                new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(MixtapeEditorScript), "FileQuit"))
-            ]);
-            if (!codeMatcher.IsValid)
-            {
-                Logger.LogError("Could not find mixtape editor menu handler, so mixtape editor will not include modded menu options.");
-                return instructions;
-            }
-
-            var breakInstruction = codeMatcher.Instruction;
-            codeMatcher.Advance(1);
-            var ldlocInstruction = codeMatcher.Instruction;
-            codeMatcher.Advance(2);
-            int branchPos = codeMatcher.Pos;
-
-            codeMatcher.Advance(3);
-            codeMatcher.Insert([
-                breakInstruction,
-                new CodeInstruction(OpCodes.Ldarg_0),
-                ldlocInstruction,
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MixtapeEditorScriptUpdateInternalPatch), "Internal"))
-            ]);
-            codeMatcher.Advance(1);
-            codeMatcher.CreateLabel(out var label);
-
-            codeMatcher.Start().Advance(branchPos);
-            codeMatcher.SetOperandAndAdvance(label);
-
-            couldFindMenu = true;
-            return codeMatcher.InstructionEnumeration();
-        }
-
-        private static void Internal(MixtapeEditorScript __instance, int option)
-        {
-            if (couldFindMenu)
-            {
-                Manager.HandleMenuOption(__instance,
-                    option - 8,
-                    displayCopyOptions.Value, 
+                int panel = (int)(Mathf.InverseLerp(-7.5f, 7.5f, vector.x) * 5f);
+                int option = (int)(Mathf.InverseLerp(__instance.menu.bounds.center.y + __instance.menu.bounds.extents.y, __instance.menu.bounds.center.y - __instance.menu.bounds.extents.y, vector.y) * 16f);
+                if (panel == 0 && option >= 9)
+                {
+                    Logger.LogInfo($"Clicked modded option: {option - 9}");
+                    Manager.HandleMenuOption(__instance,
+                    option - 9,
+                    displayCopyOptions.Value,
                     displayReloadOptions.Value,
                     saveCustomFiles.Value,
                     upgradeOldMixtapes.Value,
                     GetOutdatedPluginHandling(),
                     displayEventTemplates.Value,
                     eventTemplatesIndex.Value);
+                }
             }
         }
     }
@@ -465,12 +423,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeEditorScript __instance)
         {
-            if (couldFindMenu)
-            {
-                Manager.FormatMenu(__instance,
+            Manager.FormatMenu(__instance,
                     displayCopyOptions.Value,
                     displayReloadOptions.Value);
-            }
         }
     }
 
