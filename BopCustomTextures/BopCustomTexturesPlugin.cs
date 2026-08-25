@@ -58,6 +58,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     private static ConfigEntry<bool> uploadAppendDescription;
     private static ConfigEntry<bool> loadOutdatedPluginEditor;
 
+    private static ConfigEntry<string> copyCustomsFromFileKeybind;
+    private static ConfigEntry<string> copyCustomsFromFolderKeybind;
+    private static ConfigEntry<string> reloadCustomAssetsKeybind;
+
     private static ConfigEntry<Display> displayCopyOptions;
     private static ConfigEntry<Display> displayReloadOptions;
     private static ConfigEntry<Display> displayEventTemplates;
@@ -167,6 +171,20 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             true,
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
 
+        copyCustomsFromFileKeybind = Config.Bind("Editor",
+            "CopyCustomsFromFileKeybind",
+            "F3",
+            "The keybind used to access Copy Customs From File.");
+
+        copyCustomsFromFolderKeybind = Config.Bind("Editor",
+            "CopyCustomsFromFolderKeybind",
+            "F4",
+            "The keybind used to access Copy Customs From Folder.");
+
+        reloadCustomAssetsKeybind = Config.Bind("Editor",
+            "ReloadCustomAssetsKeybind",
+            "F5",
+            "The keybind used to access Reload Custom Assets.");
 
         displayCopyOptions = Config.Bind("Editor.Display",
             "DisplayOptionsCopy",
@@ -233,6 +251,85 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "LogSceneIndices",
             LogLevel.None,
             "Log level for vanilla scene loading, including scene name + build index. (for locating level and sharedassets files)");
+    }
+
+    // String-to-Keybind for configs
+    private static bool GetKeyDown(ConfigEntry<string> keybind)
+    {
+        if (!Enum.TryParse(keybind.Value, true, out KeyCode key))
+        {
+            Logger.LogWarning(
+                $"Invalid keybind \"{keybind.Value}\" for {keybind.Definition.Key}.");
+
+            return false;
+        }
+
+        return Input.GetKeyDown(key);
+    }
+
+    // Update loop to detect keybinds
+    private void Update()
+    {
+        if (!IsProbablyCustom())
+        {
+            return;
+        }
+
+        if (GetKeyDown(copyCustomsFromFileKeybind))
+        {
+            Logger.LogInfo(copyCustomsFromFileKeybind.Value + " pressed: Copy Customs from File");
+
+            var editor = FindObjectOfType<MixtapeEditorScript>();
+
+            if (editor != null)
+            {
+                Manager.FileOpenCustomsArchive(
+                    editor,
+                    saveCustomFiles.Value,
+                    displayEventTemplates.Value,
+                    eventTemplatesIndex.Value);
+            }
+        }
+
+        if (GetKeyDown(copyCustomsFromFolderKeybind))
+        {
+            Logger.LogInfo(copyCustomsFromFolderKeybind.Value + " pressed: Copy Customs from Folder");
+
+            var editor = FindObjectOfType<MixtapeEditorScript>();
+
+            if (editor != null)
+            {
+                Manager.FileOpenCustomsDirectory(
+                    editor,
+                    saveCustomFiles.Value,
+                    displayEventTemplates.Value,
+                    eventTemplatesIndex.Value);
+            }
+        }
+
+        if (GetKeyDown(reloadCustomAssetsKeybind))
+        {
+            Logger.LogInfo(reloadCustomAssetsKeybind.Value + " pressed: Reload Custom Assets");
+
+            if (Manager.hasCustomAssets && !string.IsNullOrEmpty(Manager.lastPath))
+            {
+                var editor = FindObjectOfType<MixtapeEditorScript>();
+
+                if (editor != null)
+                {
+                    Manager.ResetAndReload(
+                        Manager.lastPath,
+                        saveCustomFiles.Value,
+                        displayEventTemplates.Value,
+                        eventTemplatesIndex.Value);
+
+                    editor.FormatMenu();
+                }
+            } else
+            {
+                Logger.LogError("Couldn't Reload Custom Assets (no Custom Assets loaded)");
+            }
+        }
     }
 
     [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
