@@ -58,9 +58,10 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     private static ConfigEntry<bool> uploadAppendDescription;
     private static ConfigEntry<bool> loadOutdatedPluginEditor;
 
-    private static ConfigEntry<string> copyCustomsFromFileKeybind;
-    private static ConfigEntry<string> copyCustomsFromFolderKeybind;
-    private static ConfigEntry<string> reloadCustomAssetsKeybind;
+    private static ConfigEntry<KeyCode> copyCustomsFromFileKeybind;
+    private static ConfigEntry<KeyCode> copyCustomsFromFolderKeybind;
+    private static ConfigEntry<KeyCode> reloadCustomAssetsKeybind;
+    private static ConfigEntry<KeyCode> selectEventCatagoryKeybind;
 
     private static ConfigEntry<Display> displayCopyOptions;
     private static ConfigEntry<Display> displayReloadOptions;
@@ -171,20 +172,27 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             true,
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
 
+
         copyCustomsFromFileKeybind = Config.Bind("Editor",
             "CopyCustomsFromFileKeybind",
-            "F3",
+            KeyCode.F3,
             "The keybind used to access Copy Customs From File.");
 
         copyCustomsFromFolderKeybind = Config.Bind("Editor",
             "CopyCustomsFromFolderKeybind",
-            "F4",
+            KeyCode.F4,
             "The keybind used to access Copy Customs From Folder.");
 
         reloadCustomAssetsKeybind = Config.Bind("Editor",
             "ReloadCustomAssetsKeybind",
-            "F5",
+            KeyCode.F5,
             "The keybind used to access Reload Custom Assets.");
+
+        selectEventCatagoryKeybind = Config.Bind("Editor",
+            "SelectEventCatagoryKeybind",
+            KeyCode.F6,
+            "The keybind used to switch to \"Bop Custom Textures\" catagory. (in case it is not visible.)");
+        
 
         displayCopyOptions = Config.Bind("Editor.Display",
             "DisplayOptionsCopy",
@@ -251,85 +259,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "LogSceneIndices",
             LogLevel.None,
             "Log level for vanilla scene loading, including scene name + build index. (for locating level and sharedassets files)");
-    }
-
-    // String-to-Keybind for configs
-    private static bool GetKeyDown(ConfigEntry<string> keybind)
-    {
-        if (!Enum.TryParse(keybind.Value, true, out KeyCode key))
-        {
-            Logger.LogWarning(
-                $"Invalid keybind \"{keybind.Value}\" for {keybind.Definition.Key}.");
-
-            return false;
-        }
-
-        return Input.GetKeyDown(key);
-    }
-
-    // Update loop to detect keybinds
-    private void Update()
-    {
-        if (!IsProbablyCustom())
-        {
-            return;
-        }
-
-        if (GetKeyDown(copyCustomsFromFileKeybind))
-        {
-            Logger.LogInfo(copyCustomsFromFileKeybind.Value + " pressed: Copy Customs from File");
-
-            var editor = FindObjectOfType<MixtapeEditorScript>();
-
-            if (editor != null)
-            {
-                Manager.FileOpenCustomsArchive(
-                    editor,
-                    saveCustomFiles.Value,
-                    displayEventTemplates.Value,
-                    eventTemplatesIndex.Value);
-            }
-        }
-
-        if (GetKeyDown(copyCustomsFromFolderKeybind))
-        {
-            Logger.LogInfo(copyCustomsFromFolderKeybind.Value + " pressed: Copy Customs from Folder");
-
-            var editor = FindObjectOfType<MixtapeEditorScript>();
-
-            if (editor != null)
-            {
-                Manager.FileOpenCustomsDirectory(
-                    editor,
-                    saveCustomFiles.Value,
-                    displayEventTemplates.Value,
-                    eventTemplatesIndex.Value);
-            }
-        }
-
-        if (GetKeyDown(reloadCustomAssetsKeybind))
-        {
-            Logger.LogInfo(reloadCustomAssetsKeybind.Value + " pressed: Reload Custom Assets");
-
-            if (Manager.hasCustomAssets && !string.IsNullOrEmpty(Manager.lastPath))
-            {
-                var editor = FindObjectOfType<MixtapeEditorScript>();
-
-                if (editor != null)
-                {
-                    Manager.ResetAndReload(
-                        Manager.lastPath,
-                        saveCustomFiles.Value,
-                        displayEventTemplates.Value,
-                        eventTemplatesIndex.Value);
-
-                    editor.FormatMenu();
-                }
-            } else
-            {
-                Logger.LogError("Couldn't Reload Custom Assets (no Custom Assets loaded)");
-            }
-        }
     }
 
     [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
@@ -492,12 +421,23 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         static void Postfix(MixtapeEditorScript __instance)
         {
+            UpdateMenu(__instance);
+            UpdateKeybinds(__instance);
+        }
+
+        static void UpdateMenu(MixtapeEditorScript __instance)
+        {
+            if (MixtapeEditorScriptExtensions.menuField == null)
+            {
+                return;
+            }
+            SpriteRenderer menu = (SpriteRenderer)MixtapeEditorScriptExtensions.menuField.GetValue(__instance);
             Vector3 mousePosition = Input.mousePosition;
             Vector3 vector = __instance.mainCamera.ScreenToWorldPoint(mousePosition);
-            if (Input.GetKeyDown(KeyCode.Mouse0) && MixtapeEditorScript.HitTest(__instance.menu, vector))
+            if (Input.GetKeyDown(KeyCode.Mouse0) && MixtapeEditorScript.HitTest(menu, vector))
             {
                 int panel = (int)(Mathf.InverseLerp(-7.5f, 7.5f, vector.x) * 5f);
-                int option = (int)(Mathf.InverseLerp(__instance.menu.bounds.center.y + __instance.menu.bounds.extents.y, __instance.menu.bounds.center.y - __instance.menu.bounds.extents.y, vector.y) * 16f);
+                int option = (int)(Mathf.InverseLerp(menu.bounds.center.y + menu.bounds.extents.y, menu.bounds.center.y - menu.bounds.extents.y, vector.y) * 16f);
                 if (panel == 0 && option >= 9)
                 {
                     Logger.LogInfo($"Clicked modded option: {option - 9}");
@@ -511,6 +451,30 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                     displayEventTemplates.Value,
                     eventTemplatesIndex.Value);
                 }
+            }
+        }
+
+        static void UpdateKeybinds(MixtapeEditorScript __instance)
+        {
+            if (Input.GetKeyDown(copyCustomsFromFileKeybind.Value))
+            {
+                Logger.LogInfo("Keybind pressed: Copy Customs from File");
+                Manager.FileOpenCustomsArchive(__instance, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
+            }
+            else if (Input.GetKeyDown(copyCustomsFromFolderKeybind.Value))
+            {
+                Logger.LogInfo("Keybind pressed: Copy Customs from Folder");
+                Manager.FileOpenCustomsDirectory(__instance, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
+            }
+            else if (Input.GetKeyDown(reloadCustomAssetsKeybind.Value))
+            {
+                Logger.LogInfo("Keybind pressed: Reload Custom Assets");
+                Manager.ResetAndReload(Manager.lastPath, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
+            }
+            else if (Input.GetKeyDown(selectEventCatagoryKeybind.Value))
+            {
+                Logger.LogInfo("Keybind pressed: Select Event Catagory");
+                __instance.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
             }
         }
     }

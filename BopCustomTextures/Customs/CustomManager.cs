@@ -5,6 +5,7 @@ using BopCustomTextures.AccessExtensions;
 using SFB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using TMPro;
 using System;
 using System.IO;
 using System.Linq;
@@ -380,7 +381,13 @@ public class CustomManager : BaseCustomManager
 
     public void FormatMenu(MixtapeEditorScript __instance, Display showCopyOptions, Display showReloadOptions)
     {
-        string text = __instance.menuText.text;
+        if (MixtapeEditorScriptExtensions.menuTextField == null)
+        {
+            return;
+        }
+
+        TMP_Text menuText = (TMP_Text)MixtapeEditorScriptExtensions.menuTextField.GetValue(__instance);
+        string text = menuText.text;
         bool changed = false;
         if (DisplayActive(showCopyOptions, hasCustomAssets))
         {
@@ -394,8 +401,8 @@ public class CustomManager : BaseCustomManager
         }
         if (changed)
         {
-            __instance.menuText.text = text;
-            __instance.menuText.ForceMeshUpdate();
+            menuText.text = text;
+            menuText.ForceMeshUpdate();
         }
     }
 

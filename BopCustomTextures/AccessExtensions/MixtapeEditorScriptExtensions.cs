@@ -10,4 +10,8 @@ public static class MixtapeEditorScriptExtensions
 {
     private static readonly MethodInfo formatMenuMethod = AccessTools.Method(typeof(MixtapeEditorScript), "FormatMenu", []);
     public static void FormatMenu(this MixtapeEditorScript obj) => formatMenuMethod.Invoke(obj, []);
+
+    public static readonly FieldInfo menuField = AccessTools.Field(typeof(MixtapeEditorScript), "menu");
+
+    public static readonly FieldInfo menuTextField = AccessTools.Field(typeof(MixtapeEditorScript), "menuText");
 }
