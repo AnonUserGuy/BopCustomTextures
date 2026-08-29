@@ -173,25 +173,26 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
 
 
-        copyCustomsFromFileKeybind = Config.Bind("Editor",
+        copyCustomsFromFileKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
             "CopyCustomsFromFileKeybind",
             KeyCode.F3,
-            "The keybind used to access Copy Customs From File.");
+            "Keybind used to access Copy Customs From File.");
 
-        copyCustomsFromFolderKeybind = Config.Bind("Editor",
+        copyCustomsFromFolderKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
             "CopyCustomsFromFolderKeybind",
             KeyCode.F4,
-            "The keybind used to access Copy Customs From Folder.");
+            "Keybind used to access Copy Customs From Folder.");
 
-        reloadCustomAssetsKeybind = Config.Bind("Editor",
+        reloadCustomAssetsKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
             "ReloadCustomAssetsKeybind",
             KeyCode.F5,
-            "The keybind used to access Reload Custom Assets.");
+            "Keybind used to access Reload Custom Assets.");
 
-        selectEventCatagoryKeybind = Config.Bind("Editor",
+        selectEventCatagoryKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
             "SelectEventCatagoryKeybind",
             KeyCode.F6,
-            "The keybind used to switch to \"Bop Custom Textures\" catagory. (in case it is not visible.)");
+            "Keybind used to switch to \"Bop Custom Textures\" catagory.\n" + 
+            "(Note: only works post editor UI update.)");
         
 
         displayCopyOptions = Config.Bind("Editor.Display",
@@ -474,7 +475,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             else if (Input.GetKeyDown(selectEventCatagoryKeybind.Value))
             {
                 Logger.LogInfo("Keybind pressed: Select Event Catagory");
-                __instance.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
+                if (MixtapeEditorScriptExtensions.OnSelectCategoryMethod == null)
+                {
+                    Logger.LogWarning("Select Event Catagory only works for versions of Bits and Bops post editor UI update.");
+                    return;
+                }
+                MixtapeEditorScriptExtensions.OnSelectCategoryMethod.Invoke(__instance, [MyPluginInfo.PLUGIN_GUID]);
             }
         }
     }

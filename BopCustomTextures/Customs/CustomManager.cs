@@ -461,7 +461,7 @@ public class CustomManager : BaseCustomManager
         string path = null;
         bool complete = false;
         yield return null;
-        StandaloneFileBrowser.OpenFilePanelAsync("Open File", Path.GetDirectoryName(lastPath), extensions, multiselect: false, delegate (string[] paths)
+        StandaloneFileBrowser.OpenFilePanelAsync("Copy from File", Path.GetDirectoryName(lastPath), extensions, multiselect: false, delegate (string[] paths)
         {
             complete = true;
             if (paths.Length != 0 && paths[0] != "")
@@ -497,7 +497,7 @@ public class CustomManager : BaseCustomManager
         string path = null;
         bool complete = false;
         yield return null;
-        StandaloneFileBrowser.OpenFolderPanelAsync("Open Folder", Path.GetDirectoryName(lastPath), multiselect: false, delegate (string[] paths)
+        StandaloneFileBrowser.OpenFolderPanelAsync("Copy from Folder", Path.GetDirectoryName(lastPath), multiselect: false, delegate (string[] paths)
         {
             complete = true;
             if (paths.Length != 0 && paths[0] != "")
