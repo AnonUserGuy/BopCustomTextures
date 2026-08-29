@@ -25,11 +25,16 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 <tr><td><code>DisplayOptionsReload</code></td><td>Display</td><td><code>WhenActive</code></td><td>When to display "Reload Custom Assets" in editor.</td></tr>
 <tr><td><code>DisplayEventTemplates</code></td><td>Display</td><td><code>Always</code></td><td><p>When to display mixtape events category "Bop Custom Textures".</p><p>(Note: options besides "Always" can be buggy when attempting to work with a modded mixtape.)</p></td></tr>
 <tr><td><code>EventTemplatesIndex</code></td><td>Int32</td><td><code>4</code></td><td><p>Position in mixtape event categories list to display "Bop Custom Textures" at. Values lower than 1 will put category at end of list.</p><p>(Note: position 0 unsupported as editor is hardcoded to only support category "Global" there.)</p></td></tr>
+<tr><th colspan="4">Editor.Keybinds</th></tr>
+<tr><td><code>CopyCustomsFromFileKeybind</code></td><td>KeyCode</td><td><code>F3</code></td><td>Keybind used to access Copy Customs From File.</td></tr>
+<tr><td><code>CopyCustomsFromFolderKeybind</code></td><td>KeyCode</td><td><code>F4</code></td><td>Keybind used to access Copy Customs From Folder.</td></tr>
+<tr><td><code>ReloadCustomAssetsKeybind</code></td><td>KeyCode</td><td><code>F5</code></td><td>Keybind used to access Reload Custom Assets.</td></tr>
+<tr><td><code>SelectEventCatagoryKeybind</code></td><td>KeyCode</td><td><code>F6</code></td><td><p>Keybind used to switch to "Bop Custom Textures" catagory.</p><p>(Note: only works post editor UI update.)</p></td></tr>
 <tr><th colspan="4">General</th></tr>
 <tr><td><code>LoadCustomAssets</code></td><td>Boolean</td><td><code>true</code></td><td><p>When opening a modded mixtape, load the custom assets stored in it.</p><p>(Note: modded mixtapes won't maintain their custom files if saved while this is disabled.)</p></td></tr>
 <tr><th colspan="4">Logging</th></tr>
-<tr><td><code>logOutdatedPlugin</code></td><td>LogLevel</td><td><code>Error, MixtapeEditor</code></td><td>Log level for message indicating BopCustomTextures needs to be updated to play a mixtape.</td></tr>
-<tr><td><code>LogUpgradeMixtape</code></td><td>LogLevel</td><td><code>Warning, MixtapeEditor</code></td><td>Log level for messaage reminding user to save a mixtape to add/upgrade its BopCustomTextures.json file.</td></tr>
+<tr><td><code>logOutdatedPlugin</code></td><td>LogLevel</td><td><code>Error</code>, <code>MixtapeEditor</code></td><td>Log level for message indicating BopCustomTextures needs to be updated to play a mixtape.</td></tr>
+<tr><td><code>LogUpgradeMixtape</code></td><td>LogLevel</td><td><code>Warning</code>, <code>MixtapeEditor</code></td><td>Log level for messaage reminding user to save a mixtape to add/upgrade its BopCustomTextures.json file.</td></tr>
 <tr><th colspan="4">Logging.Debugging</th></tr>
 <tr><td><code>LogFileLoading</code></td><td>LogLevel</td><td><code>Debug</code></td><td>Log level for verbose file loading of custom files in .bop archives.</td></tr>
 <tr><td><code>LogUnloading</code></td><td>LogLevel</td><td><code>Debug</code></td><td>Log level for verbose custom asset unloading</td></tr>
@@ -44,7 +49,7 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 
 ## Building 
 ### Prerequisites
-- Bits & Bops v1.8+
+- Bits & Bops v1.13+
 - Microsoft .NET SDK v4.7.2+
 - Visual Studio 2022 (Optional)
 
