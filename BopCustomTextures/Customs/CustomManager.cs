@@ -29,15 +29,90 @@ public class CustomManager : BaseCustomManager
     public static readonly string[] MenuReloadOptions = [
         "Reload Custom Assets"
     ];
+
+    public int MixtapeEventCategoryIndex = -1;
+    public MixtapeEventTemplate EditorPropertiesTemplate;
+    private MixtapeEventScript EditorPropertiesEvent;
+    public MixtapeEventTemplate MixtapePropertiesTemplate;
+    private MixtapeEventScript MixtapePropertiesEvent;
+
     private const int VersionMaxLength = 50;
     public static readonly Regex VersionRegex = new Regex("<.*?>", RegexOptions.Compiled);
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:res(?:ource)?s?|BopCustomTextures)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public string Version;
-    public uint Release;
+    private string _version;
+    public string Version
+    {
+        get
+        {
+            if (MixtapePropertiesEvent != null)
+            {
+                var version = MixtapePropertiesEvent.Entity.GetString("version");
+                if (version != _version)
+                {
+                    _version = version;
+                }
+            }
+            return _version;
+        }
+        set
+        {
+            _version = value;
+            if (MixtapePropertiesEvent != null)
+            {
+                MixtapePropertiesEvent.Entity.SetString("version", value);
+            }
+        }
+    }
+    private uint _release;
+    public uint Release
+    {
+        get
+        {
+            if (MixtapePropertiesEvent != null)
+            {
+                var release = (uint)MixtapePropertiesEvent.Entity.GetInt("release");
+                if (release != _release)
+                {
+                    _release = release;
+                }
+            }
+            return _release;
+        }
+        set
+        {
+            _release = value;
+            if (MixtapePropertiesEvent != null)
+            {
+                MixtapePropertiesEvent.Entity.SetInt("release", (int)value);
+            }
+        }
+    }
     public bool HasCustomAssets = false;
 
-    public string LastPath;
+    private string _lastPath;
+    public string LastPath
+    {
+        get
+        {
+            if (EditorPropertiesEvent != null) {
+                var lastPath = EditorPropertiesEvent.Entity.GetString("last path");
+                if (lastPath != _lastPath)
+                {
+                    _lastPath = lastPath;
+                }
+            }
+            return _lastPath;
+        }
+        set
+        {
+            _lastPath = value;
+            if (EditorPropertiesEvent != null)
+            {
+                EditorPropertiesEvent.Entity.SetString("last path", value);
+            }
+        }
+    }
     public DateTime LastModified;
     public bool ReadNecessary = true;
     public bool InterruptLoad = false;
@@ -62,6 +137,8 @@ public class CustomManager : BaseCustomManager
         string tempPath, 
         MixtapeEventTemplate sceneModTemplate, 
         MixtapeEventTemplate[] textureTemplates,
+        MixtapeEventTemplate editorPropertiesTemplate,
+        MixtapeEventTemplate mixtapePropertiesTemplate,
         Dictionary<string, List<MixtapeEventTemplate>> entities) : base(logger)
     {
         ConfigManager = configManager;
@@ -69,6 +146,8 @@ public class CustomManager : BaseCustomManager
         SceneManager = new CustomSceneManager(logger, VariantManager, sceneModTemplate);
         TextureManager = new CustomTextureManager(logger, VariantManager, textureTemplates);
         FileManager = new CustomFileManager(logger, tempPath);
+        this.EditorPropertiesTemplate = editorPropertiesTemplate;
+        this.MixtapePropertiesTemplate = mixtapePropertiesTemplate;
         this.Entities = entities;
     }
 
@@ -409,6 +488,7 @@ public class CustomManager : BaseCustomManager
         else
         {
             Entities.Remove(MyPluginInfo.PLUGIN_GUID);
+            MixtapeEventCategoryIndex = -1;
         }
     }
 
@@ -423,6 +503,7 @@ public class CustomManager : BaseCustomManager
         {
             index = list.Count;
         }
+        MixtapeEventCategoryIndex = index;
         list.Insert(index, new KeyValuePair<string, List<MixtapeEventTemplate>>(MyPluginInfo.PLUGIN_GUID, new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.Templates)));
         Entities.Clear();
         foreach (var pair in list)
@@ -471,7 +552,6 @@ public class CustomManager : BaseCustomManager
             ConfigManager.DisplayReloadOptions.Value,
             ConfigManager.SaveCustomFiles.Value,
             ConfigManager.UpgradeOldMixtapes.Value,
-            ConfigManager.GetOutdatedPluginHandling(),
             ConfigManager.DisplayEventTemplates.Value,
             ConfigManager.EventTemplatesIndex.Value);
     }
@@ -480,7 +560,6 @@ public class CustomManager : BaseCustomManager
         Display showReloadOptions, 
         bool backup,
         bool upgrade,
-        OutdatedPluginHandling outdatedPluginHandling,
         Display displayEventTemplates, 
         int eventTemplatesIndex)
     {
@@ -502,6 +581,101 @@ public class CustomManager : BaseCustomManager
                     ResetAndReload(LastPath, backup, displayEventTemplates, eventTemplatesIndex);
                 }
                 break;
+        }
+    }
+
+    public void UpdateEditorPropertiesEvent(MixtapeEditorScript __instance)
+    {
+        EditorPropertiesTemplate.properties = new(BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase);
+        if (DisplayActive(ConfigManager.DisplayCopyOptions.Value, HasCustomAssets))
+        {
+            foreach (string str in BopCustomTexturesEventTemplates.PropertyCopyOptions)
+            {
+                EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
+            }
+        }
+        if (DisplayActive(ConfigManager.DisplayReloadOptions.Value, HasCustomAssets))
+        {
+            foreach (string str in BopCustomTexturesEventTemplates.PropertyReloadOptions)
+            {
+                EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
+            }
+        }
+        Entity entity = Entity.FromTemplate(EditorPropertiesTemplate);
+        entity.beat = -100f;
+        entity.SetString("last path", _lastPath);
+        if (EditorPropertiesEvent != null)
+        {
+            UnityEngine.Object.Destroy(EditorPropertiesEvent.gameObject);
+        }
+        EditorPropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
+    }
+
+    public void UpdateMixtapePropertiesEvent(MixtapeEditorScript __instance)
+    {
+        if (MixtapePropertiesEvent == null)
+        {
+            Entity entity = Entity.FromTemplate(MixtapePropertiesTemplate);
+            entity.beat = -100f;
+            entity.SetString("version", _version);
+            entity.SetInt("release", (int)_release);
+            MixtapePropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
+        }
+    }
+
+    public bool SelectedEventIsSingleton(MixtapeEditorScript __instance)
+    {
+        return __instance.SelectedEvents().Count == 1 && (__instance.SelectedEvents()[0] == EditorPropertiesEvent || __instance.SelectedEvents()[0] == MixtapePropertiesEvent); 
+    }
+
+    public bool CheckPropertiesEventSelected(MixtapeEditorScript __instance)
+    {
+        if (__instance.LevelIndex() == (MixtapeEventCategoryIndex + 1))
+        {
+            if (__instance.EventIndex() == 0)
+            {
+                UpdateEditorPropertiesEvent(__instance);
+                __instance.SetSelectedEvent(EditorPropertiesEvent);
+                return true;
+            }
+            else if (__instance.EventIndex() == 1)
+            {
+                UpdateMixtapePropertiesEvent(__instance);
+                __instance.SetSelectedEvent(MixtapePropertiesEvent);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void OnSelectMinigame(MixtapeEditorScript __instance)
+    {
+        if (CheckPropertiesEventSelected(__instance))
+        {
+            __instance.ZSortEvents();
+            __instance.FormatLevels();
+            __instance.FormatEvents();
+            __instance.FormatProperties();
+            __instance.FormatValues();
+        }
+    }
+
+    public void OnSelectEvent(MixtapeEditorScript __instance)
+    {
+        if (CheckPropertiesEventSelected(__instance))
+        {
+            __instance.ZSortEvents();
+            __instance.FormatEvents();
+            __instance.FormatProperties();
+            __instance.FormatValues();
+        }
+    }
+
+    public void CycleProperty(MixtapeEditorScript __instance, int option)
+    {
+        if (__instance.SelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
+        {
+            HandleMenuOption(__instance, option - BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count);
         }
     }
 

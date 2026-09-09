@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using static MixtapeEventTemplates;
+using System.Collections.Generic;
 
 namespace BopCustomTextures.EventTemplates;
 
@@ -7,6 +8,37 @@ namespace BopCustomTextures.EventTemplates;
 /// </summary>
 public class BopCustomTexturesEventTemplates
 {
+    public static readonly string[] PropertyCopyOptions = [
+        "copy from file",
+        "copy from folder",
+    ];
+    public static readonly string[] PropertyReloadOptions = [
+        "reload"
+    ];
+
+    public static readonly Dictionary<string, object> EditorPropertiesTemplatePropertiesBase = new()
+    {
+        ["last path"] = ""
+    };
+
+    public static readonly MixtapeEventTemplate EditorPropertiesTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/editor properties",
+        length = 0.5f,
+        properties = EditorPropertiesTemplatePropertiesBase
+    };
+
+    public static readonly MixtapeEventTemplate MixtapePropertiesTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/mixtape properties",
+        length = 0.5f,
+        properties = new Dictionary<string, object>
+        {
+            ["version"] = "",
+            ["release"] = 0
+        }
+    };
+
     public static readonly MixtapeEventTemplate SceneModTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod",
@@ -72,6 +104,8 @@ public class BopCustomTexturesEventTemplates
 
     public static readonly MixtapeEventTemplate[] Templates =
     [
+        EditorPropertiesTemplate,
+        MixtapePropertiesTemplate,
         ToggleCustomTexturesTemplate,
         SetTextureVariantTemplate,
         AddTextureVariantTemplate,

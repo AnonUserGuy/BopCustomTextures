@@ -107,7 +107,7 @@ public class ConfigManager
 
         DisplayReloadOptions = config.Bind("Editor.Display",
             "DisplayOptionsReload",
-            Display.WhenActive,
+            Display.Always,
             $"When to display \"{CustomManager.MenuReloadOptions[0]}\" in editor.");
 
         DisplayEventTemplates = config.Bind("Editor.Display",

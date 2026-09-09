@@ -62,6 +62,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         Manager = new CustomManager(Logger, ConfigManager, GetTempPath(), 
             BopCustomTexturesEventTemplates.SceneModTemplate,
             BopCustomTexturesEventTemplates.TextureVariantTemplates,
+            BopCustomTexturesEventTemplates.EditorPropertiesTemplate,
+            BopCustomTexturesEventTemplates.MixtapePropertiesTemplate,
             MixtapeEventTemplates.entities);
         if (ConfigManager.DisplayEventTemplates.Value == Display.Always)
         {
@@ -135,7 +137,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     [HarmonyPatch(typeof(MixtapeEditorScript), "ResetAllAndReformat")]
     private static class MixtapeEditorScriptResetAllAndReformatPatch
     {
-        static void Postfix()
+        static void Postfix(MixtapeEditorScript __instance)
         {
             Manager.ResetAll();
         }
@@ -277,6 +279,47 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         static void UpdateKeybinds(MixtapeEditorScript __instance)
         {
             Manager.HandleKeybind(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "SelectedEventIsSingleton")]
+    private static class MixtapeEditorScriptSelectedEventIsSingletonPatch
+    {
+        static bool Prefix(MixtapeEditorScript __instance, ref bool __result)
+        {
+            if (Manager.SelectedEventIsSingleton(__instance))
+            {
+                __result = true;
+                return false; // skip original
+            }
+            return true; // don't skip original
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectMinigame")]
+    private static class MixtapeEditorScriptOnSelectMinigamePatch
+    {
+        static void Postfix(MixtapeEditorScript __instance)
+        {
+            Manager.OnSelectMinigame(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectEvent")]
+    private static class MixtapeEditorScriptOnSelectEventPatch
+    {
+        static void Postfix(MixtapeEditorScript __instance)
+        {
+            Manager.OnSelectEvent(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "CycleProperty")]
+    private static class MixtapeEditorScriptCyclePropertyPatch
+    {
+        static void Postfix(MixtapeEditorScript __instance, int option)
+        {
+            Manager.CycleProperty(__instance, option);
         }
     }
 
