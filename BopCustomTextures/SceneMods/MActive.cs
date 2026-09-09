@@ -16,7 +16,7 @@ public class MActive : IMComponent
     {
         if (jcomponent.Type != JTokenType.Boolean)
         {
-            ctx.logger.LogWarning($"JSON Active is a {jcomponent.Type} when it should be a Boolean");
+            ctx.Logger.LogWarning($"JSON Active is a {jcomponent.Type} when it should be a Boolean");
             return false;
         }
         value = (bool)jcomponent;

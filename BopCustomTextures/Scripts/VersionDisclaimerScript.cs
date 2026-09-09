@@ -55,7 +55,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         script.Manager = manager;
         script.Loader = riqLoader;
         script.TitleText.text =
-            $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} <color=yellow>v{manager.version}+</color>, " +
+            $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} <color=yellow>v{manager.Version}+</color>, " +
             $"but you are on <color=yellow>v{MyPluginInfo.PLUGIN_VERSION}</color>. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly.";
         return obj;
     }
@@ -98,7 +98,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         {
             TempoInput.SetActionMap(SettingsScript.gameActionMap);
             Manager.ReadLastPath();
-            Manager.interruptLoad = false;
+            Manager.InterruptLoad = false;
             Loader.StartMixtape();
             Destroy(gameObject);
             return;
@@ -125,7 +125,7 @@ public class VersionDisclaimerScript : MonoBehaviour
                     break;
                 case Options.ResumeVanilla:
                     TempoInput.SetActionMap(SettingsScript.gameActionMap);
-                    Manager.interruptLoad = false;
+                    Manager.InterruptLoad = false;
                     Loader.StartMixtape();
                     Destroy(gameObject);
                     break;
@@ -142,7 +142,7 @@ public class VersionDisclaimerScript : MonoBehaviour
                     {
                         SceneManager.LoadScene(SceneKey.TitleScreen.ToString());
                     }
-                    Manager.lastModified = default;
+                    Manager.LastModified = default;
                     Loader.MoveToActiveScene();
                     Destroy(gameObject);
                     break;

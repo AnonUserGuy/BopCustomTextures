@@ -30,7 +30,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
     /// BopCustomTexture mixtape event templates concerning custom textures. 
     /// Updated to only include scenes with custom textures as options in their "scene" parameters.
     /// </summary>
-    public MixtapeEventTemplate[] mixtapeEventTemplates = mixtapeEventTemplates;
+    public MixtapeEventTemplate[] MixtapeEventTemplates = mixtapeEventTemplates;
 
     /// <summary>
     /// Img files for altas textures.
@@ -142,7 +142,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             {
                 if (!isResources)
                 {
-                    logger.Log(LogLevel.Error | LogLevel.MixtapeEditor, "To use variant subfolders, you must put all custom resources in a \"resources\" or \"BopCustomTextures\" folder.");
+                    Logger.Log(LogLevel.Error | LogLevel.MixtapeEditor, "To use variant subfolders, you must put all custom resources in a \"resources\" or \"BopCustomTextures\" folder.");
                 }
                 else
                 {
@@ -166,13 +166,13 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         Match match = FileRegexAtlas.Match(filename);
         if (match.Success)
         {
-            logger.LogFileLoading($"Found custom atlas texture: {scene}#{variant} ~ {filename}");
+            Logger.LogFileLoading($"Found custom atlas texture: {scene}#{variant} ~ {filename}");
             return LoadCustomAtlasTexture(path, index, scene, int.Parse(match.Groups[1].Value), variant);
         }
         match = FileRegexSeperate.Match(filename);
         if (match.Success)
         {
-            logger.LogFileLoading($"Found custom seperate texture: {scene}#{variant} ~ {filename}");
+            Logger.LogFileLoading($"Found custom seperate texture: {scene}#{variant} ~ {filename}");
             return LoadCustomSeperateTexture(path, index, scene, match.Groups[1].Value, variant);
         }
         return false;
@@ -195,7 +195,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         else if (AtlasTextures[scene][atlasIndex].ContainsKey(variant))
         {
-            logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {atlasIndex}");
+            Logger.LogWarning($"Duplicate atlas texture for {scene}#{variant}, index {atlasIndex}");
             Object.Destroy(AtlasTextures[scene][atlasIndex][variant]);
         }
         AtlasTextures[scene][atlasIndex][variant] = tex;
@@ -220,7 +220,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         else if (SeperateTextures[scene][name].ContainsKey(variant))
         {
-            logger.LogWarning($"Duplicate seperate texture for {scene}#{variant} ~ {name}");
+            Logger.LogWarning($"Duplicate seperate texture for {scene}#{variant} ~ {name}");
             var oldTex = SeperateTextures[scene][name][variant];
             SeperateTexturesNotInited[scene].Remove(oldTex);
             Object.Destroy(oldTex);
@@ -237,7 +237,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         if (!tex.LoadImage(bytes))
         {
             string localPath = path.Substring(index);
-            logger.LogWarning($"Couldn't load custom texture: {localPath} (is it a PNG/JPG?)");
+            Logger.LogWarning($"Couldn't load custom texture: {localPath} (is it a PNG/JPG?)");
             Object.Destroy(tex);
             return null;
         }
@@ -252,7 +252,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         {
             Texture2D tex = q.Key;
             var spriteMap = q.Value;
-            logger.LogUnloading($"Unloading custom sprites: {tex.name}");
+            Logger.LogUnloading($"Unloading custom sprites: {tex.name}");
             foreach (var w in spriteMap)
             {
                 foreach (var e in w.Value)
@@ -272,7 +272,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         {
             SceneKey scene = q.Key;
             var textures = q.Value;
-            logger.LogUnloading($"Unloading custom atlas textures: {scene}");
+            Logger.LogUnloading($"Unloading custom atlas textures: {scene}");
             foreach (var w in textures)
             {
                 foreach (var e in w.Value)
@@ -286,7 +286,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         {
             SceneKey scene = q.Key;
             var textures = q.Value;
-            logger.LogUnloading($"Unloading custom seperate textures: {scene}");
+            Logger.LogUnloading($"Unloading custom seperate textures: {scene}");
             foreach (var w in textures)
             {
                 foreach (var e in w.Value)
@@ -310,10 +310,10 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         if (!SpritesInited.Contains(sceneKey))
         {
             SpritesInited.Add(sceneKey);
-            logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
+            Logger.LogInfo($"Initializing all custom sprites (invoked by {sceneKey})");
             InitCustomSprites();
         }
-        logger.LogInfo($"Applying custom sprites: {sceneKey}");
+        Logger.LogInfo($"Applying custom sprites: {sceneKey}");
         GameObject rootObj = __instance.RootObjects[sceneKey];
         InitCustomSpriteRenderers(rootObj, sceneKey);
     }
@@ -402,7 +402,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             }
             if (scenes.Count < 1)
             {
-                logger.LogError($"Cannot use variant event with no scenes");
+                Logger.LogError($"Cannot use variant event with no scenes");
                 return;
             }
         }
@@ -411,14 +411,14 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             var scene = ToSceneKeyOrInvalid(sceneStr);
             if (scene == SceneKey.Invalid)
             {
-                logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
                 return;
             }
             if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
             {
                 if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                 {
-                    logger.LogError($"Cannot use variant event for missing scene {scene}");
+                    Logger.LogError($"Cannot use variant event for missing scene {scene}");
                     return;
                 }
                 spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
@@ -507,7 +507,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             }
             if (scenes.Count < 1)
             {
-                logger.LogError($"Cannot use toggle texture event with no scenes");
+                Logger.LogError($"Cannot use toggle texture event with no scenes");
                 return;
             }
         }
@@ -516,14 +516,14 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             var scene = ToSceneKeyOrInvalid(sceneStr);
             if (scene == SceneKey.Invalid)
             {
-                logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+                Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
                 return;
             }
             if (!sceneSpriteSwappers.TryGetValue(scene, out var spriteSwappers))
             {
                 if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
                 {
-                    logger.LogError($"Cannot use toggle texture event for missing scene {scene}");
+                    Logger.LogError($"Cannot use toggle texture event for missing scene {scene}");
                     return;
                 }
                 spriteSwappers = rootObj.GetComponentsInChildren<CustomSpriteSwapper>(true);
@@ -581,7 +581,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
             scenes = new MixtapeEventTemplates.ChoiceField<string>(choices);
             result = true;
         }
-        foreach (var mixtapeEventTemplate in mixtapeEventTemplates)
+        foreach (var mixtapeEventTemplate in MixtapeEventTemplates)
         {
             mixtapeEventTemplate.properties["scene"] = scenes;
         }
@@ -685,7 +685,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
                 }
                 if (ogSprite == null)
                 {
-                    logger.LogWarning($"Found seperate texture that doesn't correspond to any game texture: {scene} ~ {tex.name}");
+                    Logger.LogWarning($"Found seperate texture that doesn't correspond to any game texture: {scene} ~ {tex.name}");
                 }
                 else
                 {
@@ -738,7 +738,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         SpriteMaps[original.texture][original.name] = [];
         if (SeperateTextures.ContainsKey(scene) && SeperateTextures[scene].ContainsKey(original.name))
         {
-            logger.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
+            Logger.LogSeperateTextureSprites($" - {scene} - seperate - {original.name}");
             var texs = SeperateTextures[scene][original.name];
             foreach (var tex in texs)
             {
@@ -748,7 +748,7 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         }
         if (AtlasTextures.ContainsKey(scene) && AtlasTextures[scene].ContainsKey(spriteAtlasIndex))
         {
-            logger.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
+            Logger.LogAtlasTextureSprites($" - {scene} - atlas - {original.name}");
             var texs = AtlasTextures[scene][spriteAtlasIndex];
             foreach (var tex in texs)
             {

@@ -30,7 +30,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         var match = VariantRegex.Match(name);
         if (!match.Success)
         {
-            logger.LogError($"Variant \"{name}\" couldn't be parsed");
+            Logger.LogError($"Variant \"{name}\" couldn't be parsed");
             variant = -2;
             return false;
         }
@@ -39,7 +39,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
             scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
             if (scene == SceneKey.Invalid)
             {
-                logger.LogError($"Variant \"{name}\" has an invalid scene \"{match.Groups[1].Value}\"");
+                Logger.LogError($"Variant \"{name}\" has an invalid scene \"{match.Groups[1].Value}\"");
                 variant = -3;
                 return false;
             }
@@ -47,7 +47,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         if (!VariantMaps.TryGetValue(scene, out var variantMap) ||
             !variantMap.TryGetValue(match.Groups[2].Value, out variant))
         {
-            logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in scene {scene}");
+            Logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in scene {scene}");
             variant = -1;
             return false;
         }
@@ -60,7 +60,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         var matches = VariantsRegex.Matches(names);
         if (matches.Count < 1)
         {
-            logger.LogError($"Variants \"{names}\" couldn't be parsed");
+            Logger.LogError($"Variants \"{names}\" couldn't be parsed");
             variants = null;
             return false;
         }
@@ -86,7 +86,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
             }
             if (result.Count < 1)
             {
-                logger.LogError($"Variants \"{names}\" contained no valid variants");
+                Logger.LogError($"Variants \"{names}\" contained no valid variants");
                 variants = null;
                 return false;
             }
@@ -109,7 +109,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         var match = VariantRegex.Match(name);
         if (!match.Success)
         {
-            logger.LogError($"Variant \"{name}\" couldn't be parsed");
+            Logger.LogError($"Variant \"{name}\" couldn't be parsed");
             variants = null;
             return false;
         }
@@ -118,14 +118,14 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
             var scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
             if (scene == SceneKey.Invalid)
             {
-                logger.LogError($"Variant \"{name}\" has an invalid scene \"{match.Groups[1].Value}\"");
+                Logger.LogError($"Variant \"{name}\" has an invalid scene \"{match.Groups[1].Value}\"");
                 variants = null;
                 return false;
             }
             if (!VariantMaps.TryGetValue(scene, out var variantMap) ||
                 !variantMap.TryGetValue(match.Groups[2].Value, out var variant3))
             {
-                logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in scene {scene}");
+                Logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in scene {scene}");
                 variants = null;
                 return false;
             }
@@ -146,7 +146,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         }
         if (result.Count < 1)
         {
-            logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in any scene");
+            Logger.LogError($"Variant \"{match.Groups[2].Value}\" doesn't exist in any scene");
             variants = null;
             return false;
         }
@@ -159,7 +159,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
         var matches = VariantsRegex.Matches(names);
         if (matches.Count < 1)
         {
-            logger.LogError($"Variants \"{names}\" couldn't be parsed");
+            Logger.LogError($"Variants \"{names}\" couldn't be parsed");
             variants = null;
             return false;
         }
@@ -199,7 +199,7 @@ public class CustomVariantNameManager(ILogger logger) : BaseCustomManager(logger
             }
             if (result.Count < 1)
             {
-                logger.LogError($"Variants \"{names}\" contained no valid variants");
+                Logger.LogError($"Variants \"{names}\" contained no valid variants");
                 variants = null;
                 return false;
             }

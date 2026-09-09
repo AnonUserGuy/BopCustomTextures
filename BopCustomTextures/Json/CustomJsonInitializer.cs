@@ -17,7 +17,7 @@ namespace BopCustomTextures.Json;
 /// <param name="variantManager">Used for mapping custom texture variant external names to internal indices. Shared with CustomTextureManager.</param>
 public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager variantManager) : BaseCustomManager(logger)
 {
-    private SceneKey lastScene = default;
+    private SceneKey LastScene = default;
     private readonly Dictionary<string, Material> Materials = [];
     private readonly Dictionary<string, Shader> Shaders = [];
     private readonly Dictionary<string, Material> ShaderMaterials = [];
@@ -28,7 +28,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
 
     public MGameObject InitGameObject(JToken jtoken, SceneKey scene, string name = "", bool isDeferred = false)
     {
-        lastScene = scene;
+        LastScene = scene;
         return InitGameObject(jtoken, name, isDeferred);
     }
 
@@ -69,14 +69,14 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             }
             else
             {
-                logger.LogWarning($"JSON Component \"{match.Groups[2].Value}\" in \"{name}\" failed to parse.");
+                Logger.LogWarning($"JSON Component \"{match.Groups[2].Value}\" in \"{name}\" failed to parse.");
                 return null;
             }
         }
 
         if (jtoken.Type != JTokenType.Object)
         {
-            logger.LogWarning($"JSON GameObject \"{name}\" is a {jtoken.Type} when it should be a Object.");
+            Logger.LogWarning($"JSON GameObject \"{name}\" is a {jtoken.Type} when it should be a Object.");
             return null;
         }
 
@@ -95,7 +95,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 }
                 else
                 {
-                    logger.LogWarning($"JSON Component \"{componentName}\" in \"{name}\" failed to parse.");
+                    Logger.LogWarning($"JSON Component \"{componentName}\" in \"{name}\" failed to parse.");
                 }
             }
             else
@@ -126,7 +126,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
 
         if (components.Count == 0 && childObjs.Count == 0 && childObjsDeferred.Count == 0)
         {
-            logger.LogWarning($"JSON GameObject \"{name}\" doesn't do anything.");
+            Logger.LogWarning($"JSON GameObject \"{name}\" doesn't do anything.");
             return null;
         }
         var mobj = new MGameObject(name,
@@ -183,7 +183,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         switch (jtoken.Type)
         {
             case JTokenType.String:
-                if (!VariantManager.TryGetVariant(lastScene, (string)jtoken, out variant))
+                if (!VariantManager.TryGetVariant(LastScene, (string)jtoken, out variant))
                 {
                     return false;
                 }
@@ -192,7 +192,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 variant = (int)jtoken;
                 return true;
         }
-        logger.LogWarning($"JSON variant \"{jtoken}\" is a {jtoken.Type} when it should be a string or integer");
+        Logger.LogWarning($"JSON variant \"{jtoken}\" is a {jtoken.Type} when it should be a string or integer");
         variant = -1;
         return false;
     }
@@ -217,7 +217,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 Resources.Load<Material>($"Materials/{name}");
             if (!found)
             {
-                logger.LogWarning($"JSON material \"{name}\" could not be found");
+                Logger.LogWarning($"JSON material \"{name}\" could not be found");
                 Materials[name] = null;
             }
             else
@@ -280,7 +280,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                    Shader.Find(name);
             if (!found)
             {
-                logger.LogWarning($"JSON shader \"{name}\" could not be found");
+                Logger.LogWarning($"JSON shader \"{name}\" could not be found");
                 Shaders[name] = null;
             }
             else
@@ -312,7 +312,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 vector2 = InitJVector2(jarray2);
                 return true;
         }
-        logger.LogWarning($"JSON vector2 \"{key}\" is a {jvector2.Type} when it should be an object or array");
+        Logger.LogWarning($"JSON vector2 \"{key}\" is a {jvector2.Type} when it should be an object or array");
         vector2 = default;
         return false;
     }
@@ -349,7 +349,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 vector3 = InitJVector3(jarray2);
                 return true;
         }
-        logger.LogWarning($"JSON vector3 \"{key}\" is a {jvector3.Type} when it should be an object or array");
+        Logger.LogWarning($"JSON vector3 \"{key}\" is a {jvector3.Type} when it should be an object or array");
         vector3 = default;
         return false;
     }
@@ -392,7 +392,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 eulerAngles = new Vector3(float.NaN, float.NaN, (float)jvector3);
                 return true;
         }
-        logger.LogWarning($"JSON eulerAngles \"{key}\" is a {jvector3.Type} when it should be an object, array, float, or integer");
+        Logger.LogWarning($"JSON eulerAngles \"{key}\" is a {jvector3.Type} when it should be an object, array, float, or integer");
         eulerAngles = default;
         return false;
     }
@@ -413,7 +413,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 quaternion = InitJQuaternion(jarray2);
                 return true;
         }
-        logger.LogWarning($"JSON quaternion \"{key}\" is a {jquaternion.Type} when it should be an object or array");
+        Logger.LogWarning($"JSON quaternion \"{key}\" is a {jquaternion.Type} when it should be an object or array");
         quaternion = default;
         return false;
     }
@@ -457,7 +457,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 color = InitJColor((string)jcolor);
                 return true;
         }
-        logger.LogWarning($"JSON color \"{key}\" is a {jcolor.Type} when it should be an object, array, or string");
+        Logger.LogWarning($"JSON color \"{key}\" is a {jcolor.Type} when it should be an object, array, or string");
         color = default;
         return false;
     }
@@ -491,7 +491,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         Color jcolor = new Color(float.NaN, float.NaN, float.NaN, float.NaN);
         if (!int.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
         {
-            logger.LogWarning($"JSON color string \"{str}\" couldn't be parsed as as color");
+            Logger.LogWarning($"JSON color string \"{str}\" couldn't be parsed as as color");
         }
         else
         {
@@ -513,7 +513,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         }
         if (jtoken2.Type != type)
         {
-            logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a {type}");
+            Logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a {type}");
             jtoken = null;
             return false;
         }
@@ -530,7 +530,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         var jtoken2 = jarray[index];
         if (jtoken2.Type != type)
         {
-            logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a {type}");
+            Logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a {type}");
             jtoken = null;
             return false;
         }
@@ -562,7 +562,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
+        Logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
         return false;
     }
     public bool TryGetJFloat(JArray jarray, int index, out float jfloat)
@@ -577,7 +577,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
+        Logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
         return false;
     }
     public bool TryGetJFloat(JToken jtoken, out float jfloat)
@@ -618,7 +618,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float or integer");
+        Logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a float or integer");
         return true;
     }
     public bool TryGetJColorChannel(JArray jarray, int index, out float jfloat)
@@ -633,7 +633,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         {
             return true;
         }
-        logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float or integer");
+        Logger.LogWarning($"JSON index \"{index}\" is a {jtoken2.Type} when it should be a float or integer");
         return true;
     }
     public bool TryGetJColorChannel(JToken jtoken, out float jfloat)

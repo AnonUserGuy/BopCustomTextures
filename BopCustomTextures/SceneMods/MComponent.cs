@@ -40,7 +40,7 @@ public abstract class MComponent<T>: MObject<T>, IMComponent where T: Component
     {
         if (jcomponent.Type != JTokenType.Object)
         {
-            ctx.logger.LogWarning($"JSON Component is a {jcomponent.Type} when it should be a Object");
+            ctx.Logger.LogWarning($"JSON Component is a {jcomponent.Type} when it should be a Object");
             return false;
         }
         JsonParse(ctx, (JObject)jcomponent);

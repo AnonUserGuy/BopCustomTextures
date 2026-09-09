@@ -1,9 +1,9 @@
-using BepInEx.Configuration;
+using BopCustomTextures.Config;
 using BepInEx.Logging;
-using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Linq;
 
 namespace BopCustomTextures.Logging;
 
@@ -12,64 +12,50 @@ namespace BopCustomTextures.Logging;
 /// and outputing messages to the mixtape editor's dialogue box.
 /// </summary>
 /// <param name="logger">Internal BepInEx ManualLogSource</param>
-/// <param name="logFileLoading">Log level for file loading messages</param>
-/// <param name="logUnloading">Log level for asset unloading messages</param>
-/// <param name="logSeperateTextureSprites">Log level for sprite creation from seperate textures</param>
-/// <param name="logAtlasTextureSprites">Log level for sprite creation from atlas textures</param>
-public class ManualLogSourceCustom(ManualLogSource logger, 
-    ConfigEntry<LogLevel> logFileLoading,
-    ConfigEntry<LogLevel> logUnloading,
-    ConfigEntry<LogLevel> logSeperateTextureSprites,
-    ConfigEntry<LogLevel> logAtlasTextureSprites,
-    ConfigEntry<LogLevel> logOutdatedPlugin,
-    ConfigEntry<LogLevel> logMComponentRegistering,
-    ConfigEntry<LogLevel> logUpgradeMixtape) : ILogger
+/// <param name="configManager">BopCustomTextures configuration manager</param>
+public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configManager) : ILogger
 {
-    private readonly ManualLogSource logger = logger;
-    private readonly ConfigEntry<LogLevel> logFileLoading = logFileLoading;
-    private readonly ConfigEntry<LogLevel> logUnloading = logUnloading;
-    private readonly ConfigEntry<LogLevel> logSeperateTextureSprites = logSeperateTextureSprites;
-    private readonly ConfigEntry<LogLevel> logAtlasTextureSprites = logAtlasTextureSprites;
-    private readonly ConfigEntry<LogLevel> logOutdatedPlugin = logOutdatedPlugin;
-    private readonly ConfigEntry<LogLevel> logMComponentRegistering = logMComponentRegistering;
-    private readonly ConfigEntry<LogLevel> logUpgradeMixtape = logUpgradeMixtape;
+    private readonly ManualLogSource Logger = logger;
+    private readonly ConfigManager ConfigManager = configManager;
 
     private GameObject ErrorCanvas = null;
+    private TMP_Text TxtTitle = null;
+    private TMP_Text TxtBody = null;
 
     public void LogFileLoading(object data)
     {
-        Log(logFileLoading.Value, data);
+        Log(ConfigManager.LogFileLoading.Value, data);
     }
     public void LogUnloading(object data)
     {
-        Log(logUnloading.Value, data);
+        Log(ConfigManager.LogUnloading.Value, data);
     }
     public void LogSeperateTextureSprites(object data)
     {
-        Log(logSeperateTextureSprites.Value, data);
+        Log(ConfigManager.LogSeperateTextureSprites.Value, data);
     }
     public void LogAtlasTextureSprites(object data)
     {
-        Log(logAtlasTextureSprites.Value, data);
+        Log(ConfigManager.LogAtlasTextureSprites.Value, data);
     }
 
     public void LogMComponentRegistering(object data)
     {
-        Log(logMComponentRegistering.Value, data);
+        Log(ConfigManager.LogMComponentRegistering.Value, data);
     }
 
     public void LogOutdatedPlugin(object data)
     {
-        Log(logOutdatedPlugin.Value, data);
+        Log(ConfigManager.LogOutdatedPlugin.Value, data);
     }
     public void LogUpgradeMixtape(object data)
     {
-        Log(logUpgradeMixtape.Value, data);
+        Log(ConfigManager.LogUpgradeMixtape.Value, data);
     }
 
     public void LogEditor(object data)
     {
-        if (ErrorCanvas == null)
+        if (ErrorCanvas == null || TxtBody == null)
         {
             Scene scene = SceneManager.GetActiveScene();
             if (scene.name != "MixtapeEditor")
@@ -83,9 +69,38 @@ public class ManualLogSourceCustom(ManualLogSource logger,
             {
                 return;
             }
+            var txtBodyTransform = ErrorCanvas.transform.Find("Prompt/Text Body");
+            if (txtBodyTransform == null)
+            {
+                TxtBody = null;
+            } 
+            else
+            {
+                TxtBody = txtBodyTransform.gameObject.GetComponentInChildren<TMP_Text>();
+            }
+            if (TxtBody == null)
+            {
+                TxtBody = ErrorCanvas.GetComponentInChildren<TMP_Text>();
+            }
+            else
+            {
+                var txtTitleTransform = ErrorCanvas.transform.Find("Prompt/Text Title");
+                if (txtTitleTransform != null)
+                {
+                    TxtTitle = txtTitleTransform.gameObject.GetComponentInChildren<TMP_Text>();
+                }
+            }
         }
         ErrorCanvas.SetActive(true);
-        ErrorCanvas.GetComponentInChildren<TMP_Text>().text = $"[{logger.SourceName}] {data}";
+        if (TxtTitle != null)
+        {
+            TxtTitle.text = MyPluginInfo.PLUGIN_NAME;
+            TxtBody.text = data.ToString();
+        } 
+        else
+        {
+            TxtBody.text = $"[{Logger.SourceName}] {data}";
+        }
     }
 
     public void Log(LogLevel level, object data)
@@ -94,36 +109,36 @@ public class ManualLogSourceCustom(ManualLogSource logger,
         {
             LogEditor(data);
         }
-        logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, data);
+        Logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, data);
     }
 
     public void LogFatal(object data)
     {
-        logger.LogFatal(data);
+        Logger.LogFatal(data);
     }
 
     public void LogError(object data)
     {
-        logger.LogError(data);
+        Logger.LogError(data);
     }
 
     public void LogWarning(object data)
     {
-        logger.LogWarning(data);
+        Logger.LogWarning(data);
     }
 
     public void LogMessage(object data)
     {
-        logger.LogMessage(data);
+        Logger.LogMessage(data);
     }
 
     public void LogInfo(object data)
     {
-        logger.LogInfo(data);
+        Logger.LogInfo(data);
     }
 
     public void LogDebug(object data)
     {
-        logger.LogDebug(data);
+        Logger.LogDebug(data);
     }
 }

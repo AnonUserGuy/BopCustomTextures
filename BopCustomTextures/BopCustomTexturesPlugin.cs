@@ -6,7 +6,6 @@ using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using BepInEx;
-using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -48,55 +47,25 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     public static new ManualLogSourceCustom Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
     public static CustomManager Manager;
-
-    private static ConfigEntry<bool> loadCustomAssets;
-
-    private static ConfigEntry<OutdatedPluginHandling> loadOutdatedPluginPlayer;
-
-    private static ConfigEntry<bool> saveCustomFiles;
-    private static ConfigEntry<bool> upgradeOldMixtapes;
-    private static ConfigEntry<bool> uploadAppendDescription;
-    private static ConfigEntry<bool> loadOutdatedPluginEditor;
-
-    private static ConfigEntry<KeyCode> copyCustomsFromFileKeybind;
-    private static ConfigEntry<KeyCode> copyCustomsFromFolderKeybind;
-    private static ConfigEntry<KeyCode> reloadCustomAssetsKeybind;
-    private static ConfigEntry<KeyCode> selectEventCatagoryKeybind;
-
-    private static ConfigEntry<Display> displayCopyOptions;
-    private static ConfigEntry<Display> displayReloadOptions;
-    private static ConfigEntry<Display> displayEventTemplates;
-    private static ConfigEntry<int> eventTemplatesIndex;
-
-    private static ConfigEntry<LogLevel> logOutdatedPlugin;
-    private static ConfigEntry<LogLevel> logUpgradeMixtape;
-
-    private static ConfigEntry<LogLevel> logFileLoading;
-    private static ConfigEntry<LogLevel> logUnloading;
-    private static ConfigEntry<LogLevel> logSeperateTextureSprites;
-    private static ConfigEntry<LogLevel> logAtlasTextureSprites;
-    private static ConfigEntry<LogLevel> logMComponentRegistering;
-
-    private static ConfigEntry<LogLevel> logSceneIndices;
-
+    public static ConfigManager ConfigManager;
 
     private void Awake()
     {
         // Plugin startup logic
-        LoadConfigs();
+        ConfigManager = new ConfigManager(Config);
         InitLogger();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
         Harmony.PatchAll();
         MComponentParserRegistry.Initialize(Logger);
 
-        Manager = new CustomManager(Logger, GetTempPath(), 
-            BopCustomTexturesEventTemplates.sceneModTemplate,
-            BopCustomTexturesEventTemplates.textureVariantTemplates,
+        Manager = new CustomManager(Logger, ConfigManager, GetTempPath(), 
+            BopCustomTexturesEventTemplates.SceneModTemplate,
+            BopCustomTexturesEventTemplates.TextureVariantTemplates,
             MixtapeEventTemplates.entities);
-        if (displayEventTemplates.Value == Display.Always)
+        if (ConfigManager.DisplayEventTemplates.Value == Display.Always)
         {
-            Manager.AddEventTemplates(eventTemplatesIndex.Value);
+            Manager.AddEventTemplates(ConfigManager.EventTemplatesIndex.Value);
         }
 
         // Apply hooks to make sure temp files are deleted on program exit
@@ -106,12 +75,12 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         // If previous program exit didn't properly clean up temp files, clean them up now
         CustomFileManager.CleanUpTempDirectories(GetTempParentPath());
 
-        if (logSceneIndices.Value != LogLevel.None)
+        if (ConfigManager.LogSceneIndices.Value != LogLevel.None)
         {
             // Apply hook to log scene loading if enabled in config
             SceneManager.sceneLoaded += delegate (Scene scene, LoadSceneMode mode)
             {
-                Logger.Log(logSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
+                Logger.Log(ConfigManager.LogSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
             };
         }
     }
@@ -125,141 +94,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
         BepInEx.Logging.Logger.Sources.Remove(base.Logger);
         var vanillaLogger = BepInEx.Logging.Logger.CreateLogSource(LoggerName);
-        Logger = new ManualLogSourceCustom(vanillaLogger,
-            logFileLoading,
-            logUnloading,
-            logSeperateTextureSprites,
-            logAtlasTextureSprites,
-            logOutdatedPlugin,
-            logMComponentRegistering,
-            logUpgradeMixtape
-        );
-    }
-
-    private void LoadConfigs()
-    {
-        loadCustomAssets = Config.Bind("General",
-            "LoadCustomAssets",
-            true,
-            "When opening a modded mixtape, load the custom assets stored in it.\n" + 
-            "(Note: modded mixtapes won't maintain their custom files if saved while this is disabled.)");
-
-
-        loadOutdatedPluginPlayer = Config.Bind("Player",
-            "LoadOutdatedPluginPlayer",
-            OutdatedPluginHandling.ShowDisclaimer,
-            "How to handle opening a modded mixtape in the Mixtape Player that was made for a newer version of BopCustomTextures.");
-
-
-        saveCustomFiles = Config.Bind("Editor",
-            "SaveCustomFiles",
-            true,
-            "When opening a modded mixtape in the editor, maintain its custom asset files whenever the mixtape is saved.");
-
-        upgradeOldMixtapes = Config.Bind("Editor",
-            "UpgradeOldMixtapes",
-            true,
-            "When opening a modded mixtape for an older version of the plugin in the editor, " +
-            "upgrade the mixtape version to the current one when saving.");
-
-        uploadAppendDescription = Config.Bind("Editor",
-            "UploadAppendDescription",
-            true,
-            "When uploading a modded mixtape to the Steam Workshop, add a blurb to the end of the description with a link to download BopCustomTextures.");
-
-        loadOutdatedPluginEditor = Config.Bind("Editor",
-            "LoadOutdatedPluginEditor",
-            true,
-            "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
-
-
-        copyCustomsFromFileKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
-            "CopyCustomsFromFileKeybind",
-            KeyCode.F3,
-            "Keybind used to access Copy Customs From File.");
-
-        copyCustomsFromFolderKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
-            "CopyCustomsFromFolderKeybind",
-            KeyCode.F4,
-            "Keybind used to access Copy Customs From Folder.");
-
-        reloadCustomAssetsKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
-            "ReloadCustomAssetsKeybind",
-            KeyCode.F5,
-            "Keybind used to access Reload Custom Assets.");
-
-        selectEventCatagoryKeybind = UpgradeOrBind("Editor", "Editor.Keybinds",
-            "SelectEventCatagoryKeybind",
-            KeyCode.F6,
-            "Keybind used to switch to \"Bop Custom Textures\" catagory.\n" + 
-            "(Note: only works post editor UI update.)");
-        
-
-        displayCopyOptions = Config.Bind("Editor.Display",
-            "DisplayOptionsCopy",
-            Display.Always,
-            $"When to display \"{CustomManager.menuCopyOptions[0]}\" and \"{CustomManager.menuCopyOptions[1]}\" in editor.");
-
-        displayReloadOptions = Config.Bind("Editor.Display",
-            "DisplayOptionsReload",
-            Display.WhenActive,
-            $"When to display \"{CustomManager.menuReloadOptions[0]}\" in editor.");
-
-        displayEventTemplates = Config.Bind("Editor.Display",
-            "DisplayEventTemplates",
-            Display.Always,
-            "When to display mixtape events category \"Bop Custom Textures\".\n" +
-            "(Note: options besides \"Always\" can be buggy when attempting to work with a modded mixtape.)");
-
-        eventTemplatesIndex = Config.Bind("Editor.Display",
-            "EventTemplatesIndex",
-            4,
-            "Position in mixtape event categories list to display \"Bop Custom Textures\" at. " +
-            "Values lower than 1 will put category at end of list.\n" +
-            "(Note: position 0 unsupported as editor is hardcoded to only support category \"Global\" there.)");
-
-
-        logOutdatedPlugin = Config.Bind("Logging",
-            "logOutdatedPlugin",
-            LogLevel.Error | LogLevel.MixtapeEditor,
-            "Log level for message indicating BopCustomTextures needs to be updated to play a mixtape.");
-
-        logUpgradeMixtape = Config.Bind("Logging",
-            "LogUpgradeMixtape",
-            LogLevel.Warning | LogLevel.MixtapeEditor,
-            "Log level for messaage reminding user to save a mixtape to add/upgrade its BopCustomTextures.json file.");
-
-
-        logFileLoading = UpgradeOrBind("Logging", "Logging.Debugging",
-            "LogFileLoading",
-            LogLevel.Debug,
-            "Log level for verbose file loading of custom files in .bop archives.");
-
-        logUnloading = UpgradeOrBind("Logging", "Logging.Debugging",
-            "LogUnloading",
-            LogLevel.Debug,
-            "Log level for verbose custom asset unloading");
-
-        logSeperateTextureSprites = UpgradeOrBind("Logging", "Logging.Debugging",
-            "LogSeperateTextureSprites",
-            LogLevel.Debug,
-            "Log level for verbose custom sprite creation from seperate textures.");
-
-        logAtlasTextureSprites = UpgradeOrBind("Logging", "Logging.Debugging",
-            "LogAtlasTextureSprites",
-            LogLevel.Debug,
-            "Log level for verbose custom sprite creation from atlas textures.");
-
-        logMComponentRegistering = Config.Bind("Logging.Debugging",
-            "LogMComponentRegistering",
-            LogLevel.Debug,
-            "Log level for registering of MComponents.");
-
-
-        logSceneIndices = UpgradeOrBind("Logging", "Logging.Modding",
-            "LogSceneIndices",
-            LogLevel.None,
-            "Log level for vanilla scene loading, including scene name + build index. (for locating level and sharedassets files)");
+        Logger = new ManualLogSourceCustom(vanillaLogger, ConfigManager);
     }
 
     [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
@@ -267,14 +102,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(string path)
         {
-            if (loadCustomAssets.Value)
+            if (ConfigManager.LoadCustomAssets.Value)
             {
-                Manager.CheckVersionThenReadDirectory(path,
-                    saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
-                    upgradeOldMixtapes.Value,
-                    GetOutdatedPluginHandling(),
-                    displayEventTemplates.Value,
-                    eventTemplatesIndex.Value);
+                Manager.CheckVersionThenReadDirectory(path);
             }
         }
     }
@@ -284,7 +114,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static bool Prefix(RiqLoader __instance)
         {
-            if (Manager.interruptLoad)
+            if (Manager.InterruptLoad)
             {
                 VersionDisclaimerScript.Create(Manager, __instance);
                 return false; // skip original
@@ -298,7 +128,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(string path)
         {
-            Manager.WriteDirectory(path, upgradeOldMixtapes.Value);
+            Manager.WriteDirectory(path);
         }
     }
 
@@ -307,7 +137,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix()
         {
-            Manager.ResetAll(displayEventTemplates.Value, eventTemplatesIndex.Value);
+            Manager.ResetAll();
         }
     }
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]
@@ -315,9 +145,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Prefix()
         {
-            if (!loadCustomAssets.Value || !IsProbablyCustom())
+            if (!ConfigManager.LoadCustomAssets.Value || !IsProbablyCustom())
             {
-                Manager.ResetAll(displayEventTemplates.Value, eventTemplatesIndex.Value);
+                Manager.ResetAll();
             }
         }
     }
@@ -331,9 +161,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
         static void Prefix(string path)
         {
-            if (loadCustomAssets.Value)
+            if (ConfigManager.LoadCustomAssets.Value)
             {
-                Manager.ResetIfNecessary(path, displayEventTemplates.Value, eventTemplatesIndex.Value);
+                Manager.ResetIfNecessary(path);
             }
         }
     }
@@ -348,12 +178,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
         static void Postfix(string path)
         {
-            Manager.CheckVersionThenReadRiqArchive(path,
-                saveCustomFiles.Value && CustomFileManager.ShouldBackupDirectory(),
-                upgradeOldMixtapes.Value,
-                GetOutdatedPluginHandling(),
-                displayEventTemplates.Value,
-                eventTemplatesIndex.Value);
+            Manager.CheckVersionThenReadRiqArchive(path);
         }
     }
     
@@ -362,7 +187,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(string path)
         {
-            Manager.SaveAsRiq(path, upgradeOldMixtapes.Value);
+            Manager.SaveAsRiq(path);
         }
     }
 
@@ -422,7 +247,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         static void Postfix(MixtapeEditorScript __instance)
         {
+#if BNB_OLD_EDITOR
             UpdateMenu(__instance);
+#endif
             UpdateKeybinds(__instance);
         }
 
@@ -442,66 +269,34 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                 if (panel == 0 && option >= 9)
                 {
                     Logger.LogInfo($"Clicked modded option: {option - 9}");
-                    Manager.HandleMenuOption(__instance,
-                    option - 9,
-                    displayCopyOptions.Value,
-                    displayReloadOptions.Value,
-                    saveCustomFiles.Value,
-                    upgradeOldMixtapes.Value,
-                    GetOutdatedPluginHandling(),
-                    displayEventTemplates.Value,
-                    eventTemplatesIndex.Value);
+                    Manager.HandleMenuOption(__instance, option - 9);
                 }
             }
         }
 
         static void UpdateKeybinds(MixtapeEditorScript __instance)
         {
-            if (Input.GetKeyDown(copyCustomsFromFileKeybind.Value))
-            {
-                Logger.LogInfo("Keybind pressed: Copy Customs from File");
-                Manager.FileOpenCustomsArchive(__instance, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
-            }
-            else if (Input.GetKeyDown(copyCustomsFromFolderKeybind.Value))
-            {
-                Logger.LogInfo("Keybind pressed: Copy Customs from Folder");
-                Manager.FileOpenCustomsDirectory(__instance, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
-            }
-            else if (Input.GetKeyDown(reloadCustomAssetsKeybind.Value))
-            {
-                Logger.LogInfo("Keybind pressed: Reload Custom Assets");
-                Manager.ResetAndReload(Manager.lastPath, saveCustomFiles.Value, displayEventTemplates.Value, eventTemplatesIndex.Value);
-            }
-            else if (Input.GetKeyDown(selectEventCatagoryKeybind.Value))
-            {
-                Logger.LogInfo("Keybind pressed: Select Event Catagory");
-                if (MixtapeEditorScriptExtensions.OnSelectCategoryMethod == null)
-                {
-                    Logger.LogWarning("Select Event Catagory only works for versions of Bits and Bops post editor UI update.");
-                    return;
-                }
-                MixtapeEditorScriptExtensions.OnSelectCategoryMethod.Invoke(__instance, [MyPluginInfo.PLUGIN_GUID]);
-            }
+            Manager.HandleKeybind(__instance);
         }
     }
 
+#if BNB_OLD_EDITOR
     [HarmonyPatch(typeof(MixtapeEditorScript), "FormatMenu")]
     private static class MixtapeEditorScriptFormatOptionsPatch
     {
         static void Postfix(MixtapeEditorScript __instance)
         {
-            Manager.FormatMenu(__instance,
-                    displayCopyOptions.Value,
-                    displayReloadOptions.Value);
+            Manager.FormatMenu(__instance);
         }
     }
+#endif
 
     [HarmonyPatch(typeof(SteamUploadManager), "UploadCoroutine", MethodType.Enumerator)]
     private static class SteamUploadManagerUploadCoroutinePatch
     {
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
-            if (!uploadAppendDescription.Value)
+            if (!ConfigManager.UploadAppendDescription.Value)
             {
                 return instructions;
             }
@@ -523,7 +318,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         private static string Internal(BopMixtapeV0 mixtape)
         {
-            if (uploadAppendDescription.Value)
+            if (ConfigManager.UploadAppendDescription.Value)
             {
                 return Manager.GetDescriptionAppended(mixtape.description);
             } 
@@ -560,26 +355,5 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         SceneKey activeSceneKey = TempoSceneManager.GetActiveSceneKey();
         return activeSceneKey == SceneKey.MixtapeEditor || activeSceneKey == SceneKey.MixtapeCustom;
     }
-    public static OutdatedPluginHandling GetOutdatedPluginHandling()
-    {
-        return (TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader) ? loadOutdatedPluginPlayer.Value :
-            loadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla;
-    }
 
-    private ConfigEntry<T> UpgradeOrBind<T>(string oldSection, string newSection, string key, T defaultValue, string description)
-    {
-        var oldEntry = Config.Bind(
-            oldSection,
-            key,
-            defaultValue,
-            description
-        );
-        Config.Remove(new ConfigDefinition(oldSection, key));
-        return Config.Bind(
-            newSection,
-            key,
-            oldEntry.Value,
-            description
-        );
-    }
 }

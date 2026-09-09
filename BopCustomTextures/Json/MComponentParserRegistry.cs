@@ -14,8 +14,8 @@ namespace BopCustomTextures.Json;
 public class MComponentParserRegistry(ILogger logger)
 {
     private static MComponentParserRegistry instance;
-    private readonly ILogger logger = logger;
-    private readonly Dictionary<string, JsonParse> registry = [];
+    private readonly ILogger Logger = logger;
+    private readonly Dictionary<string, JsonParse> Registry = [];
 
     public static MComponentParserRegistry Instance { get => instance; }
 
@@ -53,12 +53,12 @@ public class MComponentParserRegistry(ILogger logger)
         {
             name = name.Substring(1);
         }
-        if (registry.ContainsKey(name))
+        if (Registry.ContainsKey(name))
         {
-            logger.LogMComponentRegistering($"MComponent \"{name}\" already registered");
+            Logger.LogMComponentRegistering($"MComponent \"{name}\" already registered");
         }
-        registry[name] = parser;
-        logger.LogMComponentRegistering($"Successfully registered MComponent: {name}");
+        Registry[name] = parser;
+        Logger.LogMComponentRegistering($"Successfully registered MComponent: {name}");
     }
 
     /// <summary>
@@ -83,12 +83,12 @@ public class MComponentParserRegistry(ILogger logger)
     {
         if (!typeof(IMComponent).IsAssignableFrom(type))
         {
-            logger.LogError($"Failed to register invalid MComponent \"{name}\": does not implement IMComponent");
+            Logger.LogError($"Failed to register invalid MComponent \"{name}\": does not implement IMComponent");
             return;
         }
         if (type.IsAbstract)
         {
-            logger.LogError($"Failed to register invalid MComponent \"{name}\": is an abstract class");
+            Logger.LogError($"Failed to register invalid MComponent \"{name}\": is an abstract class");
             return;
         }
         var ctor = CreateFactory(type);
@@ -119,12 +119,12 @@ public class MComponentParserRegistry(ILogger logger)
                 continue;
             Register(attr.Name, type);
         }
-        logger.LogMComponentRegistering($"Registered all MComponents in assembly: {assembly.FullName}");
+        Logger.LogMComponentRegistering($"Registered all MComponents in assembly: {assembly.FullName}");
     }
 
     public bool TryParse(CustomJsonInitializer ctx, string name, JToken jcomponent, out IMComponent mcomponent)
     {
-        if (registry.TryGetValue(name, out var parse))
+        if (Registry.TryGetValue(name, out var parse))
         {
             return parse(ctx, jcomponent, out mcomponent);
         }
