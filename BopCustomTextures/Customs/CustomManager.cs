@@ -648,6 +648,23 @@ public class CustomManager : BaseCustomManager
         return false;
     }
 
+    public bool CheckPropertiesEventSpawning(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
+    {
+        if (templateEvent == EditorPropertiesTemplate)
+        {
+            UpdateEditorPropertiesEvent(__instance);
+            __instance.SetSelectedEvent(EditorPropertiesEvent);
+            return true;
+        }
+        else if (templateEvent == MixtapePropertiesTemplate)
+        {
+            UpdateMixtapePropertiesEvent(__instance);
+            __instance.SetSelectedEvent(MixtapePropertiesEvent);
+            return true;
+        }
+        return false;
+    }
+
     public void OnSelectMinigame(MixtapeEditorScript __instance)
     {
         if (CheckPropertiesEventSelected(__instance))
@@ -673,7 +690,7 @@ public class CustomManager : BaseCustomManager
 
     public void CycleProperty(MixtapeEditorScript __instance, int option)
     {
-        if (__instance.SelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
+        if (__instance.SelectedEvents().Count == 1 && __instance.SelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
         {
             HandleMenuOption(__instance, option - BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count);
         }

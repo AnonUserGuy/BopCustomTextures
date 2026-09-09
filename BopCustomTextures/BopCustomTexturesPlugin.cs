@@ -314,6 +314,19 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
+    [HarmonyPatch(typeof(MixtapeEditorScript), "SpawnEventFromTemplate")]
+    private static class MixtapeEditorScriptSpawnEventFromTemplatePatch
+    {
+        static bool Prefix(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
+        {
+            if (Manager.CheckPropertiesEventSpawning(__instance, templateEvent))
+            {
+                return false; // skip original
+            }
+            return true; // don't skip original
+        }
+    }
+
     [HarmonyPatch(typeof(MixtapeEditorScript), "CycleProperty")]
     private static class MixtapeEditorScriptCyclePropertyPatch
     {
