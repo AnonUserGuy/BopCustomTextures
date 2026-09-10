@@ -1,4 +1,4 @@
-﻿using BopCustomTextures.Customs;
+﻿using BopCustomTextures.EventTemplates;
 using BepInEx.Configuration;
 using UnityEngine;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
@@ -20,6 +20,7 @@ public class ConfigManager
     public ConfigEntry<KeyCode> ReloadCustomAssetsKeybind;
     public ConfigEntry<KeyCode> SelectEventCatagoryKeybind;
 
+    public ConfigEntry<string> HijackEventCategory;
     public ConfigEntry<Display> DisplayCopyOptions;
     public ConfigEntry<Display> DisplayReloadOptions;
     public ConfigEntry<Display> DisplayEventTemplates;
@@ -100,20 +101,30 @@ public class ConfigManager
             "(Note: only works post editor UI update.)");
 
 
+        HijackEventCategory = config.Bind("Editor.Display",
+            "HijackEventCategory",
+            "effects",
+            "If this event category's button is clicked multiple times, it'll cycle through all modded event categories.\n" +
+            "Set to blank (\"HijackEventCategory = \") to disable this feature.\n" +
+            "\n" + 
+            "Useful values include:\n" +
+            "\t- _ (this is global)\t\n\t- gameManager\t\n\t- effects\t\n\t- accessibility\n\t- debug\t");
+
         DisplayCopyOptions = config.Bind("Editor.Display",
             "DisplayOptionsCopy",
             Display.Always,
-            $"When to display \"{CustomManager.MenuCopyOptions[0]}\" and \"{CustomManager.MenuCopyOptions[1]}\" in editor.");
+            $"When to display \"{BopCustomTexturesEventTemplates.PropertyCopyOptions[0]}\" and \"{BopCustomTexturesEventTemplates.PropertyCopyOptions[1]}\" in \"Global Properties\".");
 
         DisplayReloadOptions = config.Bind("Editor.Display",
             "DisplayOptionsReload",
             Display.Always,
-            $"When to display \"{CustomManager.MenuReloadOptions[0]}\" in editor.");
+            $"When to display \"{BopCustomTexturesEventTemplates.PropertyReloadOptions[0]}\" in \"Global Properties\".");
 
         DisplayEventTemplates = config.Bind("Editor.Display",
             "DisplayEventTemplates",
             Display.Always,
             "When to display mixtape events category \"Bop Custom Textures\".\n" +
+            "Mostly irrelevant as of editor UI update, will only affect behavior of HijackEventCategory setting.\n" +
             "(Note: options besides \"Always\" can be buggy when attempting to work with a modded mixtape.)");
 
         EventTemplatesIndex = config.Bind("Editor.Display",
@@ -121,6 +132,7 @@ public class ConfigManager
             4,
             "Position in mixtape event categories list to display \"Bop Custom Textures\" at. " +
             "Values lower than 1 will put category at end of list.\n" +
+            "Mostly irrelevant as of editor UI update, will only affect behavior of HijackEventCategory setting.\n" +
             "(Note: position 0 unsupported as editor is hardcoded to only support category \"Global\" there.)");
 
 

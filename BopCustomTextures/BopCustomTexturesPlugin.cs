@@ -7,7 +7,6 @@ using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using BepInEx;
 using HarmonyLib;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
@@ -212,11 +211,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         static IEnumerator Postfix(IEnumerator __result, MixtapeLoaderCustom __state)
         {
             bool hasInited = false;
-            __state.Total() = 0;
+            __state.SetTotal(0);
 
             while (__result.MoveNext())
             {
-                if (__state.Total() > 0 && !hasInited)
+                if (__state.GetTotal() > 0 && !hasInited)
                 {
                     // after BeginInternal for all games, before jukebox is ready
                     Manager.Prepare(__state);
@@ -249,35 +248,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         static void Postfix(MixtapeEditorScript __instance)
         {
-#if BNB_OLD_EDITOR
-            UpdateMenu(__instance);
-#endif
-            UpdateKeybinds(__instance);
-        }
-
-        static void UpdateMenu(MixtapeEditorScript __instance)
-        {
-            if (MixtapeEditorScriptExtensions.menuField == null)
-            {
-                return;
-            }
-            SpriteRenderer menu = (SpriteRenderer)MixtapeEditorScriptExtensions.menuField.GetValue(__instance);
-            Vector3 mousePosition = Input.mousePosition;
-            Vector3 vector = __instance.mainCamera.ScreenToWorldPoint(mousePosition);
-            if (Input.GetKeyDown(KeyCode.Mouse0) && MixtapeEditorScript.HitTest(menu, vector))
-            {
-                int panel = (int)(Mathf.InverseLerp(-7.5f, 7.5f, vector.x) * 5f);
-                int option = (int)(Mathf.InverseLerp(menu.bounds.center.y + menu.bounds.extents.y, menu.bounds.center.y - menu.bounds.extents.y, vector.y) * 16f);
-                if (panel == 0 && option >= 9)
-                {
-                    Logger.LogInfo($"Clicked modded option: {option - 9}");
-                    Manager.HandleMenuOption(__instance, option - 9);
-                }
-            }
-        }
-
-        static void UpdateKeybinds(MixtapeEditorScript __instance)
-        {
             Manager.HandleKeybind(__instance);
         }
     }
@@ -295,6 +265,15 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         static void Prefix(MixtapeEditorScript __instance)
         {
             Manager.UpdateSingletonEvents(__instance);
+        }
+    }
+
+    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectCategory")]
+    private static class MixtapeEditorScriptOnSelectMinigamePatch
+    {
+        static void Prefix(MixtapeEditorScript __instance, ref string category)
+        {
+            Manager.CycleModdedCategory(__instance, ref category);
         }
     }
 

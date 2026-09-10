@@ -4,7 +4,6 @@ using BopCustomTextures.AccessExtensions;
 using SFB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using TMPro;
 using UnityEngine;
 using System;
 using System.IO;
@@ -30,6 +29,7 @@ public class CustomManager : BaseCustomManager
         "Reload Custom Assets"
     ];
 
+    public int ModdedCategoryIndex = -1;
     public int MixtapeEventCategoryIndex = -1;
     private bool lastCopyActive = false;
     private bool lastReloadActive = false;
@@ -468,7 +468,7 @@ public class CustomManager : BaseCustomManager
             TextureManager.InitCustomTextures(__instance, dict.Key);
             SceneManager.InitCustomSceneDeferred(__instance, dict.Key);
         }
-        PrepareEvents(__instance, __instance.Entities());
+        PrepareEvents(__instance, __instance.GetEntities());
     }
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
@@ -511,39 +511,6 @@ public class CustomManager : BaseCustomManager
         foreach (var pair in list)
         {
             Entities[pair.Key] = pair.Value;
-        }
-    }
-
-    public void FormatMenu(MixtapeEditorScript __instance)
-    {
-        FormatMenu(__instance,
-            ConfigManager.DisplayCopyOptions.Value,
-            ConfigManager.DisplayReloadOptions.Value);
-    }
-    public void FormatMenu(MixtapeEditorScript __instance, Display showCopyOptions, Display showReloadOptions)
-    {
-        if (MixtapeEditorScriptExtensions.menuTextField == null)
-        {
-            return;
-        }
-
-        TMP_Text menuText = (TMP_Text)MixtapeEditorScriptExtensions.menuTextField.GetValue(__instance);
-        string text = menuText.text;
-        bool changed = false;
-        if (DisplayActive(showCopyOptions, HasCustomAssets))
-        {
-            text += "\n" + string.Join("\n", MenuCopyOptions);
-            changed = true;
-        }
-        if (DisplayActive(showReloadOptions, HasCustomAssets))
-        {
-            text += "\n" + string.Join("\n", MenuReloadOptions);
-            changed = true;
-        }
-        if (changed)
-        {
-            menuText.text = text;
-            menuText.ForceMeshUpdate();
         }
     }
 
@@ -624,7 +591,7 @@ public class CustomManager : BaseCustomManager
             entity.beat = -100f;
             entity.SetString("last path", _lastPath);
             EditorPropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
-            __instance.SingletonEvents()[entity.dataModel] = EditorPropertiesEvent;
+            __instance.GetSingletonEvents()[entity.dataModel] = EditorPropertiesEvent;
         }
     }
 
@@ -637,7 +604,7 @@ public class CustomManager : BaseCustomManager
             entity.SetString("version", _version);
             entity.SetInt("release", (int)_release);
             MixtapePropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
-            __instance.SingletonEvents()[entity.dataModel] = MixtapePropertiesEvent;
+            __instance.GetSingletonEvents()[entity.dataModel] = MixtapePropertiesEvent;
         }
     }
 
@@ -647,9 +614,32 @@ public class CustomManager : BaseCustomManager
         UpdateMixtapePropertiesEvent(__instance);
     }
 
+    public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category)
+    {
+        return CycleModdedCategory(__instance, ref category, ConfigManager.HijackEventCategory.Value);
+    }
+    public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category, string hijackedCategory)
+    {
+        if (category != hijackedCategory)
+        {
+            return false;
+        }
+
+        var moddedCategories = DefaultEventCategories.ModdedCategories;
+        moddedCategories.Remove(hijackedCategory);
+
+        var currentCategory = MixtapeEventTemplates.Categories[__instance.GetLevelIndex()];
+        if (currentCategory == (ModdedCategoryIndex < 0 ? hijackedCategory : moddedCategories[ModdedCategoryIndex]))
+        {
+            ModdedCategoryIndex = (ModdedCategoryIndex + 2) % (moddedCategories.Count + 1) - 1;
+        }
+        category = ModdedCategoryIndex < 0 ? hijackedCategory : moddedCategories[ModdedCategoryIndex];
+        return true;
+    }
+
     public void CycleProperty(MixtapeEditorScript __instance, int option)
     {
-        if (__instance.SelectedEvents().Count == 1 && __instance.SelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
+        if (__instance.GetSelectedEvents().Count == 1 && __instance.GetSelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
         {
             HandleMenuOption(__instance, option - BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count);
         }
@@ -675,12 +665,7 @@ public class CustomManager : BaseCustomManager
         else if (Input.GetKeyDown(ConfigManager.SelectEventCatagoryKeybind.Value))
         {
             Logger.LogInfo("Keybind pressed: Select Event Catagory");
-            if (MixtapeEditorScriptExtensions.OnSelectCategoryMethod == null)
-            {
-                Logger.LogWarning("Select Event Catagory only works for versions of Bits and Bops post editor UI update.");
-                return;
-            }
-            MixtapeEditorScriptExtensions.OnSelectCategoryMethod.Invoke(__instance, [MyPluginInfo.PLUGIN_GUID]);
+            __instance.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
         }
     }
 
@@ -847,9 +832,16 @@ public class CustomManager : BaseCustomManager
 
     public void WriteMixtapeVersion(string path, bool upgrade)
     {
-        var jobj = new JObject();
-        jobj["version"] = new JValue(upgrade ? BopCustomTexturesPlugin.LowestVersion : Version);
-        jobj["release"] = new JValue(upgrade ? BopCustomTexturesPlugin.LowestRelease : Release);
+        if (upgrade)
+        {
+            Version = BopCustomTexturesPlugin.LowestVersion;
+            Release = BopCustomTexturesPlugin.LowestRelease;
+        }
+        var jobj = new JObject
+        {
+            ["version"] = new JValue(Version),
+            ["release"] = new JValue(Release)
+        };
 
         try
         {

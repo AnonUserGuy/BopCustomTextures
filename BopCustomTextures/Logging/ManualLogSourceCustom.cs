@@ -3,7 +3,9 @@ using BepInEx.Logging;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace BopCustomTextures.Logging;
 
@@ -55,6 +57,10 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
 
     public void LogEditor(object data)
     {
+        LogEditor(LogLevel.None, data);
+    }
+    public void LogEditor(LogLevel level, object data)
+    {
         if (ErrorCanvas == null || TxtBody == null)
         {
             Scene scene = SceneManager.GetActiveScene();
@@ -94,7 +100,16 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
         ErrorCanvas.SetActive(true);
         if (TxtTitle != null)
         {
-            TxtTitle.text = MyPluginInfo.PLUGIN_NAME;
+            level &= ~LogLevel.MixtapeEditor;
+            if (level != LogLevel.None)
+            {
+                TxtTitle.text = $"{MyPluginInfo.PLUGIN_NAME} - {string.Join(", ", LogLevelToStrings(level))}";
+            } 
+            else
+            {
+                TxtTitle.text = MyPluginInfo.PLUGIN_NAME;
+            }
+            
             TxtBody.text = data.ToString();
         } 
         else
@@ -107,7 +122,7 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
     {
         if ((level & LogLevel.MixtapeEditor) == LogLevel.MixtapeEditor)
         {
-            LogEditor(data);
+            LogEditor(level, data);
         }
         Logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, data);
     }
@@ -140,5 +155,16 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
     public void LogDebug(object data)
     {
         Logger.LogDebug(data);
+    }
+
+    public static IEnumerable<string> LogLevelToStrings(LogLevel level)
+    {
+        for (LogLevel i = (LogLevel)1; (i & LogLevel.All) != 0; i = (LogLevel)((int)i << 1))
+        {
+            if ((i & level) != 0)
+            {
+                yield return Enum.GetName(typeof(LogLevel), i);
+            }
+        }
     }
 }

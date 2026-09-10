@@ -1,6 +1,4 @@
-﻿using HarmonyLib;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Collections.Generic;
 
 namespace BopCustomTextures.AccessExtensions;
 
@@ -9,31 +7,34 @@ namespace BopCustomTextures.AccessExtensions;
 /// </summary>
 public static class MixtapeEditorScriptExtensions
 {
-    private static readonly MethodInfo formatMenuMethod = AccessTools.Method(typeof(MixtapeEditorScript), "FormatMenu", []);
-    public static void FormatMenu(this MixtapeEditorScript obj) => formatMenuMethod.Invoke(obj, []);
+    public static readonly TypedMethodInfo<MixtapeEditorScript> FormatMenuMethod = new("FormatMenu", []);
+    public static void FormatMenu(this MixtapeEditorScript obj) => FormatMenuMethod.Invoke(obj);
 
 
-    private static readonly AccessTools.FieldRef<MixtapeEditorScript, Dictionary<string, MixtapeEventScript>> singletonEventsRef =
-        AccessTools.FieldRefAccess<MixtapeEditorScript, Dictionary<string, MixtapeEventScript>>("singletonEvents");
-    public static ref Dictionary<string, MixtapeEventScript> SingletonEvents(this MixtapeEditorScript instance) => ref singletonEventsRef(instance);
+    public static readonly TypedPropertyInfo<MixtapeEditorScript, int> LevelIndexField = new("levelIndex");
+    public static int GetLevelIndex(this MixtapeEditorScript instance) =>
+        LevelIndexField.GetValue(instance);
+    public static bool SetLevelIndex(this MixtapeEditorScript instance, int value) =>
+        LevelIndexField.SetValue(instance, value);
 
 
-    private static readonly AccessTools.FieldRef<MixtapeEditorScript, HashList<MixtapeEventScript>> selectedEventsRef =
-        AccessTools.FieldRefAccess<MixtapeEditorScript, HashList<MixtapeEventScript>>("selectedEvents");
-    public static ref HashList<MixtapeEventScript> SelectedEvents(this MixtapeEditorScript instance) => ref selectedEventsRef(instance);
+    public static readonly TypedFieldInfo<MixtapeEditorScript, Dictionary<string, MixtapeEventScript>> SingletonEventsField = new("singletonEvents");
+    public static Dictionary<string, MixtapeEventScript> GetSingletonEvents(this MixtapeEditorScript instance) =>
+        SingletonEventsField.GetValue(instance);
+    public static bool SetSingletonEvents(this MixtapeEditorScript instance, Dictionary<string, MixtapeEventScript> value) =>
+        SingletonEventsField.SetValue(instance, value);
 
 
-#if BNB_OLD_EDITOR
-    // These only exist pre editor UI update, last: -app 1929290 -depot 1929291 -manifest 2700963706022908388 -beta beta
-    public static readonly FieldInfo menuField = AccessTools.Field(typeof(MixtapeEditorScript), "menu");
-    public static readonly FieldInfo menuTextField = AccessTools.Field(typeof(MixtapeEditorScript), "menuText");
+    public static readonly TypedFieldInfo<MixtapeEditorScript, HashList<MixtapeEventScript>> SelectedEventsField = new("selectedEvents");
+    public static HashList<MixtapeEventScript> GetSelectedEvents(this MixtapeEditorScript instance) =>
+        SelectedEventsField.GetValue(instance);
+    public static bool SetSelectedEvents(this MixtapeEditorScript instance, HashList<MixtapeEventScript> value) =>
+        SelectedEventsField.SetValue(instance, value);
 
-    public static readonly MethodInfo OnSelectCategoryMethod = null;
-#else
-    public static readonly FieldInfo menuField = null;
-    public static readonly FieldInfo menuTextField = null;
 
-    // These only exist post editor UI update, first: -app 1929290 -depot 1929291 -manifest 2259048567631053773 -beta beta
-    public static readonly MethodInfo OnSelectCategoryMethod = AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectCategory", [typeof(string)]);
-#endif
+    public static readonly TypedFieldInfo<MixtapeEditorScript, MixtapeEditorMinigameButton[]> MinigameButtonsField = new("minigameButtons");
+    public static MixtapeEditorMinigameButton[] GetMinigameButtons(this MixtapeEditorScript instance) =>
+        MinigameButtonsField.GetValue(instance);
+    public static bool SetMinigameButtons(this MixtapeEditorScript instance, MixtapeEditorMinigameButton[] value) =>
+        MinigameButtonsField.SetValue(instance, value);
 }
