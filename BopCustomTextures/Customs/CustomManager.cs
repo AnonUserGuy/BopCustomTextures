@@ -31,6 +31,8 @@ public class CustomManager : BaseCustomManager
     ];
 
     public int MixtapeEventCategoryIndex = -1;
+    private bool lastCopyActive = false;
+    private bool lastReloadActive = false;
     public MixtapeEventTemplate EditorPropertiesTemplate;
     private MixtapeEventScript EditorPropertiesEvent;
     public MixtapeEventTemplate MixtapePropertiesTemplate;
@@ -97,7 +99,7 @@ public class CustomManager : BaseCustomManager
         {
             if (EditorPropertiesEvent != null) {
                 var lastPath = EditorPropertiesEvent.Entity.GetString("last path");
-                if (lastPath != _lastPath)
+                if (lastPath != _lastPath && lastPath != "")
                 {
                     _lastPath = lastPath;
                 }
@@ -586,29 +588,44 @@ public class CustomManager : BaseCustomManager
 
     public void UpdateEditorPropertiesEvent(MixtapeEditorScript __instance)
     {
-        EditorPropertiesTemplate.properties = new(BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase);
-        if (DisplayActive(ConfigManager.DisplayCopyOptions.Value, HasCustomAssets))
-        {
-            foreach (string str in BopCustomTexturesEventTemplates.PropertyCopyOptions)
-            {
-                EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
-            }
-        }
-        if (DisplayActive(ConfigManager.DisplayReloadOptions.Value, HasCustomAssets))
-        {
-            foreach (string str in BopCustomTexturesEventTemplates.PropertyReloadOptions)
-            {
-                EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
-            }
-        }
-        Entity entity = Entity.FromTemplate(EditorPropertiesTemplate);
-        entity.beat = -100f;
-        entity.SetString("last path", _lastPath);
+        bool copyActive = DisplayActive(ConfigManager.DisplayCopyOptions.Value, HasCustomAssets);
+        bool reloadActive = DisplayActive(ConfigManager.DisplayReloadOptions.Value, HasCustomAssets);
+
         if (EditorPropertiesEvent != null)
         {
-            UnityEngine.Object.Destroy(EditorPropertiesEvent.gameObject);
+            if (lastCopyActive != copyActive || lastReloadActive != reloadActive)
+            {
+                UnityEngine.Object.Destroy(EditorPropertiesEvent.gameObject);
+                EditorPropertiesEvent = null;
+            }
         }
-        EditorPropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
+
+        if (EditorPropertiesEvent == null)
+        {
+            lastCopyActive = copyActive;
+            lastReloadActive = reloadActive;
+
+            EditorPropertiesTemplate.properties = new(BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase);
+            if (copyActive)
+            {
+                foreach (string str in BopCustomTexturesEventTemplates.PropertyCopyOptions)
+                {
+                    EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
+                }
+            }
+            if (reloadActive)
+            {
+                foreach (string str in BopCustomTexturesEventTemplates.PropertyReloadOptions)
+                {
+                    EditorPropertiesTemplate.properties[str] = new MixtapeEventTemplates.ButtonField();
+                }
+            }
+            Entity entity = Entity.FromTemplate(EditorPropertiesTemplate);
+            entity.beat = -100f;
+            entity.SetString("last path", _lastPath);
+            EditorPropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
+            __instance.SingletonEvents()[entity.dataModel] = EditorPropertiesEvent;
+        }
     }
 
     public void UpdateMixtapePropertiesEvent(MixtapeEditorScript __instance)
@@ -620,72 +637,14 @@ public class CustomManager : BaseCustomManager
             entity.SetString("version", _version);
             entity.SetInt("release", (int)_release);
             MixtapePropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
+            __instance.SingletonEvents()[entity.dataModel] = MixtapePropertiesEvent;
         }
     }
 
-    public bool SelectedEventIsSingleton(MixtapeEditorScript __instance)
+    public void UpdateSingletonEvents(MixtapeEditorScript __instance)
     {
-        return __instance.SelectedEvents().Count == 1 && (__instance.SelectedEvents()[0] == EditorPropertiesEvent || __instance.SelectedEvents()[0] == MixtapePropertiesEvent); 
-    }
-
-    public bool CheckPropertiesEventSelected(MixtapeEditorScript __instance)
-    {
-        if (__instance.LevelIndex() == (MixtapeEventCategoryIndex + 1))
-        {
-            if (__instance.EventIndex() == 0)
-            {
-                UpdateEditorPropertiesEvent(__instance);
-                __instance.SetSelectedEvent(EditorPropertiesEvent);
-                return true;
-            }
-            else if (__instance.EventIndex() == 1)
-            {
-                UpdateMixtapePropertiesEvent(__instance);
-                __instance.SetSelectedEvent(MixtapePropertiesEvent);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public bool CheckPropertiesEventSpawning(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
-    {
-        if (templateEvent == EditorPropertiesTemplate)
-        {
-            UpdateEditorPropertiesEvent(__instance);
-            __instance.SetSelectedEvent(EditorPropertiesEvent);
-            return true;
-        }
-        else if (templateEvent == MixtapePropertiesTemplate)
-        {
-            UpdateMixtapePropertiesEvent(__instance);
-            __instance.SetSelectedEvent(MixtapePropertiesEvent);
-            return true;
-        }
-        return false;
-    }
-
-    public void OnSelectMinigame(MixtapeEditorScript __instance)
-    {
-        if (CheckPropertiesEventSelected(__instance))
-        {
-            __instance.ZSortEvents();
-            __instance.FormatLevels();
-            __instance.FormatEvents();
-            __instance.FormatProperties();
-            __instance.FormatValues();
-        }
-    }
-
-    public void OnSelectEvent(MixtapeEditorScript __instance)
-    {
-        if (CheckPropertiesEventSelected(__instance))
-        {
-            __instance.ZSortEvents();
-            __instance.FormatEvents();
-            __instance.FormatProperties();
-            __instance.FormatValues();
-        }
+        UpdateEditorPropertiesEvent(__instance);
+        UpdateMixtapePropertiesEvent(__instance);
     }
 
     public void CycleProperty(MixtapeEditorScript __instance, int option)

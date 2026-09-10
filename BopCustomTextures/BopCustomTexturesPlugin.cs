@@ -282,48 +282,19 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(MixtapeEditorScript), "SelectedEventIsSingleton")]
-    private static class MixtapeEditorScriptSelectedEventIsSingletonPatch
+    [HarmonyPatch]
+    private static class MixtapeEditorScriptUpdateSingletonEventsPatch
     {
-        static bool Prefix(MixtapeEditorScript __instance, ref bool __result)
+        static IEnumerable<MethodBase> TargetMethods()
         {
-            if (Manager.SelectedEventIsSingleton(__instance))
-            {
-                __result = true;
-                return false; // skip original
-            }
-            return true; // don't skip original
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectMinigame");
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectEvent");
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectPropertyOrValue");
         }
-    }
 
-    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectMinigame")]
-    private static class MixtapeEditorScriptOnSelectMinigamePatch
-    {
-        static void Postfix(MixtapeEditorScript __instance)
+        static void Prefix(MixtapeEditorScript __instance)
         {
-            Manager.OnSelectMinigame(__instance);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectEvent")]
-    private static class MixtapeEditorScriptOnSelectEventPatch
-    {
-        static void Postfix(MixtapeEditorScript __instance)
-        {
-            Manager.OnSelectEvent(__instance);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "SpawnEventFromTemplate")]
-    private static class MixtapeEditorScriptSpawnEventFromTemplatePatch
-    {
-        static bool Prefix(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
-        {
-            if (Manager.CheckPropertiesEventSpawning(__instance, templateEvent))
-            {
-                return false; // skip original
-            }
-            return true; // don't skip original
+            Manager.UpdateSingletonEvents(__instance);
         }
     }
 
