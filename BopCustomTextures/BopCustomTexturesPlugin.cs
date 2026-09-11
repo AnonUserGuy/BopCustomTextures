@@ -63,7 +63,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             BopCustomTexturesEventTemplates.EditorPropertiesTemplate,
             BopCustomTexturesEventTemplates.MixtapePropertiesTemplate,
             MixtapeEventTemplates.entities);
-        Manager.AddEventTemplates(ConfigManager.EventTemplatesIndex.Value);
+        Manager.UpdateEventCategoryPosition();
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;

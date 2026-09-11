@@ -1,6 +1,8 @@
 ﻿using BopCustomTextures.EventTemplates;
 using BepInEx.Configuration;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
 
 namespace BopCustomTextures.Config;
@@ -25,6 +27,8 @@ public class ConfigManager
     public ConfigEntry<Display> DisplayReloadOptions;
     public ConfigEntry<Display> DisplayEventTemplates;
     public ConfigEntry<int> EventTemplatesIndex;
+    public ConfigEntry<string> EventTemplatesAfter;
+    public ConfigEntry<string> EventTemplatesBefore;
 
     public ConfigEntry<LogLevel> LogOutdatedPlugin;
     public ConfigEntry<LogLevel> LogUpgradeMixtape;
@@ -36,6 +40,8 @@ public class ConfigManager
     public ConfigEntry<LogLevel> LogMComponentRegistering;
 
     public ConfigEntry<LogLevel> LogSceneIndices;
+
+    public static readonly Regex StringsRegex = new Regex(@"\s*([^,]*[^ ,]+?)\s*(?:,|$)", RegexOptions.Compiled);
 
     public ConfigManager(ConfigFile config)
     {
@@ -97,8 +103,7 @@ public class ConfigManager
         SelectEventCatagoryKeybind = UpgradeOrBind(config, "Editor", "Editor.Keybinds",
             "SelectEventCatagoryKeybind",
             KeyCode.None,
-            "Keybind used to switch to \"Bop Custom Textures\" catagory.\n" +
-            "(Note: only works post editor UI update.)");
+            "Keybind used to switch to \"Bop Custom Textures\" catagory.");
 
 
         HijackEventCategory = config.Bind("Editor.Display",
@@ -123,12 +128,27 @@ public class ConfigManager
         DisplayEventTemplates = config.Bind("Editor.Display",
             "DisplayEventTemplates",
             Display.Always,
-            "When to display mixtape events category \"Bop Custom Textures\".");
+            "When to display category \"Bop Custom Textures\".\n" + 
+            "Can cause issues with BopVisualEffects if set to anything besides Always.");
+
+        EventTemplatesBefore = config.Bind("Editor.Display",
+            "EventTemplatesBefore",
+            "",
+            "If set, will search through comma-delineated list until an event category with the same name is found,\n" +
+            "inserting \"Bop Custom Textures\" before that category. If no matches are found, EventTemplatesAfter is used instead.\n" +
+            "Ex: BopVisualEffects, effects");
+
+        EventTemplatesAfter = config.Bind("Editor.Display",
+            "EventTemplatesAfter",
+            "",
+            "If set, will search through comma-delineated list until an event category with the same name is found,\n" +
+            "inserting \"Bop Custom Textures\" after that category. If no matches are found, EventTemplatesIndex is used instead.\n" +
+            "Ex: BopVisualEffects, effects");
 
         EventTemplatesIndex = config.Bind("Editor.Display",
             "EventTemplatesIndex",
             3,
-            "Position in meta categories list to display \"Bop Custom Textures\" at. " +
+            "Position in categories to display \"Bop Custom Textures\" at. " +
             "Values lower than 0 will put category at end of list.");
 
 
@@ -151,7 +171,7 @@ public class ConfigManager
         LogUnloading = UpgradeOrBind(config, "Logging", "Logging.Debugging",
             "LogUnloading",
             LogLevel.Debug,
-            "Log level for verbose custom asset unloading");
+            "Log level for verbose custom asset unloading.");
 
         LogSeperateTextureSprites = UpgradeOrBind(config, "Logging", "Logging.Debugging",
             "LogSeperateTextureSprites",
@@ -196,5 +216,24 @@ public class ConfigManager
     {
         return (TempoSceneManager.GetActiveSceneKey() == SceneKey.RiqLoader) ? LoadOutdatedPluginPlayer.Value :
             LoadOutdatedPluginEditor.Value ? OutdatedPluginHandling.LoadModded : OutdatedPluginHandling.LoadVanilla;
+    }
+
+    public IEnumerable<string> GetEventTemplatesBefore()
+    {
+        return GetStrings(EventTemplatesBefore.Value);
+    }
+
+    public IEnumerable<string> GetEventTemplatesAfter()
+    {
+        return GetStrings(EventTemplatesAfter.Value);
+    }
+
+    public static IEnumerable<string> GetStrings(string str)
+    {
+        var matches = StringsRegex.Matches(str);
+        for (int i = 0; i < matches.Count; i++)
+        {
+            yield return matches[i].Groups[1].Value;
+        }
     }
 }

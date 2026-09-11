@@ -25,6 +25,7 @@ public class CustomManager : BaseCustomManager
 
     private bool lastCopyActive = false;
     private bool lastReloadActive = false;
+    private int lastTemplatesIndex = -1;
     public MixtapeEventTemplate EditorPropertiesTemplate;
     private MixtapeEventScript EditorPropertiesEvent;
     public MixtapeEventTemplate MixtapePropertiesTemplate;
@@ -403,7 +404,7 @@ public class CustomManager : BaseCustomManager
     }
     public void ResetIfNecessary(string path, Display displayEventTemplates, int eventTemplatesIndex)
     {
-        var modified = File.GetLastWriteTime(path);
+        var modified = File.Exists(path) ? File.GetLastWriteTime(path) : default;
         if (LastPath != path || LastModified != modified)
         {
             ResetAll(displayEventTemplates, eventTemplatesIndex);
@@ -431,7 +432,7 @@ public class CustomManager : BaseCustomManager
     }
     public void ResetAndReload(string path, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
     {
-        var modified = File.GetLastWriteTime(path);
+        var modified = File.Exists(path) ? File.GetLastWriteTime(path) : default;
         if (LastPath != path || modified != LastModified || Directory.Exists(path))
         {
             Unload();
@@ -476,14 +477,17 @@ public class CustomManager : BaseCustomManager
     {
         SceneManager.UpdateEventTemplates();
         TextureManager.UpdateEventTemplates();
+        UpdateEventCategoryPosition();
     }
 
-    public void AddEventTemplates(int index)
+    public void UpdateEventCategoryPosition()
     {
-        if (Entities.ContainsKey(MyPluginInfo.PLUGIN_GUID))
+        var index = FindEventCategoryIndex();
+        if (index == lastTemplatesIndex && Entities.ContainsKey(MyPluginInfo.PLUGIN_GUID))
         {
             return;
         }
+        Entities.Remove(MyPluginInfo.PLUGIN_GUID);
         var list = Entities.ToList();
         if (index > list.Count || index < 1)
         {
@@ -495,6 +499,36 @@ public class CustomManager : BaseCustomManager
         {
             Entities[pair.Key] = pair.Value;
         }
+        lastTemplatesIndex = index;
+    }
+
+    public int FindEventCategoryIndex()
+    {
+        var x = FindEventCategoryIndexInternal();
+        if (Entities.ContainsKey(MyPluginInfo.PLUGIN_GUID) && x > Entities.Keys.ToList().IndexOf(MyPluginInfo.PLUGIN_GUID))
+        {
+            x--;
+        }
+        return x;
+    }
+
+    private int FindEventCategoryIndexInternal()
+    {
+        foreach (string category in ConfigManager.GetEventTemplatesBefore())
+        {
+            if (Entities.ContainsKey(category))
+            {
+                return Entities.Keys.ToList().IndexOf(category);
+            }
+        }
+        foreach (string category in ConfigManager.GetEventTemplatesAfter())
+        {
+            if (Entities.ContainsKey(category))
+            {
+                return Entities.Keys.ToList().IndexOf(category) + 1;
+            }
+        }
+        return ConfigManager.EventTemplatesIndex.Value;
     }
 
     public void HandleMenuOption(MixtapeEditorScript __instance, int index)
@@ -621,11 +655,11 @@ public class CustomManager : BaseCustomManager
         moddedCategories.Remove(hijackedCategory);
 
         var currentCategory = MixtapeEventTemplates.Categories[__instance.GetLevelIndex()];
-        if (currentCategory == (ModdedCategoryIndex < 0 ? hijackedCategory : moddedCategories[ModdedCategoryIndex]))
+        if (currentCategory == ((ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? hijackedCategory : moddedCategories[ModdedCategoryIndex]))
         {
             ModdedCategoryIndex = (ModdedCategoryIndex + 2) % (moddedCategories.Count + 1) - 1;
         }
-        category = ModdedCategoryIndex < 0 ? hijackedCategory : moddedCategories[ModdedCategoryIndex];
+        category = (ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? hijackedCategory : moddedCategories[ModdedCategoryIndex];
         return true;
     }
 
@@ -827,7 +861,7 @@ public class CustomManager : BaseCustomManager
             }
             MixtapeCategoryButton = BopCustomTexturesButton.Create(__instance);
         }
-        MixtapeCategoryButton.UpdateDisplay(showButton, ConfigManager.EventTemplatesIndex.Value);
+        MixtapeCategoryButton.UpdateDisplay(showButton, FindEventCategoryIndex());
     }
 
     public bool GetMixtapeVersion(string path)
