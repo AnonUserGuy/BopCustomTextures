@@ -21,15 +21,16 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 <tr><td><code>UploadAppendDescription</code></td><td>Boolean</td><td><code>true</code></td><td>When uploading a modded mixtape to the Steam Workshop, add a blurb to the end of the description with a link to download BopCustomTextures.</td></tr>
 <tr><td><code>LoadOutdatedPluginEditor</code></td><td>Boolean</td><td><code>true</code></td><td>When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.</td></tr>
 <tr><th colspan="4">Editor.Display</th></tr>
-<tr><td><code>DisplayOptionsCopy</code></td><td>Display</td><td><code>Always</code></td><td>When to display "Copy Customs from File" and "Copy Customs from Folder" in editor.</td></tr>
-<tr><td><code>DisplayOptionsReload</code></td><td>Display</td><td><code>WhenActive</code></td><td>When to display "Reload Custom Assets" in editor.</td></tr>
-<tr><td><code>DisplayEventTemplates</code></td><td>Display</td><td><code>Always</code></td><td><p>When to display mixtape events category "Bop Custom Textures".</p><p>(Note: options besides "Always" can be buggy when attempting to work with a modded mixtape.)</p></td></tr>
-<tr><td><code>EventTemplatesIndex</code></td><td>Int32</td><td><code>4</code></td><td><p>Position in mixtape event categories list to display "Bop Custom Textures" at. Values lower than 1 will put category at end of list.</p><p>(Note: position 0 unsupported as editor is hardcoded to only support category "Global" there.)</p></td></tr>
+<tr><td><code>HijackEventCategory</code></td><td>String</td><td><code>BopCustomTextures</code></td><td><p>If this event category's button is clicked multiple times, it'll cycle through all modded event categories.</p><p>Set to blank ("HijackEventCategory = ") to disable this feature.</p><p></p><p>Useful values include:</p><p>	- _ (this is global)	</p><p>	- gameManager	</p><p>	- effects	</p><p>	- accessibility</p><p>	- debug	</p><p>	- BopCustomTextures	</p></td></tr>
+<tr><td><code>DisplayOptionsCopy</code></td><td>Display</td><td><code>Always</code></td><td>When to display "copy from file" and "copy from folder" in "Global Properties".</td></tr>
+<tr><td><code>DisplayOptionsReload</code></td><td>Display</td><td><code>Always</code></td><td>When to display "reload" in "Global Properties".</td></tr>
+<tr><td><code>DisplayEventTemplates</code></td><td>Display</td><td><code>Always</code></td><td>When to display mixtape events category "Bop Custom Textures".</td></tr>
+<tr><td><code>EventTemplatesIndex</code></td><td>Int32</td><td><code>3</code></td><td>Position in meta categories list to display "Bop Custom Textures" at. Values lower than 0 will put category at end of list.</td></tr>
 <tr><th colspan="4">Editor.Keybinds</th></tr>
 <tr><td><code>CopyCustomsFromFileKeybind</code></td><td>KeyCode</td><td><code>F3</code></td><td>Keybind used to access Copy Customs From File.</td></tr>
 <tr><td><code>CopyCustomsFromFolderKeybind</code></td><td>KeyCode</td><td><code>F4</code></td><td>Keybind used to access Copy Customs From Folder.</td></tr>
 <tr><td><code>ReloadCustomAssetsKeybind</code></td><td>KeyCode</td><td><code>F5</code></td><td>Keybind used to access Reload Custom Assets.</td></tr>
-<tr><td><code>SelectEventCatagoryKeybind</code></td><td>KeyCode</td><td><code>F6</code></td><td><p>Keybind used to switch to "Bop Custom Textures" catagory.</p><p>(Note: only works post editor UI update.)</p></td></tr>
+<tr><td><code>SelectEventCatagoryKeybind</code></td><td>KeyCode</td><td><code>None</code></td><td><p>Keybind used to switch to "Bop Custom Textures" catagory.</p><p>(Note: only works post editor UI update.)</p></td></tr>
 <tr><th colspan="4">General</th></tr>
 <tr><td><code>LoadCustomAssets</code></td><td>Boolean</td><td><code>true</code></td><td><p>When opening a modded mixtape, load the custom assets stored in it.</p><p>(Note: modded mixtapes won't maintain their custom files if saved while this is disabled.)</p></td></tr>
 <tr><th colspan="4">Logging</th></tr>
@@ -49,7 +50,7 @@ After running Bits & Bops with the latest version of this plugin installed, a co
 
 ## Building 
 ### Prerequisites
-- Bits & Bops v1.13+
+- Bits & Bops v1.14+
 - Microsoft .NET SDK v4.7.2+
 - Visual Studio 2022 (Optional)
 
@@ -94,10 +95,7 @@ The scene mod implementation is comparatively much simpler than the custom textu
 
 ***Reimplementing scene mods using reflection/dynamic code generation could enable scene mods to modify any Unity component independent of implementation, which may be something looked into in the future. As of now however, scene mods can only modify specific supported Unity components.***
 
-## Todo
-- Implement custom AssetBundle loading.
-  - Would allow custom animations (?), more precise sprite attributes, and otherwise better image compression for custom textures.
-- Implement metadata files to define custom sprite attributes.
-  - Short of custom AssetBundle loading, would allow mixtape files to control sprite attributes like size and position without the current bodge-y method of increasing the base sprite canvas on all sides.
-- Implement more supported components for scene mods.
-  - While every component being fully modifiable would be nice, implementing this would take lots of effort programming and testing. As such, component support will likely be added as the community sees need for it. ***(That is to say, if you want to do something with scene mods that isn't currently possible, don't be afraid to make a request for it!)***
+## License
+Licensed under the MIT License.
+
+This project includes code derived from [BopVisualEffects](https://github.com/Brollyy/BopVisualEffects), licensed under the MIT License.
