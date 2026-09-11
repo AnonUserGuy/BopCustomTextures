@@ -132,7 +132,7 @@ public class BopCustomTexturesButton : MonoBehaviour
     {
         Assembly assembly = Assembly.GetExecutingAssembly();
 
-        using Stream stream = assembly.GetManifestResourceStream(IconPath);
+        using Stream stream = assembly.GetManifestResourceStream(iconPath);
         if (stream == null)
         {
             tex = null;
