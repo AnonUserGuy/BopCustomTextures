@@ -500,6 +500,13 @@ public class CustomManager : BaseCustomManager
             Entities[pair.Key] = pair.Value;
         }
         lastTemplatesIndex = index;
+
+        /*Logger.LogError("{");
+        foreach(var pair in Entities)
+        {
+            Logger.LogError($" - {pair.Key}");
+        }
+        Logger.LogError("}");*/
     }
 
     public int FindEventCategoryIndex()

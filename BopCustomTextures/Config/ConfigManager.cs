@@ -147,7 +147,7 @@ public class ConfigManager
 
         EventTemplatesIndex = config.Bind("Editor.Display",
             "EventTemplatesIndex",
-            3,
+            4,
             "Position in categories to display \"Bop Custom Textures\" at. " +
             "Values lower than 0 will put category at end of list.");
 
