@@ -96,19 +96,19 @@ public class ConfigManager
 
         SelectEventCatagoryKeybind = UpgradeOrBind(config, "Editor", "Editor.Keybinds",
             "SelectEventCatagoryKeybind",
-            KeyCode.F6,
+            KeyCode.None,
             "Keybind used to switch to \"Bop Custom Textures\" catagory.\n" +
             "(Note: only works post editor UI update.)");
 
 
         HijackEventCategory = config.Bind("Editor.Display",
             "HijackEventCategory",
-            "effects",
+            "BopCustomTextures",
             "If this event category's button is clicked multiple times, it'll cycle through all modded event categories.\n" +
             "Set to blank (\"HijackEventCategory = \") to disable this feature.\n" +
             "\n" + 
             "Useful values include:\n" +
-            "\t- _ (this is global)\t\n\t- gameManager\t\n\t- effects\t\n\t- accessibility\n\t- debug\t");
+            $"\t- _ (this is global)\t\n\t- gameManager\t\n\t- effects\t\n\t- accessibility\n\t- debug\t\n\t- {MyPluginInfo.PLUGIN_GUID}\t");
 
         DisplayCopyOptions = config.Bind("Editor.Display",
             "DisplayOptionsCopy",
@@ -123,17 +123,13 @@ public class ConfigManager
         DisplayEventTemplates = config.Bind("Editor.Display",
             "DisplayEventTemplates",
             Display.Always,
-            "When to display mixtape events category \"Bop Custom Textures\".\n" +
-            "Mostly irrelevant as of editor UI update, will only affect behavior of HijackEventCategory setting.\n" +
-            "(Note: options besides \"Always\" can be buggy when attempting to work with a modded mixtape.)");
+            "When to display mixtape events category \"Bop Custom Textures\".");
 
         EventTemplatesIndex = config.Bind("Editor.Display",
             "EventTemplatesIndex",
-            4,
-            "Position in mixtape event categories list to display \"Bop Custom Textures\" at. " +
-            "Values lower than 1 will put category at end of list.\n" +
-            "Mostly irrelevant as of editor UI update, will only affect behavior of HijackEventCategory setting.\n" +
-            "(Note: position 0 unsupported as editor is hardcoded to only support category \"Global\" there.)");
+            3,
+            "Position in meta categories list to display \"Bop Custom Textures\" at. " +
+            "Values lower than 0 will put category at end of list.");
 
 
         LogOutdatedPlugin = config.Bind("Logging",

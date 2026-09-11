@@ -64,10 +64,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             BopCustomTexturesEventTemplates.EditorPropertiesTemplate,
             BopCustomTexturesEventTemplates.MixtapePropertiesTemplate,
             MixtapeEventTemplates.entities);
-        if (ConfigManager.DisplayEventTemplates.Value == Display.Always)
-        {
-            Manager.AddEventTemplates(ConfigManager.EventTemplatesIndex.Value);
-        }
+        Manager.AddEventTemplates(ConfigManager.EventTemplatesIndex.Value);
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -139,6 +136,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         static void Postfix(MixtapeEditorScript __instance)
         {
             Manager.ResetAll();
+            Manager.UpdateSingletonEvents(__instance);
         }
     }
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]
