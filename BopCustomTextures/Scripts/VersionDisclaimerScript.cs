@@ -24,7 +24,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         Quit,
         Count
     }
-    private static readonly string[] OptionStrings =
+    private static readonly string[] optionStrings =
     {
         "Attempt load anyways!",
         "Proceed without custom assets",
@@ -32,10 +32,10 @@ public class VersionDisclaimerScript : MonoBehaviour
         "Quit"
     };
 
-    public CustomManager Manager;
-    public RiqLoader Loader;
-    public TMP_Text TitleText;
-    public TMP_Text Text;
+    public CustomManager manager;
+    public RiqLoader loader;
+    public TMP_Text titleText;
+    public TMP_Text text;
 
     public static int defaultPosition = 0;
     public int position = defaultPosition;
@@ -52,9 +52,9 @@ public class VersionDisclaimerScript : MonoBehaviour
     {
         var obj = new GameObject("VersionDisclaimer");
         var script = obj.AddComponent<VersionDisclaimerScript>();
-        script.Manager = manager;
-        script.Loader = riqLoader;
-        script.TitleText.text =
+        script.manager = manager;
+        script.loader = riqLoader;
+        script.titleText.text =
             $"Mixtape requires {MyPluginInfo.PLUGIN_GUID} <color=yellow>v{manager.Version}+</color>, " +
             $"but you are on <color=yellow>v{MyPluginInfo.PLUGIN_VERSION}</color>. You may have to update {MyPluginInfo.PLUGIN_GUID} to play properly.";
         return obj;
@@ -70,8 +70,8 @@ public class VersionDisclaimerScript : MonoBehaviour
         canvasObj.AddComponent<GraphicRaycaster>();
 
         var font = FindFontOrAny("TempoCurse SDF");
-        TitleText = CreateText(canvas.transform, "Title", font, 70, new Vector2(1000, 200), new Vector2(0, 150));
-        Text = CreateText(canvas.transform, "Text", font, 50, new Vector2(1000, 200), new Vector2(0, -200));
+        titleText = CreateText(canvas.transform, "Title", font, 70, new Vector2(1000, 200), new Vector2(0, 150));
+        text = CreateText(canvas.transform, "Text", font, 50, new Vector2(1000, 200), new Vector2(0, -200));
         GenerateText();
 
         TempoInput.SetActionMap(SettingsScript.menuActionMap);
@@ -97,9 +97,9 @@ public class VersionDisclaimerScript : MonoBehaviour
         if (performLoad)
         {
             TempoInput.SetActionMap(SettingsScript.gameActionMap);
-            Manager.ReadLastPath();
-            Manager.InterruptLoad = false;
-            Loader.StartMixtape();
+            manager.ReadLastPath();
+            manager.InterruptLoad = false;
+            loader.StartMixtape();
             Destroy(gameObject);
             return;
         }
@@ -120,13 +120,13 @@ public class VersionDisclaimerScript : MonoBehaviour
             {
                 case Options.Resume:
                     performLoad = true;
-                    TitleText.text = "Loading...";
-                    Text.gameObject.SetActive(false);
+                    titleText.text = "Loading...";
+                    text.gameObject.SetActive(false);
                     break;
                 case Options.ResumeVanilla:
                     TempoInput.SetActionMap(SettingsScript.gameActionMap);
-                    Manager.InterruptLoad = false;
-                    Loader.StartMixtape();
+                    manager.InterruptLoad = false;
+                    loader.StartMixtape();
                     Destroy(gameObject);
                     break;
                 case Options.OpenModPage:
@@ -142,8 +142,8 @@ public class VersionDisclaimerScript : MonoBehaviour
                     {
                         SceneManager.LoadScene(SceneKey.TitleScreen.ToString());
                     }
-                    Manager.LastModified = default;
-                    Loader.MoveToActiveScene();
+                    manager.LastModified = default;
+                    loader.MoveToActiveScene();
                     Destroy(gameObject);
                     break;
             }
@@ -162,9 +162,9 @@ public class VersionDisclaimerScript : MonoBehaviour
             string[] strings = new string[(int)Options.Count];
             for (var i = 0; i < (int)Options.Count; i++)
             {
-                strings[i] = position == i ? $"<color=yellow>{OptionStrings[i]}</color>" : OptionStrings[i];
+                strings[i] = position == i ? $"<color=yellow>{optionStrings[i]}</color>" : optionStrings[i];
             }
-            this.Text.text = string.Join("\n", strings);
+            this.text.text = string.Join("\n", strings);
             cachedPosition = position;
         }
     }

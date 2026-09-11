@@ -10,39 +10,39 @@ namespace BopCustomTextures.Scripts;
 [DefaultExecutionOrder(2)] // because of flow worms
 public class CustomSpriteSwapper : MonoBehaviour
 {
-    public Sprite LastVanilla;
-    public Sprite Last;
-    public readonly List<int> Variants = [];
-    public CustomTextureManager TextureManager;
-    public SpriteRenderer SpriteRenderer;
+    public Sprite lastVanilla;
+    public Sprite last;
+    public readonly List<int> variants = [];
+    public CustomTextureManager textureManager;
+    public SpriteRenderer spriteRenderer;
 
     void LateUpdate()
     {
-        if (SpriteRenderer.sprite != Last)
+        if (spriteRenderer.sprite != last)
         {
-            LastVanilla = SpriteRenderer.sprite;
+            lastVanilla = spriteRenderer.sprite;
             Replace();
         }
     }
 
     void OnDisable()
     {
-        SpriteRenderer.sprite = LastVanilla;
-        Last = null;
+        spriteRenderer.sprite = lastVanilla;
+        last = null;
     }
 
     public void Replace()
     {
-        Last = TextureManager.ReplaceCustomSprite(LastVanilla, Variants);
-        SpriteRenderer.sprite = Last;
+        last = textureManager.ReplaceCustomSprite(lastVanilla, variants);
+        spriteRenderer.sprite = last;
     }
 
     public void ApplyVariants(List<int> newVariants)
     {
-        Variants.Clear();
+        variants.Clear();
         foreach (var variants in newVariants)
         {
-            Variants.Add(variants);
+            this.variants.Add(variants);
         }
         Replace();
     }
@@ -50,7 +50,7 @@ public class CustomSpriteSwapper : MonoBehaviour
     {
         foreach (var pair in indexedVariants)
         {
-            Variants[pair.Key] = pair.Value;
+            variants[pair.Key] = pair.Value;
         }
         Replace();
     }

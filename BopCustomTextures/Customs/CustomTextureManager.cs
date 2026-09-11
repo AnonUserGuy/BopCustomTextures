@@ -324,11 +324,11 @@ public class CustomTextureManager(ILogger logger, CustomVariantNameManager varia
         foreach (var spriteRenderer in spriteRenderers)
         {
             CustomSpriteSwapper script = spriteRenderer.gameObject.AddComponent<CustomSpriteSwapper>();
-            script.LastVanilla = spriteRenderer.sprite;
-            spriteRenderer.sprite = ReplaceCustomSprite(script.LastVanilla);
-            script.Last = spriteRenderer.sprite; // doing anything in Awake() is insufficient
-            script.SpriteRenderer = spriteRenderer;
-            script.TextureManager = this;
+            script.lastVanilla = spriteRenderer.sprite;
+            spriteRenderer.sprite = ReplaceCustomSprite(script.lastVanilla);
+            script.last = spriteRenderer.sprite; // doing anything in Awake() is insufficient
+            script.spriteRenderer = spriteRenderer;
+            script.textureManager = this;
         }
     }
 

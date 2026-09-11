@@ -10,14 +10,14 @@ using System.Reflection;
 namespace BopCustomTextures.Scripts;
 public class BopCustomTexturesButton : MonoBehaviour
 {
-    public const string MetaButtonsPath = "Canvas/MinigamesMeta/Buttons";
-    public const string IconPath = "BopCustomTextures.Resources.icon_bct.png";
+    public const string metaButtonsPath = "Canvas/MinigamesMeta/Buttons";
+    public const string iconPath = "BopCustomTextures.Resources.icon_bct.png";
     
-    public static Texture2D Icon = null;
-    private static bool TriedLoadIcon = false;
+    public static Texture2D icon = null;
+    private static bool triedLoadIcon = false;
 
-    public Button Button = null;
-    public MixtapeEditorScript Editor;
+    public Button button = null;
+    public MixtapeEditorScript editor;
 
     public static BopCustomTexturesButton Create(MixtapeEditorScript __instance)
     {
@@ -27,7 +27,7 @@ public class BopCustomTexturesButton : MonoBehaviour
             return null;
         }
 
-        var root = GameObject.Find(MetaButtonsPath);
+        var root = GameObject.Find(metaButtonsPath);
         if (root == null)
         {
             return null;
@@ -43,7 +43,7 @@ public class BopCustomTexturesButton : MonoBehaviour
         destObj.name = "BopCustomTexturesButton";
 
         var bctButton = destObj.AddComponent<BopCustomTexturesButton>();
-        bctButton.Editor = __instance;
+        bctButton.editor = __instance;
 
         return bctButton;
     }
@@ -53,7 +53,7 @@ public class BopCustomTexturesButton : MonoBehaviour
         var button = gameObject.GetComponent<Button>();
         if (button != null)
         {
-            Button = button;
+            this.button = button;
             Destroy(button);
         }
         
@@ -62,16 +62,16 @@ public class BopCustomTexturesButton : MonoBehaviour
 
     private void Update()
     {
-        if (Button == null)
+        if (button == null)
         {
-            Button = gameObject.AddComponent<Button>();
-            Button.onClick.AddListener(OnClick);
+            button = gameObject.AddComponent<Button>();
+            button.onClick.AddListener(OnClick);
         }
     }
 
     public void OnClick()
     {
-        Editor?.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
+        editor?.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
     }
 
     public void UpdateDisplay(bool show, int index)
@@ -85,11 +85,11 @@ public class BopCustomTexturesButton : MonoBehaviour
 
     public void ApplyIcon()
     {
-        if (!TriedLoadIcon)
+        if (!triedLoadIcon)
         {
-            TriedLoadIcon = TryLoadIcon(out Icon);
+            triedLoadIcon = TryLoadIcon(out icon);
         }
-        if (Icon == null)
+        if (icon == null)
         {
             return;
         }
@@ -101,15 +101,15 @@ public class BopCustomTexturesButton : MonoBehaviour
         }
         var original = image.sprite;
         var replacement = Sprite.Create(
-            Icon, 
-            new Rect(0, 0, Icon.width, Icon.height),
+            icon, 
+            new Rect(0, 0, icon.width, icon.height),
             original.pivot / original.rect.size,
             original.pixelsPerUnit,
             0,
             SpriteMeshType.FullRect,
             original.border
         );
-        replacement.name = Icon.name;
+        replacement.name = icon.name;
 
         var positionsSlice = original.GetVertexAttribute<Vector3>(VertexAttribute.Position);
         var positions = new NativeArray<Vector3>(positionsSlice.Length, Allocator.Temp);
