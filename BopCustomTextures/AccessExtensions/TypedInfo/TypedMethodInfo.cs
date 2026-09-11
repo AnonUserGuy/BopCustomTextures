@@ -2,23 +2,33 @@
 using System;
 using System.Reflection;
 
-namespace BopCustomTextures.AccessExtensions;
-public class TypedMethodInfo<O, T>: TypedInfo<O>
+namespace BopCustomTextures.AccessExtensions.TypedInfo;
+public class TypedMethodInfo<O, T> : TypedInfo<O>
 {
     public MethodInfo Method;
 
+    public TypedMethodInfo() { }
+
     public TypedMethodInfo(string name, Type[] parameters = null, Type[] generics = null)
+    {
+        Find(name, parameters, generics);
+    }
+
+    public bool Find(string name, Type[] parameters = null, Type[] generics = null)
     {
         Method = AccessTools.Method(typeof(O), name, parameters, generics);
         if (Method == null)
         {
-            Log($"Unable to find method \"{name}\" in class {typeof(O).FullName} with return type {typeof(T).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name} with return type {typeof(T).Name}");
+            return false;
         }
         else if (Method.ReturnType != typeof(T))
         {
-            Log($"Unable to find method \"{name}\" in class {typeof(O).FullName}, but has return type {Method.ReturnType.FullName} instead of {typeof(T).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(T).Name}");
             Method = null;
+            return false;
         }
+        return true;
     }
 
     public override bool Exists()
@@ -40,22 +50,32 @@ public class TypedMethodInfo<O, T>: TypedInfo<O>
     }
 }
 
-public class TypedMethodInfo<O>: TypedInfo<O>
+public class TypedMethodInfo<O> : TypedInfo<O>
 {
     public MethodInfo Method;
 
+    public TypedMethodInfo() { }
+
     public TypedMethodInfo(string name, Type[] parameters = null, Type[] generics = null)
+    {
+        Find(name, parameters, generics);
+    }
+
+    public bool Find(string name, Type[] parameters = null, Type[] generics = null)
     {
         Method = AccessTools.Method(typeof(O), name, parameters, generics);
         if (Method == null)
         {
-            Log($"Unable to find method \"{name}\" in class {typeof(O).FullName} with return type {typeof(void).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name} with return type {typeof(void).Name}");
+            return false;
         }
         else if (Method.ReturnType != typeof(void))
         {
-            Log($"Unable to find method \"{name}\" in class {typeof(O).FullName}, but has return type {Method.ReturnType.FullName} instead of {typeof(void).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(void).Name}");
             Method = null;
+            return false;
         }
+        return true;
     }
 
     public override bool Exists()

@@ -1,23 +1,33 @@
 ﻿using HarmonyLib;
 using System.Reflection;
 
-namespace BopCustomTextures.AccessExtensions;
-public class TypedPropertyInfo<O, T>: TypedMemberInfo<O, T>
+namespace BopCustomTextures.AccessExtensions.TypedInfo;
+public class TypedPropertyInfo<O, T> : TypedMemberInfo<O, T>
 {
     public PropertyInfo Property;
 
+    public TypedPropertyInfo() { }
+
     public TypedPropertyInfo(string name)
+    {
+        Find(name);
+    }
+
+    public override bool Find(string name)
     {
         Property = AccessTools.Property(typeof(O), name);
         if (Property == null)
         {
-            Log($"Unable to find property \"{name}\" in class {typeof(O).FullName} of type {typeof(T).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Unable to find property \"{name}\" in class {typeof(O).Name} of type {typeof(T).Name}");
+            return false;
         }
         else if (Property.PropertyType != typeof(T))
         {
-            Log($"Found property \"{name}\" in class {typeof(O).FullName}, but is of type {Property.PropertyType.FullName} instead of {typeof(T).FullName}");
+            BopCustomTexturesPlugin.LogWarning($"Found property \"{name}\" in class {typeof(O).Name}, but is of type {Property.PropertyType.Name} instead of {typeof(T).Name}");
             Property = null;
+            return false;
         }
+        return true;
     }
 
     public override bool Exists()

@@ -1,4 +1,5 @@
 ﻿using BopCustomTextures.Config;
+using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using SFB;
@@ -11,9 +12,8 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using ILogger = BopCustomTextures.Logging.ILogger;
 using Display = BopCustomTextures.Config.Display;
-using BopCustomTextures.Scripts;
+using ILogger = BopCustomTextures.Logging.ILogger;
 
 namespace BopCustomTextures.Customs;
 
@@ -23,8 +23,6 @@ namespace BopCustomTextures.Customs;
 public class CustomManager : BaseCustomManager
 {
 
-    public int ModdedCategoryIndex = -1;
-    public int MixtapeEventCategoryIndex = -1;
     private bool lastCopyActive = false;
     private bool lastReloadActive = false;
     public MixtapeEventTemplate EditorPropertiesTemplate;
@@ -32,6 +30,7 @@ public class CustomManager : BaseCustomManager
     public MixtapeEventTemplate MixtapePropertiesTemplate;
     private MixtapeEventScript MixtapePropertiesEvent;
 
+    public int ModdedCategoryIndex = -1;
     public BopCustomTexturesButton MixtapeCategoryButton = null;
 
     private const int VersionMaxLength = 50;
@@ -490,7 +489,6 @@ public class CustomManager : BaseCustomManager
         {
             index = list.Count;
         }
-        MixtapeEventCategoryIndex = index;
         list.Insert(index, new KeyValuePair<string, List<MixtapeEventTemplate>>(MyPluginInfo.PLUGIN_GUID, new List<MixtapeEventTemplate>(BopCustomTexturesEventTemplates.Templates)));
         Entities.Clear();
         foreach (var pair in list)
@@ -576,7 +574,11 @@ public class CustomManager : BaseCustomManager
             entity.beat = -100f;
             entity.SetString("last path", _lastPath);
             EditorPropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
-            __instance.GetSingletonEvents()[entity.dataModel] = EditorPropertiesEvent;
+            var singletonEvents = __instance.GetSingletonEvents();
+            if (singletonEvents != null)
+            {
+                singletonEvents[entity.dataModel] = EditorPropertiesEvent;
+            }
         }
     }
 
@@ -589,7 +591,11 @@ public class CustomManager : BaseCustomManager
             entity.SetString("version", _version);
             entity.SetInt("release", (int)_release);
             MixtapePropertiesEvent = MixtapeEventScript.Spawn(__instance.mixtapeEventPrefab, entity);
-            __instance.GetSingletonEvents()[entity.dataModel] = MixtapePropertiesEvent;
+            var singletonEvents = __instance.GetSingletonEvents();
+            if (singletonEvents != null)
+            {
+                singletonEvents[entity.dataModel] = MixtapePropertiesEvent;
+            }
         }
     }
 
@@ -625,9 +631,67 @@ public class CustomManager : BaseCustomManager
 
     public void CycleProperty(MixtapeEditorScript __instance, int option)
     {
-        if (__instance.GetSelectedEvents().Count == 1 && __instance.GetSelectedEvents()[0] == EditorPropertiesEvent && option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
+        if (__instance.GetSelectedEventsCount() == 1 && 
+            __instance.GetSelectedEventsIndex(0).Datamodel == EditorPropertiesTemplate.dataModel && 
+            option >= BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count)
         {
             HandleMenuOption(__instance, option - BopCustomTexturesEventTemplates.EditorPropertiesTemplatePropertiesBase.Count);
+        }
+    }
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    public bool SelectedEventIsSingleton(MixtapeEditorScript __instance)
+    {
+        return __instance.GetSelectedEventsCount() == 1 && 
+            (__instance.GetSelectedEventsIndex(0) == EditorPropertiesEvent || 
+            __instance.GetSelectedEventsIndex(0) == MixtapePropertiesEvent);
+    }
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    public bool CheckSingletonEventSelected(MixtapeEditorScript __instance)
+    {
+        if (__instance.GetLevelIndex() == Entities.Keys.ToList().IndexOf(MyPluginInfo.PLUGIN_GUID))
+        {
+            if (__instance.GetEventIndex() == 0)
+            {
+                __instance.SetSelectedEvent(EditorPropertiesEvent);
+                return true;
+            }
+            else if (__instance.GetEventIndex() == 1)
+            {
+                __instance.SetSelectedEvent(MixtapePropertiesEvent);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    public bool CheckSingletonEventSpawning(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
+    {
+        if (templateEvent == EditorPropertiesTemplate)
+        {
+            __instance.SetSelectedEvent(EditorPropertiesEvent);
+            return true;
+        }
+        else if (templateEvent == MixtapePropertiesTemplate)
+        {
+            __instance.SetSelectedEvent(MixtapePropertiesEvent);
+            return true;
+        }
+        return false;
+    }
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    public void FormatIfSingletonSelected(MixtapeEditorScript __instance)
+    {
+        if (CheckSingletonEventSelected(__instance))
+        {
+            __instance.ZSortEvents();
+            __instance.FormatLevels();
+            __instance.FormatEvents();
+            __instance.FormatProperties();
+            __instance.FormatValues();
         }
     }
 

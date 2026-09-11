@@ -16,7 +16,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
-using Display = BopCustomTextures.Config.Display;
 
 namespace BopCustomTextures;
 
@@ -58,7 +57,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         Harmony.PatchAll();
         MComponentParserRegistry.Initialize(Logger);
 
-        Manager = new CustomManager(Logger, ConfigManager, GetTempPath(), 
+        Manager = new CustomManager(Logger, ConfigManager, GetTempPath(),
             BopCustomTexturesEventTemplates.SceneModTemplate,
             BopCustomTexturesEventTemplates.TextureVariantTemplates,
             BopCustomTexturesEventTemplates.EditorPropertiesTemplate,
@@ -95,6 +94,37 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         Logger = new ManualLogSourceCustom(vanillaLogger, ConfigManager);
     }
 
+    /// <summary>
+    /// Logging for static BopCustomTextures classes.
+    /// </summary>
+    /// <param name="level">Message log level.</param>
+    /// <param name="data">Message to be logged.</param>
+    /// <returns><see langword="true"/> if logger exists, <see langword="false"/> otherwise.</returns>
+    public static bool Log(LogLevel level, object data)
+    {
+        if (Logger != null)
+        {
+            Logger.Log(level, data);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Warning logging for static BopCustomTextures classes.
+    /// </summary>
+    /// <param name="data">Message to be logged.</param>
+    /// <returns><see langword="true"/> if logger exists, <see langword="false"/> otherwise.</returns>
+    public static bool LogWarning(object data)
+    {
+        if (Logger != null)
+        {
+            Logger.LogWarning(data);
+            return true;
+        }
+        return false;
+    }
+
     [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
     private static class BopMixtapeSerializerReadDirectoryPatch
     {
@@ -107,7 +137,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
-    [HarmonyPatch(typeof(RiqLoader), "StartMixtape")] 
+    [HarmonyPatch(typeof(RiqLoader), "StartMixtape")]
     private static class RiqLoaderStartMixtapePatch
     {
         static bool Prefix(RiqLoader __instance)
@@ -166,7 +196,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             }
         }
     }
-    
+
     [HarmonyPatch]
     private static class MixtapeCustomLoadRiqArchivePatch
     {
@@ -180,7 +210,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             Manager.CheckVersionThenReadRiqArchive(path);
         }
     }
-    
+
     [HarmonyPatch(typeof(MixtapeEditorScript), "SaveAsRiq")]
     private static class MixtapeEditorScriptSaveAsRiqPatch
     {
@@ -220,7 +250,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                     hasInited = true;
                 }
                 yield return __result.Current;
-            } 
+            }
         }
     }
 
@@ -284,16 +314,52 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         }
     }
 
-#if BNB_OLD_EDITOR
-    [HarmonyPatch(typeof(MixtapeEditorScript), "FormatMenu")]
-    private static class MixtapeEditorScriptFormatOptionsPatch
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    [HarmonyPatch]
+    private static class MixtapeEditorScriptFormatIfSingletonSelectedPatch
     {
+        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
+        static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectMinigame");
+            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectEvent");
+        }
         static void Postfix(MixtapeEditorScript __instance)
         {
-            Manager.FormatMenu(__instance);
+            Manager.FormatIfSingletonSelected(__instance);
         }
     }
-#endif
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    [HarmonyPatch(typeof(MixtapeEditorScript), "SpawnEventFromTemplate")]
+    private static class MixtapeEditorScriptSpawnEventFromTemplatePatch
+    {
+        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
+        static bool Prefix(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
+        {
+            if (Manager.CheckSingletonEventSpawning(__instance, templateEvent))
+            {
+                return false; // skip original
+            }
+            return true; // don't skip original
+        }
+    }
+
+    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    [HarmonyPatch(typeof(MixtapeEditorScript), "SelectedEventIsSingleton")]
+    private static class MixtapeEditorScriptSelectedEventIsSingletonPatch
+    {
+        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
+        static bool Prefix(MixtapeEditorScript __instance, ref bool __result)
+        {
+            if (Manager.SelectedEventIsSingleton(__instance))
+            {
+                __result = true;
+                return false; // skip original
+            }
+            return true; // don't skip original
+        }
+    }
 
     [HarmonyPatch(typeof(SteamUploadManager), "UploadCoroutine", MethodType.Enumerator)]
     private static class SteamUploadManagerUploadCoroutinePatch

@@ -59,10 +59,6 @@
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$(PostBuildCopyDestination) != ''">
-		<Copy SourceFiles="
-				$(TargetPath);
-				$(TargetDir)$(TargetName).pdb"
-			DestinationFolder="$(PostBuildCopyDestination)"
-			SkipUnchangedFiles="true"/>
+		<Copy SourceFiles="&#xD;&#xA;$(TargetPath);&#xD;&#xA;$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PostBuildCopyDestination)" SkipUnchangedFiles="true" />
 	</Target>
 </Project>

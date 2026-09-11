@@ -1,4 +1,6 @@
-﻿namespace BopCustomTextures.AccessExtensions;
+﻿using BopCustomTextures.AccessExtensions.TypedInfo;
+
+namespace BopCustomTextures.AccessExtensions;
 
 /// <summary>
 /// Extension methods for <see cref="MixtapeLoaderCustom"/> exposing private fields and methods.
