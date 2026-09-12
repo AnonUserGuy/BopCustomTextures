@@ -1,4 +1,6 @@
 ﻿using BopCustomTextures.AccessExtensions.TypedInfo;
+using TMPro;
+using UnityEngine;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.AccessExtensions;
@@ -16,6 +18,17 @@ public static class MixtapeEditorScriptExtensions
     public static void ResetAllAndReformat(this MixtapeEditorScript obj) => ResetAllAndReformatMethod.Invoke(obj);
 
 
+    // These only exist pre editor UI update, last: -app 1929290 -depot 1929291 -manifest 2700963706022908388 -beta beta
+    public static readonly TypedFieldInfo<MixtapeEditorScript, SpriteRenderer> MenuField = new();
+    public static SpriteRenderer GetMenu(this MixtapeEditorScript instance) =>
+        MenuField.GetValue(instance);
+
+    public static readonly TypedFieldInfo<MixtapeEditorScript, TMP_Text> MenuTextField = new();
+    public static TMP_Text GetMenuText(this MixtapeEditorScript instance) =>
+        MenuTextField.GetValue(instance);
+
+
+    // These only exist post editor UI update, first: -app 1929290 -depot 1929291 -manifest 2259048567631053773 -beta beta
     public static readonly TypedMethodInfo<MixtapeEditorScript> OnSelectCategoryMethod = new("OnSelectCategory", [typeof(string)]);
     public static void OnSelectCategory_safe(this MixtapeEditorScript obj, string category) => OnSelectCategoryMethod.Invoke(obj, [category]);
 
@@ -89,6 +102,12 @@ public static class MixtapeEditorScriptExtensions
             FormatEventsMethod.Find("FormatEvents", []);
             FormatPropertiesMethod.Find("FormatProperties", []);
             FormatValuesMethod.Find("FormatValues", []);
+        }
+
+        if (!OnSelectCategoryMethod.Exists())
+        {
+            MenuField.Find("menu");
+            MenuTextField.Find("menuText");
         }
     }
 }

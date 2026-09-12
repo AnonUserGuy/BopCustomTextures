@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Display = BopCustomTextures.Config.Display;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using TMPro;
 
 namespace BopCustomTextures.Customs;
 
@@ -22,6 +23,13 @@ namespace BopCustomTextures.Customs;
 /// </summary>
 public class CustomManager : BaseCustomManager
 {
+    public static readonly string[] menuCopyOptions = [
+        "Copy Customs from File",
+        "Copy Customs from Folder",
+    ];
+    public static readonly string[] menuReloadOptions = [
+        "Reload Custom Assets"
+    ];
 
     private bool lastCopyActive = false;
     private bool lastReloadActive = false;
@@ -765,6 +773,58 @@ public class CustomManager : BaseCustomManager
         {
             Logger.LogInfo("Keybind pressed: Select Event Catagory");
             __instance.OnSelectCategory_safe(MyPluginInfo.PLUGIN_GUID);
+        }
+    }
+
+    public void HandleOldMenu(MixtapeEditorScript __instance)
+    {
+        if (!MixtapeEditorScriptExtensions.MenuField.Exists())
+        {
+            return;
+        }
+        SpriteRenderer menu = __instance.GetMenu();
+        Vector3 mousePosition = Input.mousePosition;
+        Vector3 vector = __instance.mainCamera.ScreenToWorldPoint(mousePosition);
+        if (Input.GetKeyDown(KeyCode.Mouse0) && MixtapeEditorScript.HitTest(menu, vector))
+        {
+            int panel = (int)(Mathf.InverseLerp(-7.5f, 7.5f, vector.x) * 5f);
+            int option = (int)(Mathf.InverseLerp(menu.bounds.center.y + menu.bounds.extents.y, menu.bounds.center.y - menu.bounds.extents.y, vector.y) * 16f);
+            if (panel == 0 && option >= 9)
+            {
+                Logger.LogInfo($"Clicked modded option: {option - 9}");
+                HandleMenuOption(__instance, option - 9);
+            }
+        }
+    }
+
+    public void FormatOldMenu(MixtapeEditorScript __instance)
+    {
+        FormatOldMenu(__instance, ConfigManager.DisplayCopyOptions.Value, ConfigManager.DisplayReloadOptions.Value);
+    }
+    public void FormatOldMenu(MixtapeEditorScript __instance, Display showCopyOptions, Display showReloadOptions)
+    {
+        if (!MixtapeEditorScriptExtensions.MenuTextField.Exists())
+        {
+            return;
+        }
+
+        TMP_Text menuText = __instance.GetMenuText();
+        string text = menuText.text;
+        bool changed = false;
+        if (DisplayActive(showCopyOptions, HasCustomAssets))
+        {
+            text += "\n" + string.Join("\n", menuCopyOptions);
+            changed = true;
+        }
+        if (DisplayActive(showReloadOptions, HasCustomAssets))
+        {
+            text += "\n" + string.Join("\n", menuReloadOptions);
+            changed = true;
+        }
+        if (changed)
+        {
+            menuText.text = text;
+            menuText.ForceMeshUpdate();
         }
     }
 

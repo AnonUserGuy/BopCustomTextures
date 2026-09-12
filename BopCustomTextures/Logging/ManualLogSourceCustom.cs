@@ -17,7 +17,7 @@ namespace BopCustomTextures.Logging;
 /// <param name="configManager">BopCustomTextures configuration manager</param>
 public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configManager) : ILogger
 {
-    public static string ErrorCanvasPath = "ErrorCanvas";
+    public static string ErrorCanvasName = "ErrorCanvas";
 
     private readonly ManualLogSource Logger = logger;
     private readonly ConfigManager ConfigManager = configManager;
@@ -71,7 +71,7 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
                 return;
             }
 
-            ErrorCanvas = GameObject.Find(ErrorCanvasPath);
+            ErrorCanvas = scene.GetRootGameObjects()?.FirstOrDefault(obj => obj.name == ErrorCanvasName);
             if (ErrorCanvas == null)
             {
                 return;

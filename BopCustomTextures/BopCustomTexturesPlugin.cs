@@ -300,9 +300,26 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
 
         static void Postfix(MixtapeEditorScript __instance)
         {
+            Manager.HandleOldMenu(__instance);
             Manager.HandleKeybind(__instance);
         }
     }
+
+    [HarmonyPatch]
+    private static class MixtapeEditorScriptFormatMenuPatch
+    {
+        private static readonly MethodInfo TargetMethod = AccessTools.Method(typeof(MixtapeEditorScript), "FormatMenu");
+        static bool Prepare() => TargetMethod != null;
+        static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return TargetMethod;
+        }
+        static void Postfix(MixtapeEditorScript __instance)
+        {
+            Manager.FormatOldMenu(__instance);
+        }
+    }
+
 
     [HarmonyPatch]
     private static class MixtapeEditorScriptUpdateSingletonEventsPatch
