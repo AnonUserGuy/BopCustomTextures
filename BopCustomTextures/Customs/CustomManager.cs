@@ -32,6 +32,7 @@ public class CustomManager : BaseCustomManager
     private MixtapeEventScript MixtapePropertiesEvent;
 
     public int ModdedCategoryIndex = -1;
+    private string HijackedCategorySelected;
     public BopCustomTexturesButton MixtapeCategoryButton = null;
 
     private const int VersionMaxLength = 50;
@@ -477,7 +478,6 @@ public class CustomManager : BaseCustomManager
     {
         SceneManager.UpdateEventTemplates();
         TextureManager.UpdateEventTemplates();
-        UpdateEventCategoryPosition();
     }
 
     public void UpdateEventCategoryPosition()
@@ -502,9 +502,9 @@ public class CustomManager : BaseCustomManager
         lastTemplatesIndex = index;
 
         /*Logger.LogError("{");
-        foreach(var pair in Entities)
+        foreach (var cat in MixtapeEventTemplates.Categories)
         {
-            Logger.LogError($" - {pair.Key}");
+            Logger.LogError($" - {cat}");
         }
         Logger.LogError("}");*/
     }
@@ -642,6 +642,7 @@ public class CustomManager : BaseCustomManager
 
     public void UpdateSingletonEvents(MixtapeEditorScript __instance)
     {
+        UpdateEventCategoryPosition();
         UpdateEditorPropertiesEvent(__instance);
         UpdateMixtapePropertiesEvent(__instance);
         UpdateMixtapeCategoryButton(__instance);
@@ -649,24 +650,29 @@ public class CustomManager : BaseCustomManager
 
     public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category)
     {
-        return CycleModdedCategory(__instance, ref category, ConfigManager.HijackEventCategory.Value);
+        return CycleModdedCategory(__instance, ref category, ConfigManager.GetHijackEventCategory());
     }
-    public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category, string hijackedCategory)
+    public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category, IEnumerable<string> hijackedCategories)
     {
-        if (category != hijackedCategory)
+        if (!hijackedCategories.Contains(category))
         {
             return false;
         }
-
         var moddedCategories = DefaultEventCategories.ModdedCategories;
-        moddedCategories.Remove(hijackedCategory);
 
-        var currentCategory = MixtapeEventTemplates.Categories[__instance.GetLevelIndex()];
-        if (currentCategory == ((ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? hijackedCategory : moddedCategories[ModdedCategoryIndex]))
+        if (category == HijackedCategorySelected)
         {
-            ModdedCategoryIndex = (ModdedCategoryIndex + 2) % (moddedCategories.Count + 1) - 1;
+            ModdedCategoryIndex++;
+            var index = moddedCategories.IndexOf(category);
+            if (index >= 0 && ModdedCategoryIndex >= moddedCategories.IndexOf(category))
+            {
+                ModdedCategoryIndex++;
+            }
+            ModdedCategoryIndex = (ModdedCategoryIndex + 1) % (moddedCategories.Count + 1) - 1;
         }
-        category = (ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? hijackedCategory : moddedCategories[ModdedCategoryIndex];
+        HijackedCategorySelected = category;
+
+        category = (ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? category : moddedCategories[ModdedCategoryIndex];
         return true;
     }
 
@@ -857,18 +863,21 @@ public class CustomManager : BaseCustomManager
         }
     }
 
-    public void UpdateMixtapeCategoryButton(MixtapeEditorScript __instance)
+    public bool UpdateMixtapeCategoryButton(MixtapeEditorScript __instance)
     {
         var showButton = DisplayActive(ConfigManager.DisplayEventTemplates.Value, HasCustomAssets);
-        if (MixtapeCategoryButton == null)
+        if (MixtapeCategoryButton != null)
         {
-            if (!showButton)
-            {
-                return;
-            }
-            MixtapeCategoryButton = BopCustomTexturesButton.Create(__instance);
+            MixtapeCategoryButton.UpdateDisplay(showButton, FindEventCategoryIndex());
+            return false;
         }
+        if (!showButton)
+        {
+            return false;
+        }
+        MixtapeCategoryButton = BopCustomTexturesButton.Create(__instance);
         MixtapeCategoryButton.UpdateDisplay(showButton, FindEventCategoryIndex());
+        return true;
     }
 
     public bool GetMixtapeVersion(string path)

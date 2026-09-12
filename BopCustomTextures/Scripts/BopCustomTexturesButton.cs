@@ -1,18 +1,21 @@
-﻿using Unity.Collections;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.U2D;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using Unity.Collections;
 using System.IO;
 using System.Reflection;
+using UnityEngine.Events;
 
 namespace BopCustomTextures.Scripts;
 public class BopCustomTexturesButton : MonoBehaviour
 {
     public const string metaButtonsPath = "Canvas/MinigamesMeta/Buttons";
     public const string iconPath = "BopCustomTextures.Resources.icon_bct.png";
-    
+    public const string bopVisualEffectsButtonName = $"BopVisualEffects_MetaCategory_{MyPluginInfo.PLUGIN_GUID}";
+
+
     public static Texture2D icon = null;
     private static bool triedLoadIcon = false;
 
@@ -33,14 +36,18 @@ public class BopCustomTexturesButton : MonoBehaviour
             return null;
         }
 
-        var srcObj = root.transform.GetChild(0)?.gameObject;
-        if (srcObj == null)
+        var destObj = root.transform.Find(bopVisualEffectsButtonName)?.gameObject;
+        if (destObj == null)
         {
-            return null;
-        }
+            var srcObj = root.transform.GetChild(0)?.gameObject;
+            if (srcObj == null)
+            {
+                return null;
+            }
 
-        var destObj = Instantiate(srcObj.gameObject, root.transform);
-        destObj.name = "BopCustomTexturesButton";
+            destObj = Instantiate(srcObj.gameObject, root.transform);
+            destObj.name = bopVisualEffectsButtonName;
+        }
 
         var bctButton = destObj.AddComponent<BopCustomTexturesButton>();
         bctButton.editor = __instance;
@@ -51,22 +58,21 @@ public class BopCustomTexturesButton : MonoBehaviour
     private void Awake()
     {
         var button = gameObject.GetComponent<Button>();
-        if (button != null)
-        {
-            this.button = button;
-            Destroy(button);
-        }
-        
-        ApplyIcon();
-    }
-
-    private void Update()
-    {
         if (button == null)
         {
             button = gameObject.AddComponent<Button>();
-            button.onClick.AddListener(OnClick);
+        } 
+        else
+        {
+            button.onClick.RemoveAllListeners();
+            for (var listener = 0; listener < button.onClick.GetPersistentEventCount(); listener++)
+            {
+                button.onClick.SetPersistentListenerState(listener, UnityEventCallState.Off);
+            }
         }
+        button.onClick.AddListener(OnClick);
+
+        ApplyIcon();
     }
 
     public void OnClick()

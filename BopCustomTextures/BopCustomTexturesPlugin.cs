@@ -165,6 +165,13 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeEditorScript __instance)
         {
+            if (MixtapeEditorScriptExtensions.ResetAllAndReformatMethod.Exists() && Manager.UpdateMixtapeCategoryButton(__instance))
+            {
+                // BopVisualEffects compatibility thing
+                __instance.ResetAllAndReformat();
+                Manager.UpdateMixtapeCategoryButton(__instance);
+                return;
+            }
             Manager.ResetAll();
             Manager.UpdateSingletonEvents(__instance);
         }

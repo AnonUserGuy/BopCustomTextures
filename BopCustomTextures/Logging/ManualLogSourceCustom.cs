@@ -17,6 +17,8 @@ namespace BopCustomTextures.Logging;
 /// <param name="configManager">BopCustomTextures configuration manager</param>
 public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configManager) : ILogger
 {
+    public static string ErrorCanvasPath = "ErrorCanvas";
+
     private readonly ManualLogSource Logger = logger;
     private readonly ConfigManager ConfigManager = configManager;
 
@@ -69,32 +71,24 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
                 return;
             }
 
-            var objs = scene.GetRootGameObjects();
-            ErrorCanvas = objs.FirstOrDefault(obj => obj.name == "ErrorCanvas");
+            ErrorCanvas = GameObject.Find(ErrorCanvasPath);
             if (ErrorCanvas == null)
             {
                 return;
             }
-            var txtBodyTransform = ErrorCanvas.transform.Find("Prompt/Text Body");
-            if (txtBodyTransform == null)
-            {
-                TxtBody = null;
-            } 
-            else
-            {
-                TxtBody = txtBodyTransform.gameObject.GetComponentInChildren<TMP_Text>();
-            }
+            TxtBody = ErrorCanvas.transform.Find("Prompt/Text Body")?.gameObject.GetComponentInChildren<TMP_Text>();
             if (TxtBody == null)
             {
                 TxtBody = ErrorCanvas.GetComponentInChildren<TMP_Text>();
+                if (TxtBody == null)
+                {
+                    ErrorCanvas = null;
+                    return;
+                }
             }
             else
             {
-                var txtTitleTransform = ErrorCanvas.transform.Find("Prompt/Text Title");
-                if (txtTitleTransform != null)
-                {
-                    TxtTitle = txtTitleTransform.gameObject.GetComponentInChildren<TMP_Text>();
-                }
+                TxtTitle = ErrorCanvas.transform.Find("Prompt/Text Title")?.gameObject.GetComponentInChildren<TMP_Text>();
             }
         }
         ErrorCanvas.SetActive(true);

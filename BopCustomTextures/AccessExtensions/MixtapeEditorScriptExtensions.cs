@@ -12,6 +12,10 @@ public static class MixtapeEditorScriptExtensions
     public static void FormatMenu(this MixtapeEditorScript obj) => FormatMenuMethod.Invoke(obj);
 
 
+    public static readonly TypedMethodInfo<MixtapeEditorScript> ResetAllAndReformatMethod = new("ResetAllAndReformat", []);
+    public static void ResetAllAndReformat(this MixtapeEditorScript obj) => ResetAllAndReformatMethod.Invoke(obj);
+
+
     public static readonly TypedPropertyInfo<MixtapeEditorScript, int> LevelIndexField = new("levelIndex");
     public static int GetLevelIndex(this MixtapeEditorScript instance) =>
         LevelIndexField.GetValue(instance);

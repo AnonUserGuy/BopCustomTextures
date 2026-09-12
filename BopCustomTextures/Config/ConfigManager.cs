@@ -26,9 +26,9 @@ public class ConfigManager
     public ConfigEntry<Display> DisplayCopyOptions;
     public ConfigEntry<Display> DisplayReloadOptions;
     public ConfigEntry<Display> DisplayEventTemplates;
-    public ConfigEntry<int> EventTemplatesIndex;
     public ConfigEntry<string> EventTemplatesAfter;
     public ConfigEntry<string> EventTemplatesBefore;
+    public ConfigEntry<int> EventTemplatesIndex;
 
     public ConfigEntry<LogLevel> LogOutdatedPlugin;
     public ConfigEntry<LogLevel> LogUpgradeMixtape;
@@ -109,11 +109,10 @@ public class ConfigManager
         HijackEventCategory = config.Bind("Editor.Display",
             "HijackEventCategory",
             "BopCustomTextures",
-            "If this event category's button is clicked multiple times, it'll cycle through all modded event categories.\n" +
+            "If this event category (or any event category in a comma-delineated list) is selected multiple times, " + 
+            "it'll cycle through all modded event categories.\n" +
             "Set to blank (\"HijackEventCategory = \") to disable this feature.\n" +
-            "\n" + 
-            "Useful values include:\n" +
-            $"\t- _ (this is global)\t\n\t- gameManager\t\n\t- effects\t\n\t- accessibility\n\t- debug\t\n\t- {MyPluginInfo.PLUGIN_GUID}\t");
+            "Ex: _, gameManager, effects, accessibility, debug, BopCustomTextures");
 
         DisplayCopyOptions = config.Bind("Editor.Display",
             "DisplayOptionsCopy",
@@ -134,14 +133,14 @@ public class ConfigManager
         EventTemplatesBefore = config.Bind("Editor.Display",
             "EventTemplatesBefore",
             "",
-            "If set, will search through comma-delineated list until an event category with the same name is found,\n" +
+            "If set, will search through comma-delineated list until an event category with the same name is found, " +
             "inserting \"Bop Custom Textures\" before that category. If no matches are found, EventTemplatesAfter is used instead.\n" +
             "Ex: BopVisualEffects, effects");
 
         EventTemplatesAfter = config.Bind("Editor.Display",
             "EventTemplatesAfter",
             "",
-            "If set, will search through comma-delineated list until an event category with the same name is found,\n" +
+            "If set, will search through comma-delineated list until an event category with the same name is found, " +
             "inserting \"Bop Custom Textures\" after that category. If no matches are found, EventTemplatesIndex is used instead.\n" +
             "Ex: BopVisualEffects, effects");
 
@@ -226,6 +225,11 @@ public class ConfigManager
     public IEnumerable<string> GetEventTemplatesAfter()
     {
         return GetStrings(EventTemplatesAfter.Value);
+    }
+
+    public IEnumerable<string> GetHijackEventCategory()
+    {
+        return GetStrings(HijackEventCategory.Value);
     }
 
     public static IEnumerable<string> GetStrings(string str)
