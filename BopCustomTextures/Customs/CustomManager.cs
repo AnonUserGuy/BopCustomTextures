@@ -32,7 +32,7 @@ public class CustomManager : BaseCustomManager
     private MixtapeEventScript MixtapePropertiesEvent;
 
     public int ModdedCategoryIndex = -1;
-    private string HijackedCategorySelected;
+    private string LastCategorySelected;
     public BopCustomTexturesButton MixtapeCategoryButton = null;
 
     private const int VersionMaxLength = 50;
@@ -654,13 +654,16 @@ public class CustomManager : BaseCustomManager
     }
     public bool CycleModdedCategory(MixtapeEditorScript __instance, ref string category, IEnumerable<string> hijackedCategories)
     {
+        var oldCategory = LastCategorySelected;
+        LastCategorySelected = category;
+
         if (!hijackedCategories.Contains(category))
         {
             return false;
         }
         var moddedCategories = DefaultEventCategories.ModdedCategories;
 
-        if (category == HijackedCategorySelected)
+        if (category == oldCategory)
         {
             ModdedCategoryIndex++;
             var index = moddedCategories.IndexOf(category);
@@ -670,7 +673,6 @@ public class CustomManager : BaseCustomManager
             }
             ModdedCategoryIndex = (ModdedCategoryIndex + 1) % (moddedCategories.Count + 1) - 1;
         }
-        HijackedCategorySelected = category;
 
         category = (ModdedCategoryIndex < 0 || ModdedCategoryIndex >= moddedCategories.Count) ? category : moddedCategories[ModdedCategoryIndex];
         return true;
