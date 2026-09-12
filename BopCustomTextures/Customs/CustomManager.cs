@@ -764,7 +764,7 @@ public class CustomManager : BaseCustomManager
         else if (Input.GetKeyDown(ConfigManager.SelectEventCatagoryKeybind.Value))
         {
             Logger.LogInfo("Keybind pressed: Select Event Catagory");
-            __instance.OnSelectCategory(MyPluginInfo.PLUGIN_GUID);
+            __instance.OnSelectCategory_safe(MyPluginInfo.PLUGIN_GUID);
         }
     }
 
@@ -878,6 +878,10 @@ public class CustomManager : BaseCustomManager
             return false;
         }
         MixtapeCategoryButton = BopCustomTexturesButton.Create(__instance);
+        if (MixtapeCategoryButton == null)
+        {
+            return false;
+        }
         MixtapeCategoryButton.UpdateDisplay(showButton, FindEventCategoryIndex());
         return true;
     }

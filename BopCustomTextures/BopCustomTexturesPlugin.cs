@@ -28,19 +28,19 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// <summary>
     /// lowest version string saved mixtapes will support
     /// </summary>
-    public static readonly string LowestVersion = "0.2.1";
+    public const string LowestVersion = "0.2.1";
     /// <summary>
     /// lowest release number saved mixtapes will support
     /// </summary>
-    public static readonly uint LowestRelease = 3;
+    public const uint LowestRelease = 3;
     /// <summary>
     /// plugin name within logger
     /// </summary>
-    public static readonly string LoggerName = "CustomTex";
+    public const string LoggerName = "CustomTex";
     /// <summary>
     /// plugin github repo URL
     /// </summary>
-    public static readonly string PluginRepoUrl = "https://github.com/AnonUserGuy/BopCustomTextures";
+    public const string PluginRepoUrl = "https://github.com/AnonUserGuy/BopCustomTextures";
 
     public static new ManualLogSourceCustom Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
@@ -54,7 +54,16 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         InitLogger();
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
-        Harmony.PatchAll();
+        try
+        {
+            Harmony.PatchAll();
+        }
+        catch (Exception e)
+        {
+            Logger.LogError($"A method failed to be patched. You should probably update your game or remove {MyPluginInfo.PLUGIN_GUID}.");
+            Logger.LogError(e);
+        }
+        
         MComponentParserRegistry.Initialize(Logger);
 
         Manager = new CustomManager(Logger, ConfigManager, GetTempPath(),
@@ -165,15 +174,23 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     {
         static void Postfix(MixtapeEditorScript __instance)
         {
-            if (MixtapeEditorScriptExtensions.ResetAllAndReformatMethod.Exists() && Manager.UpdateMixtapeCategoryButton(__instance))
+            try
             {
-                // BopVisualEffects compatibility thing
-                __instance.ResetAllAndReformat();
-                Manager.UpdateMixtapeCategoryButton(__instance);
-                return;
+                if (MixtapeEditorScriptExtensions.ResetAllAndReformatMethod.Exists() && Manager.UpdateMixtapeCategoryButton(__instance))
+                {
+                    // BopVisualEffects compatibility thing
+                    __instance.ResetAllAndReformat();
+                    Manager.UpdateMixtapeCategoryButton(__instance);
+                    return;
+                }
+                Manager.ResetAll();
+                Manager.UpdateSingletonEvents(__instance);
             }
-            Manager.ResetAll();
-            Manager.UpdateSingletonEvents(__instance);
+            catch (Exception e)
+            {
+                Logger.LogError($"An unexpected exception occured on ResetAllAndReformat, likely from starting the mixtape editor. You should probably update your game or remove {MyPluginInfo.PLUGIN_GUID}.");
+                Logger.LogError(e);
+            }
         }
     }
     [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]

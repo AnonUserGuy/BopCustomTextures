@@ -16,6 +16,10 @@ public static class MixtapeEditorScriptExtensions
     public static void ResetAllAndReformat(this MixtapeEditorScript obj) => ResetAllAndReformatMethod.Invoke(obj);
 
 
+    public static readonly TypedMethodInfo<MixtapeEditorScript> OnSelectCategoryMethod = new("OnSelectCategory", [typeof(string)]);
+    public static void OnSelectCategory_safe(this MixtapeEditorScript obj, string category) => OnSelectCategoryMethod.Invoke(obj, [category]);
+
+
     public static readonly TypedPropertyInfo<MixtapeEditorScript, int> LevelIndexField = new("levelIndex");
     public static int GetLevelIndex(this MixtapeEditorScript instance) =>
         LevelIndexField.GetValue(instance);
@@ -47,13 +51,6 @@ public static class MixtapeEditorScriptExtensions
         SelectedEventsField.Exists() ? GetSelectedEventsIndexInternal(instance, index) : SelectedEventsFieldList.GetValue(instance)[index];
     private static MixtapeEventScript GetSelectedEventsIndexInternal(MixtapeEditorScript instance, int index) =>
         SelectedEventsField.GetValue(instance)[index]; // has to be wrapped because nonexistent this[] functions aren't handled well by .net
-
-
-    public static readonly TypedFieldInfo<MixtapeEditorScript, MixtapeEditorMinigameButton[]> MinigameButtonsField = new("minigameButtons");
-    public static MixtapeEditorMinigameButton[] GetMinigameButtons(this MixtapeEditorScript instance) =>
-        MinigameButtonsField.GetValue(instance);
-    public static bool SetMinigameButtons(this MixtapeEditorScript instance, MixtapeEditorMinigameButton[] value) =>
-        MinigameButtonsField.SetValue(instance, value);
 
 
     // TODO: these can be removed after release is updated to have MixtapeEditorScript.singletonEvents
