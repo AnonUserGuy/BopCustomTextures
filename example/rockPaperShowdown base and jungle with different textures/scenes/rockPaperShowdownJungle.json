@@ -1,0 +1,22 @@
+{
+	"Scene/Mask/*": {
+		"Smear*": {
+			"!CustomSpriteSwapper": {
+				"Variants": "rockPaperShowdown jungle"
+			},
+			"!SpriteRenderer": {
+				"Shader": "Sprites/Default",
+				"Color": "#FFFFFF"
+			}
+		},
+		"Pivot/Hand": {
+			"!CustomSpriteSwapper": {
+				"Variants": "rockPaperShowdown jungle"
+			},
+			"!SpriteRenderer": {
+				"Shader": "Sprites/Default",
+				"Color": "#FFFFFF"
+			}
+		}
+	}
+}

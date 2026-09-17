@@ -19,11 +19,11 @@ namespace BopCustomTextures.Customs;
 /// <param name="mixtapeEventTemplate">Mixtape event template for applying scene mods.</param>
 public class CustomSceneManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate mixtapeEventTemplate) : BaseCustomManager(logger)
 {
-    public MixtapeEventTemplate mixtapeEventTemplate = mixtapeEventTemplate;
-    public CustomJsonInitializer jsonInitializer = new CustomJsonInitializer(logger, variantManager);
+    public MixtapeEventTemplate MixtapeEventTemplate = mixtapeEventTemplate;
+    public CustomJsonInitializer JsonInitializer = new CustomJsonInitializer(logger, variantManager);
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObject>> CustomScenes = [];
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>> CustomScenesResolved = [];
-    private MixtapeLoaderCustom lastMixtapeLoader = null;
+    private MixtapeLoaderCustom LastMixtapeLoader = null;
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     public static readonly Regex FileRegex = new Regex(@"(\w+).jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -53,7 +53,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             SceneKey scene = ToSceneKeyOrInvalid(match.Groups[1].Value);
             if (scene != SceneKey.Invalid)
             {
-                logger.LogFileLoading($"Found custom scene: {scene}");
+                Logger.LogFileLoading($"Found custom scene: {scene}");
 
                 LoadCustomScene(path, scene, release);
                 return true;
@@ -76,64 +76,64 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         }
         catch (JsonReaderException e)
         {
-            logger.LogError(e);
+            Logger.LogError(e);
             return;
         }
         if (CustomScenes.ContainsKey(scene))
         {
-            logger.LogWarning($"Duplicate custom scene definition for scene {scene}");
+            Logger.LogWarning($"Duplicate custom scene definition for scene {scene}");
         }
         CustomScenes[scene] = [];
         bool isSimple = true;
         if (release >= 2)
         {
-            if (jsonInitializer.TryGetJObject(jobj, "init", out var jinit))
+            if (JsonInitializer.TryGetJObject(jobj, "init", out var jinit))
             {
                 isSimple = false;
-                var mobj = jsonInitializer.InitGameObject(jinit, scene);
+                var mobj = JsonInitializer.InitGameObject(jinit, scene);
                 if (mobj != null)
                 {
                     CustomScenes[scene][""] = mobj;
                 }
                 else 
                 {
-                    logger.LogWarning($"Init in {scene} doesn't do anything.");
+                    Logger.LogWarning($"Init in {scene} doesn't do anything.");
                 }
             }
-            if (jsonInitializer.TryGetJObject(jobj, "events", out var jevents))
+            if (JsonInitializer.TryGetJObject(jobj, "events", out var jevents))
             {
                 isSimple = false;
                 foreach (KeyValuePair<string, JToken> dict in jevents)
                 {
                     if (dict.Value.Type == JTokenType.Object)
                     {
-                        var mobj = jsonInitializer.InitGameObject((JObject)dict.Value, scene);
+                        var mobj = JsonInitializer.InitGameObject((JObject)dict.Value, scene);
                         if (mobj != null)
                         {
                             CustomScenes[scene][dict.Key] = mobj;
                         }
                         else
                         {
-                            logger.LogWarning($"Event \"{dict.Key}\" in {scene} doesn't do anything.");
+                            Logger.LogWarning($"Event \"{dict.Key}\" in {scene} doesn't do anything.");
                         }
                     }
                     else
                     {
-                        logger.LogWarning($"Event \"{dict.Key}\" in {scene} is a {jinit.Type} when it should be an Object.");
+                        Logger.LogWarning($"Event \"{dict.Key}\" in {scene} is a {jinit.Type} when it should be an Object.");
                     }
                 }
             }
         }
         if (isSimple)
         {
-            var mobj = jsonInitializer.InitGameObject(jobj, scene);
+            var mobj = JsonInitializer.InitGameObject(jobj, scene);
             if (mobj != null)
             {
                 CustomScenes[scene][""] = mobj;
             }
             else
             {
-                logger.LogWarning($"Init in {scene} doesn't do anything.");
+                Logger.LogWarning($"Init in {scene} doesn't do anything.");
             }
         }
     }
@@ -142,19 +142,19 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     {
         if (CustomScenes.Count > 0)
         {
-            logger.LogUnloading("Unloading all custom scenes");
+            Logger.LogUnloading("Unloading all custom scenes");
             CustomScenes.Clear();
             CustomScenesResolved.Clear();
-            lastMixtapeLoader = null;
+            LastMixtapeLoader = null;
         }
     }
 
     public bool TryGetCustomSceneResolved(MixtapeLoaderCustom __instance, SceneKey scene, string key, out MGameObjectResolved mobjResolved)
     {
         // check if same mixtape loader, meaning root game objects haven't changed
-        if (__instance != lastMixtapeLoader)
+        if (__instance != LastMixtapeLoader)
         {
-            lastMixtapeLoader = __instance;
+            LastMixtapeLoader = __instance;
             CustomScenesResolved.Clear();
         }
 
@@ -187,7 +187,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         {
             return;
         }
-        logger.LogInfo($"Applying custom scene: {scene}");
+        Logger.LogInfo($"Applying custom scene: {scene}");
         mobjResolved.Apply();
     }
 
@@ -197,7 +197,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         {
             return;
         }
-        logger.LogInfo($"Applying custom scene (deferred): {scene}");
+        Logger.LogInfo($"Applying custom scene (deferred): {scene}");
         mobjResolved.Apply();
     }
 
@@ -221,17 +221,17 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         var scene = ToSceneKeyOrInvalid(sceneStr);
         if (scene == SceneKey.Invalid)
         {
-            logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
             return;
         }
         if (!CustomScenes.ContainsKey(scene))
         {
-            logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
+            Logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
             return;
         }
         if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
         {
-            logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
             return;
         }
         if (TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
@@ -244,12 +244,12 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     {
         if (CustomScenes.Count < 1)
         {
-            mixtapeEventTemplate.properties["scene"] = "";
+            MixtapeEventTemplate.properties["scene"] = "";
             return false;
         }
         else
         {
-            mixtapeEventTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
+            MixtapeEventTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
                 CustomScenes.Keys.Select(FromSceneKeyOrInvalid).ToArray());
             return true;
         }
@@ -271,7 +271,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             }
             if (!found)
             {
-                logger.LogWarning($"Couldn't find gameObject \"{mchildObj.name}\" in \"{obj.name}\"");
+                Logger.LogWarning($"Couldn't find gameObject \"{mchildObj.name}\" in \"{obj.name}\"");
             }
         }
         mobjResolved.childObjs = mchildObjsResolved.ToArray();

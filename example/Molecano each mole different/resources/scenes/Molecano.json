@@ -1,0 +1,7 @@
+{
+    "Cart/Cart/Moles/NPCMole/Mole/**": {
+        "!CustomSpriteSwapper": {
+            "Variants": "npc"
+        }
+	}
+}

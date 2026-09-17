@@ -1,0 +1,30 @@
+{
+    "Planets/Planet*": {
+        "~Pivot*": {
+            "Marcher Left/Sprite": {
+                "!CustomSpriteSwapper": {
+                    "Variants": "left"
+                }
+            },
+            "Marcher Right/Sprite": {
+                "!CustomSpriteSwapper": {
+                    "Variants": "right"
+                }
+            }
+        }
+    },
+    "PlanetsMid/Marbles/Marble*": {
+        "~Pivot*": {
+            "Marcher Left/Sprite": {
+                "!CustomSpriteSwapper": {
+                    "Variants": "left"
+                }
+            },
+            "Marcher Right/Sprite": {
+                "!CustomSpriteSwapper": {
+                    "Variants": "right"
+                }
+            }
+        }
+    }
+}

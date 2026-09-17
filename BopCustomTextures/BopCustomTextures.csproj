@@ -4,7 +4,7 @@
 		<TargetFramework>net472</TargetFramework>
 		<AssemblyName>BopCustomTextures</AssemblyName>
 		<Product>Bop Custom Textures</Product>
-		<Version>0.2.1</Version>
+		<Version>0.2.4</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>
@@ -23,6 +23,10 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 	  <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Resources\icon_bct.png" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
@@ -55,10 +59,6 @@
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="$(PostBuildCopyDestination) != ''">
-		<Copy SourceFiles="
-				$(TargetPath);
-				$(TargetDir)$(TargetName).pdb"
-			DestinationFolder="$(PostBuildCopyDestination)"
-			SkipUnchangedFiles="true"/>
+		<Copy SourceFiles="&#xD;&#xA;$(TargetPath);&#xD;&#xA;$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PostBuildCopyDestination)" SkipUnchangedFiles="true" />
 	</Target>
 </Project>

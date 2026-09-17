@@ -13,14 +13,14 @@ namespace BopCustomTextures.Customs;
 /// <param name="tempPath">Where to temporarily save source files in custom mixtape while custom mixtape is loaded.</param>
 public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomManager(logger)
 {
-    public string tempPath = tempPath;
-    public static FileStream tempLock = null;
+    public string TempPath = tempPath;
+    public static FileStream TempLock = null;
 
     public bool WriteDirectory(string path)
     {
-        if (tempLock != null)
+        if (TempLock != null)
         {
-            var subpaths = Directory.EnumerateDirectories(tempPath);
+            var subpaths = Directory.EnumerateDirectories(TempPath);
             foreach (var subpath in subpaths)
             {
                 if (CustomManager.IsCustomResourceDirectory(subpath) ||
@@ -28,7 +28,7 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
                     CustomTextureManager.IsCustomTextureDirectory(subpath)
                     )
                 {
-                    CopyDirectory(subpath, Path.Combine(path, subpath.Substring(tempPath.Length + 1)));
+                    CopyDirectory(subpath, Path.Combine(path, subpath.Substring(TempPath.Length + 1)));
                 }
             }
             return true;
@@ -52,7 +52,7 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
     public void BackupDirectory(string path, string dest)
     {
         CheckLock();
-        CopyDirectory(path, Path.Combine(tempPath, dest));
+        CopyDirectory(path, Path.Combine(TempPath, dest));
     }
 
     public int BackupFiles(IEnumerable<string> files, string parentPath)
@@ -65,10 +65,10 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
             string srcPath = Path.Combine(parentPath, file);
             if (!File.Exists(srcPath))
             {
-                logger.LogError($"File not found: {file}");
+                Logger.LogError($"File not found: {file}");
                 continue;
             }
-            string destPath = Path.Combine(tempPath, file);
+            string destPath = Path.Combine(TempPath, file);
             Directory.CreateDirectory(Path.GetDirectoryName(destPath));
             File.Copy(srcPath, destPath);
         }
@@ -77,27 +77,27 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
 
     private void CheckLock()
     {
-        if (tempLock == null)
+        if (TempLock == null)
         {
-            Directory.CreateDirectory(tempPath);
-            tempLock = new FileStream(Path.Combine(tempPath, ".tmp"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            Directory.CreateDirectory(TempPath);
+            TempLock = new FileStream(Path.Combine(TempPath, ".tmp"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
     }
 
     public void DeleteTempDirectory()
     {
-        if (tempLock != null)
+        if (TempLock != null)
         {
-            tempLock.Close();
-            tempLock = null;
-            Directory.Delete(tempPath, true);
+            TempLock.Close();
+            TempLock = null;
+            Directory.Delete(TempPath, true);
         }
     }
 
     public string CreateUniqueTempDirectory(string prefix)
     {
-        Directory.CreateDirectory(tempPath);
-        string tempDirectoryPath = Path.Combine(tempPath, $"{prefix}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(TempPath);
+        string tempDirectoryPath = Path.Combine(TempPath, $"{prefix}_{Guid.NewGuid():N}");
         if (Directory.Exists(tempDirectoryPath))
         {
             Directory.Delete(tempDirectoryPath, true);
@@ -122,7 +122,7 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
             File.Copy(archivePath, backupArchivePath, true);
         }
         
-        var tempArchivePath = Path.Combine(tempPath, $"{Path.GetFileNameWithoutExtension(archivePath)}_{Guid.NewGuid():N}.tmp");
+        var tempArchivePath = Path.Combine(TempPath, $"{Path.GetFileNameWithoutExtension(archivePath)}_{Guid.NewGuid():N}.tmp");
 
         try
         {
@@ -131,7 +131,7 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
         }
         catch (Exception)
         {
-            logger.LogWarning($"Failed to pack directory ${archivePath} to {tempArchivePath}, restoring backup...");
+            Logger.LogWarning($"Failed to pack directory ${archivePath} to {tempArchivePath}, restoring backup...");
             File.Copy(archivePath, tempArchivePath, true);
         }
         finally

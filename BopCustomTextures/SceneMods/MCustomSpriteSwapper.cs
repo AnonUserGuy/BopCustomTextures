@@ -38,7 +38,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                     {
                         if (!int.TryParse(pair.Key, out var index))
                         {
-                            ctx.logger.LogWarning($"JSON variant \"{pair.Key}\" does not have an integer key");
+                            ctx.Logger.LogWarning($"JSON variant \"{pair.Key}\" does not have an integer key");
                             continue;
                         }
                         if (ctx.TryGetVariant(pair.Value, out var variant))
@@ -55,7 +55,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                     }
                     break;
                 default:
-                    ctx.logger.LogWarning($"JSON variants is a {jvariants.Type} when it should be an array, object, string, or integer");
+                    ctx.Logger.LogWarning($"JSON variants is a {jvariants.Type} when it should be an array, object, string, or integer");
                     break;
             }
         }

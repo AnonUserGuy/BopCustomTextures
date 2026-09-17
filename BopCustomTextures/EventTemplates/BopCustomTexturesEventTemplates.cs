@@ -7,7 +7,38 @@ namespace BopCustomTextures.EventTemplates;
 /// </summary>
 public class BopCustomTexturesEventTemplates
 {
-    public static readonly MixtapeEventTemplate sceneModTemplate = new()
+    public static readonly string[] PropertyCopyOptions = [
+        "copy from file",
+        "copy from folder",
+    ];
+    public static readonly string[] PropertyReloadOptions = [
+        "reload"
+    ];
+
+    public static readonly Dictionary<string, object> EditorPropertiesTemplatePropertiesBase = new()
+    {
+        ["last path"] = ""
+    };
+
+    public static readonly MixtapeEventTemplate EditorPropertiesTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/editor properties",
+        length = 0.5f,
+        properties = EditorPropertiesTemplatePropertiesBase
+    };
+
+    public static readonly MixtapeEventTemplate MixtapePropertiesTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/mixtape properties",
+        length = 0.5f,
+        properties = new Dictionary<string, object>
+        {
+            ["version"] = "",
+            ["release"] = 0
+        }
+    };
+
+    public static readonly MixtapeEventTemplate SceneModTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod",
         length = 0.5f,
@@ -18,7 +49,7 @@ public class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate addTextureVariantTemplate = new()
+    public static readonly MixtapeEventTemplate AddTextureVariantTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/add texture variant",
         length = 0.5f,
@@ -29,7 +60,7 @@ public class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate removeTextureVariantTemplate = new()
+    public static readonly MixtapeEventTemplate RemoveTextureVariantTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/remove texture variant",
         length = 0.5f,
@@ -40,7 +71,7 @@ public class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate setTextureVariantTemplate = new()
+    public static readonly MixtapeEventTemplate SetTextureVariantTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/set texture variant",
         length = 0.5f,
@@ -51,7 +82,7 @@ public class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate toggleCustomTexturesTemplate = new()
+    public static readonly MixtapeEventTemplate ToggleCustomTexturesTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/toggle custom textures",
         length = 0.5f,
@@ -62,20 +93,22 @@ public class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate[] textureVariantTemplates =
+    public static readonly MixtapeEventTemplate[] TextureVariantTemplates =
     [
-        toggleCustomTexturesTemplate,
-        setTextureVariantTemplate,
-        addTextureVariantTemplate,
-        removeTextureVariantTemplate
+        ToggleCustomTexturesTemplate,
+        SetTextureVariantTemplate,
+        AddTextureVariantTemplate,
+        RemoveTextureVariantTemplate
     ];
 
-    public static readonly MixtapeEventTemplate[] templates =
+    public static readonly MixtapeEventTemplate[] Templates =
     [
-        toggleCustomTexturesTemplate,
-        setTextureVariantTemplate,
-        addTextureVariantTemplate,
-        removeTextureVariantTemplate,
-        sceneModTemplate
+        EditorPropertiesTemplate,
+        MixtapePropertiesTemplate,
+        ToggleCustomTexturesTemplate,
+        SetTextureVariantTemplate,
+        AddTextureVariantTemplate,
+        RemoveTextureVariantTemplate,
+        SceneModTemplate
     ];
 }

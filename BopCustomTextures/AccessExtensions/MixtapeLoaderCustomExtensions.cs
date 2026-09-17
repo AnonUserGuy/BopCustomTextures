@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+﻿using BopCustomTextures.AccessExtensions.TypedInfo;
 
 namespace BopCustomTextures.AccessExtensions;
 
@@ -7,13 +7,17 @@ namespace BopCustomTextures.AccessExtensions;
 /// </summary>
 public static class MixtapeLoaderCustomExtensions
 {
-    private static readonly AccessTools.FieldRef<MixtapeLoaderCustom, Entity[]> entitiesRef =
-        AccessTools.FieldRefAccess<MixtapeLoaderCustom, Entity[]>("entities");
+    public static readonly TypedFieldInfo<MixtapeLoaderCustom, Entity[]> EntitiesField = new("entities");
+    public static Entity[] GetEntities(this MixtapeLoaderCustom instance) =>
+        EntitiesField.GetValue(instance);
+    public static bool SetEntities(this MixtapeLoaderCustom instance, Entity[] value) =>
+        EntitiesField.SetValue(instance, value);
 
-    public static ref Entity[] Entities(this MixtapeLoaderCustom instance) => ref entitiesRef(instance);
 
-    private static readonly AccessTools.FieldRef<MixtapeLoaderCustom, int> totalRef =
-        AccessTools.FieldRefAccess<MixtapeLoaderCustom, int>("total");
+    public static readonly TypedFieldInfo<MixtapeLoaderCustom, int> TotalField = new("total");
+    public static int GetTotal(this MixtapeLoaderCustom instance) =>
+        TotalField.GetValue(instance);
+    public static bool SetTotal(this MixtapeLoaderCustom instance, int value) =>
+        TotalField.SetValue(instance, value);
 
-    public static ref int Total(this MixtapeLoaderCustom instance) => ref totalRef(instance);
 }
