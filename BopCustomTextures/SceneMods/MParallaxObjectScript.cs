@@ -12,13 +12,12 @@ public class MParallaxObjectScript : MBehaviour<ParallaxObjectScript>
     public float? parallaxScale;
     public float? loopDistance;
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        base.JsonParse(ctx, jcomponent);
         float jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "ParallaxScale", out jfloat)) parallaxScale = jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "LoopDistance", out jfloat)) loopDistance = jfloat;
-        return true;
+        if (ctx.TryGetJFloat(key, val, "ParallaxScale", out jfloat)) parallaxScale = jfloat;
+        if (ctx.TryGetJFloat(key, val, "LoopDistance", out jfloat)) loopDistance = jfloat;
+        else base.JsonParsePair(ctx, key, val);
     }
 
     public override ParallaxObjectScript Apply(ParallaxObjectScript component)

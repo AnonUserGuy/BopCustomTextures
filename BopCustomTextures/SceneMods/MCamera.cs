@@ -15,13 +15,13 @@ public class MCamera : MComponent<Camera>
     public float? aspect;
     public Color? backgroundColor;
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if (ctx.TryGetJValue(jcomponent, "Orthographic", JTokenType.Boolean, out var jval)) orthographic = (bool)jval;
-        if (ctx.TryGetJFloat(jcomponent, "OrthographicSize", out var jfloat)) orthographicSize = jfloat;
-        if (ctx.TryGetJFloat(jcomponent, "Aspect", out jfloat)) aspect = jfloat;
-        if (ctx.TryGetJColor(jcomponent, "BackgroundColor", out var color)) backgroundColor = color;
-        return true;
+        if (ctx.TryGetJValue(key, val, "orthographic", JTokenType.Boolean, out var jval)) orthographic = (bool)jval;
+        else if (ctx.TryGetJFloat(key, val, "orthographicSize", out var jfloat)) orthographicSize = jfloat;
+        else if (ctx.TryGetJFloat(key, val, "aspect", out jfloat)) aspect = jfloat;
+        else if (ctx.TryGetJColor(key, val, "backgroundColor", out var color)) backgroundColor = color;
+        else base.JsonParsePair(ctx, key, val);
     }
 
     public override Camera Apply(Camera component)

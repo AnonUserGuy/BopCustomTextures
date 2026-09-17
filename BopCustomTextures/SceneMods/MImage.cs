@@ -17,10 +17,12 @@ public class MImage : MComponent<Image>, IMRenderable
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        MRenderable.JsonParse(ctx, jcomponent, this);
-        return true;
+        if (!MRenderable.JsonParsePair(ctx, key, val, this))
+        {
+            base.JsonParsePair(ctx, key, val);
+        }
     }
 
     public override Image Apply(Image component)

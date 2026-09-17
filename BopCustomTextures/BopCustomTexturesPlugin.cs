@@ -28,11 +28,11 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// <summary>
     /// lowest version string saved mixtapes will support
     /// </summary>
-    public const string LowestVersion = "0.2.1";
+    public const string LowestVersion = "0.3.0";
     /// <summary>
     /// lowest release number saved mixtapes will support
     /// </summary>
-    public const uint LowestRelease = 3;
+    public const uint LowestRelease = 4;
     /// <summary>
     /// plugin name within logger
     /// </summary>
@@ -52,7 +52,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         // Plugin startup logic
         ConfigManager = new ConfigManager(Config);
         InitLogger();
-        Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
         try
         {
@@ -89,6 +88,8 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
                 Logger.Log(ConfigManager.LogSceneIndices.Value, $"{scene.buildIndex} - {scene.name}");
             };
         }
+
+        Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
     private void InitLogger()

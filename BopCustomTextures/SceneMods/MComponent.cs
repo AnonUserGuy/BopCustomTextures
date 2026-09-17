@@ -56,15 +56,18 @@ public class MComponent<T>: MObject<T>, IMComponent where T: Component
     /// <param name="ctx">The invoking <see cref="CustomJsonInitializer"/>, for logging and general parsing methods.</param>
     /// <param name="jcomponent"><see cref="JObject"/> containing component defintion.</param>
     /// <returns><see langword="true"/> is JSON component parsed successfully, <see langword="false"/> otherwise.</returns>
-    public bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public virtual bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
     {
         foreach (var pair in jcomponent)
         {
-            if (ctx.TryGetComponentField(typeof(T), pair.Key))
-            {
-
-            }
+            JsonParsePair(ctx, pair.Key, pair.Value);
         }
+        return true;
+    }
+
+    public virtual void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
+    {
+        // pass
     }
 
     /// <summary>

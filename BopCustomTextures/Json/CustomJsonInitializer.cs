@@ -2,13 +2,13 @@
 using BopCustomTextures.SceneMods;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Linq;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using System;
-using HarmonyLib;
+using FlipperSnapperAnimationStates;
 
 namespace BopCustomTextures.Json;
 
@@ -23,7 +23,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     private readonly Dictionary<string, Material> Materials = [];
     private readonly Dictionary<string, Shader> Shaders = [];
     private readonly Dictionary<string, Material> ShaderMaterials = [];
-    private readonly Dictionary<string, Type> componentTypes = [];
     private readonly CustomVariantNameManager VariantManager = variantManager;
 
     private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
@@ -140,81 +139,37 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return mobj;
     }
 
-    public bool TryGetComponent(string name, JToken jcomponent, out IMComponent mcomponent)
-    {
-        if (MComponentParserRegistry.Instance.TryParse(this, name, jcomponent, out mcomponent))
-        {
-            return true;
-        }
-        else
-        {
-
-        }
-        Type type = typeof(Transform);
-        AccessTools.Field(type, "localPostition");
-    }
-
-    public bool TryGetComponentField(Type type, string name)
-    {
-
-    }
-
-    public bool TryGetComponentType(string name, out Type type)
-    {
-        if (componentTypes.TryGetValue(name, out type))
-        {
-            return true;
-        }
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            foreach (var t in assembly.GetTypes())
-            {
-                if (typeof(Component).IsAssignableFrom(t) && t.FullName.EndsWith(name))
-                {
-                    componentTypes[name] = t;
-                    type = t;
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     public MMaterial InitMaterial(JObject jmaterial)
     {
         var mmaterial = new MMaterial();
-        jmaterial.Remove("Name");
-        jmaterial.Remove("Material");
-        if (TryGetJShader(jmaterial, "Shader", out var shader))
-        {
-            mmaterial.shader = shader;
-            jmaterial.Remove("Shader");
-        };
-        if (TryGetJColor(jmaterial, "Color", out var color))
-        {
-            mmaterial.color = color;
-            jmaterial.Remove("Color");
-        }
         foreach (var pair in jmaterial)
         {
-            switch (pair.Value.Type)
+            Material mat;
+            if (TryGetJMaterial(pair.Key, pair.Value, "Name", out mat)) mmaterial.material = mat;
+            else if (TryGetJMaterial(pair.Key, pair.Value, "Material", out mat)) mmaterial.material = mat;
+            else if (TryGetJShader(pair.Key, pair.Value, "Shader", out var shader)) mmaterial.shader = shader;
+            else if (TryGetJColor(pair.Key, pair.Value, "Color", out var color)) mmaterial.color = color;
+            else
             {
-                case JTokenType.Integer:
-                    mmaterial.integers.Add(pair.Key, (int)pair.Value);
-                    break;
-                case JTokenType.Float:
-                    mmaterial.floats.Add(pair.Key, (float)pair.Value);
-                    break;
-                case JTokenType.Boolean:
-                    if ((bool)pair.Value)
-                    {
-                        mmaterial.enableKeywords.Add(pair.Key);
-                    }
-                    else
-                    {
-                        mmaterial.disableKeywords.Add(pair.Key);
-                    }
-                    break;
+                switch (pair.Value.Type)
+                {
+                    case JTokenType.Integer:
+                        mmaterial.integers.Add(pair.Key, (int)pair.Value);
+                        break;
+                    case JTokenType.Float:
+                        mmaterial.floats.Add(pair.Key, (float)pair.Value);
+                        break;
+                    case JTokenType.Boolean:
+                        if ((bool)pair.Value)
+                        {
+                            mmaterial.enableKeywords.Add(pair.Key);
+                        }
+                        else
+                        {
+                            mmaterial.disableKeywords.Add(pair.Key);
+                        }
+                        break;
+                }
             }
         }
         return mmaterial;
@@ -240,7 +195,16 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return false;
     }
 
-
+    public bool TryGetJMaterial(string key, JToken val, string expectedKey, out Material material)
+    {
+        if (!TryGetJValue(key, val, expectedKey, JTokenType.String, out var jmatName))
+        {
+            material = null;
+            return false;
+        }
+        string matName = (string)jmatName;
+        return TryGetMaterial(matName, out material);
+    }
     public bool TryGetJMaterial(JObject jobj, string key, out Material material)
     {
         if (!TryGetJValue(jobj, key, JTokenType.String, out var jmatName))
@@ -277,6 +241,16 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return true;
     }
 
+    public bool TryGetJShaderMaterial(string key, JToken val, string expectedKey, out Material mat)
+    {
+        if (!TryGetJValue(key, val, expectedKey, JTokenType.String, out var jshaderName))
+        {
+            mat = default;
+            return false;
+        }
+        var shaderName = (string)jshaderName;
+        return TryGetJShaderMaterial(shaderName, out mat);
+    }
     public bool TryGetJShaderMaterial(JObject jobj, string key, out Material mat)
     {
         if (!TryGetJValue(jobj, key, JTokenType.String, out var jshaderName))
@@ -284,7 +258,11 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             mat = null;
             return false;
         }
-        string shaderName = (string)jshaderName;
+        var shaderName = (string)jshaderName;
+        return TryGetJShaderMaterial(shaderName, out mat);
+    }
+    public bool TryGetJShaderMaterial(string shaderName, out Material mat)
+    {
         if (!ShaderMaterials.ContainsKey(shaderName))
         {
             if (TryGetShader(shaderName, out var shader))
@@ -304,6 +282,16 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return true;
     }
 
+    public bool TryGetJShader(string key, JToken val, string expectedKey, out Shader shader)
+    {
+        if (!TryGetJValue(key, val, expectedKey, JTokenType.String, out var jshaderName))
+        {
+            shader = null;
+            return false;
+        }
+        string shaderName = (string)jshaderName;
+        return TryGetShader(shaderName, out shader);
+    }
     public bool TryGetJShader(JObject jobj, string key, out Shader shader)
     {
         if (!TryGetJValue(jobj, key, JTokenType.String, out var jshaderName))
@@ -339,6 +327,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return true;
     }
 
+    public bool TryGetJVector2(string key, JToken jvector2, string expectedKey, out Vector2 vector2)
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            vector2 = default;
+            return false;
+        }
+        return TryGetJVector2(key, jvector2, out vector2);
+    }
     public bool TryGetJVector2(JObject jobj, string key, out Vector2 vector2)
     {
         if (!jobj.TryGetValue(key, out var jvector2))
@@ -346,6 +343,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             vector2 = default;
             return false;
         }
+        return TryGetJVector2(key, jvector2, out vector2);
+    }
+    public bool TryGetJVector2(string key, JToken jvector2, out Vector2 vector2)
+    {
         switch (jvector2)
         {
             case JObject jobj2:
@@ -376,6 +377,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         );
     }
 
+    public bool TryGetJVector3(string key, JToken jvector3, string expectedKey, out Vector3 vector3)
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            vector3 = default;
+            return false;
+        }
+        return TryGetJVector3(key, jvector3, out vector3);
+    }
     public bool TryGetJVector3(JObject jobj, string key, out Vector3 vector3)
     {
         if (!jobj.TryGetValue(key, out var jvector3))
@@ -383,6 +393,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             vector3 = default;
             return false;
         }
+        return TryGetJVector3(key, jvector3, out vector3);
+    }
+    public bool TryGetJVector3(string key, JToken jvector3, out Vector3 vector3)
+    {
         switch (jvector3)
         {
             case JObject jobj2:
@@ -415,6 +429,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         );
     }
 
+    public bool TryGetJEulerAngles(string key, JToken jvector3, string expectedKey, out Vector3 eulerAngles)
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            eulerAngles = default;
+            return false;
+        }
+        return TryGetJEulerAngles(key, jvector3, out eulerAngles);
+    }
     public bool TryGetJEulerAngles(JObject jobj, string key, out Vector3 eulerAngles)
     {
         if (!jobj.TryGetValue(key, out var jvector3))
@@ -422,6 +445,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             eulerAngles = default;
             return false;
         }
+        return TryGetJEulerAngles(key, jvector3, out eulerAngles);
+    }
+    public bool TryGetJEulerAngles(string key, JToken jvector3, out Vector3 eulerAngles)
+    {
         switch (jvector3.Type)
         {
             case JTokenType.Object:
@@ -440,6 +467,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return false;
     }
 
+    public bool TryGetJQuaternion(string key, JToken jquaternion, string expectedKey, out Quaternion quaternion)
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            quaternion = default;
+            return false;
+        }
+        return TryGetJQuaternion(key, jquaternion, out quaternion);
+    }
     public bool TryGetJQuaternion(JObject jobj, string key, out Quaternion quaternion)
     {
         if (!jobj.TryGetValue(key, out var jquaternion))
@@ -447,6 +483,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             quaternion = default;
             return false;
         }
+        return TryGetJQuaternion(key, jquaternion, out quaternion);
+    }
+    public bool TryGetJQuaternion(string key, JToken jquaternion, out Quaternion quaternion)
+    {
         switch (jquaternion)
         {
             case JObject jobj2:
@@ -481,6 +521,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         );
     }
 
+    public bool TryGetJColor(string key, JToken jcolor, string expectedKey, out Color color)
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            color = default;
+            return false;
+        }
+        return TryGetJColor(key, jcolor, out color);
+    }
     public bool TryGetJColor(JObject jobj, string key, out Color color)
     {
         if (!jobj.TryGetValue(key, out var jcolor))
@@ -488,6 +537,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             color = default;
             return false;
         }
+        return TryGetJColor(key, jcolor, out color);
+    }
+    public bool TryGetJColor(string key, JToken jcolor, out Color color)
+    {
         switch (jcolor.Type)
         {
             case JTokenType.Object:
@@ -547,6 +600,22 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return jcolor;
     }
 
+    public bool TryGetJToken<T>(string key, JToken jtoken2, string expectedKey, JTokenType type, out T jtoken) where T : JToken
+    {
+        if (!expectedKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            jtoken = null;
+            return false;
+        }
+        if (jtoken2.Type != type)
+        {
+            Logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a {type}");
+            jtoken = null;
+            return false;
+        }
+        jtoken = (T)jtoken2;
+        return true;
+    }
     public bool TryGetJToken<T>(JObject jobj, string key, JTokenType type, out T jtoken) where T : JToken
     {
         if (!jobj.TryGetValue(key, out var jtoken2))
@@ -581,6 +650,10 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return true;
     }
 
+    public bool TryGetJValue(string key, JToken jtoken2, string expectedKey, JTokenType type, out JValue jvalue)
+    {
+        return TryGetJToken(key, jtoken2, expectedKey, type, out jvalue);
+    }
     public bool TryGetJValue(JObject jobj, string key, JTokenType type, out JValue jvalue)
     {
         return TryGetJToken(jobj, key, type, out jvalue);
@@ -594,6 +667,20 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return TryGetJToken(jobj, key, JTokenType.Object, out jvalue);
     }
 
+    public bool TryGetJFloat(string jkey, JToken jtoken2, string key, out float jfloat)
+    {
+        if (!key.Equals(jkey, StringComparison.OrdinalIgnoreCase))
+        {
+            jfloat = default;
+            return false;
+        }
+        if (TryGetJFloat(jtoken2, out jfloat))
+        {
+            return true;
+        }
+        Logger.LogWarning($"JSON key \"{jkey}\" is a {jtoken2.Type} when it should be a float, integer, \"Infinity\", or \"-Infinity\"");
+        return false;
+    }
     public bool TryGetJFloat(JObject jobj, string key, out float jfloat)
     {
         if (!jobj.TryGetValue(key, out var jtoken2))

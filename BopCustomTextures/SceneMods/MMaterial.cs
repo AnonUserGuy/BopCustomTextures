@@ -8,6 +8,7 @@ namespace BopCustomTextures.SceneMods;
 /// </summary>
 public class MMaterial: MObject<Material>
 {
+    public Material material;
     public Shader shader;
     public Color? color;
     public Dictionary<string, float> floats = [];

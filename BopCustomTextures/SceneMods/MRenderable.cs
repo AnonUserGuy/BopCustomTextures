@@ -1,6 +1,7 @@
 ﻿using BopCustomTextures.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using System;
 
 namespace BopCustomTextures.SceneMods;
 
@@ -18,6 +19,35 @@ public interface IMRenderable
 /// </summary>
 public static class MRenderable
 {
+    public static bool JsonParsePair(CustomJsonInitializer ctx, string key, JToken val, IMRenderable mcomponent)
+    {
+        if (key.Equals("material", StringComparison.OrdinalIgnoreCase))
+        {
+            switch (val.Type)
+            {
+                case JTokenType.String:
+                    if (ctx.TryGetMaterial((string)val, out var mat))
+                    {
+                        mcomponent.Material = mat;
+                    }
+                    break;
+                case JTokenType.Object:
+                    var jmaterial = (JObject)val;
+                    mcomponent.MMaterial = ctx.InitMaterial(jmaterial);
+                    mcomponent.Material = mcomponent.MMaterial.material;
+                    break;
+            }
+            return true;
+        }
+        else if (ctx.TryGetJShaderMaterial(key, val, "shader", out Material mat))
+        {
+            mcomponent.Material = mat;
+            return true;
+        }
+        return false;
+    }
+
+    [Obsolete("MRenderable.JsonParse is case sensitive, use MRenderable.JsonParsePair instead.")]
     public static void JsonParse(CustomJsonInitializer ctx, JObject jcomponent, IMRenderable mcomponent)
     {
         if (jcomponent.TryGetValue("Material", out var jmat))
@@ -32,12 +62,8 @@ public static class MRenderable
                     break;
                 case JTokenType.Object:
                     var jmaterial = (JObject)jmat;
-                    if (ctx.TryGetJMaterial(jmaterial, "Name", out mat) ||
-                        ctx.TryGetJMaterial(jmaterial, "Material", out mat))
-                    {
-                        mcomponent.Material = mat;
-                    }
                     mcomponent.MMaterial = ctx.InitMaterial(jmaterial);
+                    mcomponent.Material = mcomponent.MMaterial.material;
                     break;
             }
         }

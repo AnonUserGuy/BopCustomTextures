@@ -20,15 +20,16 @@ public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
     public Material Material { get => material; set => material = value; }
     public MMaterial MMaterial { get => mmaterial; set => mmaterial = value; }
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if (ctx.TryGetJColor(jcomponent, "Color", out var jcolor)) color = jcolor;
-        if (ctx.TryGetJVector2(jcomponent, "Size", out var vector2)) size = vector2;
-        JValue jval;
-        if (ctx.TryGetJValue(jcomponent, "FlipX", JTokenType.Boolean, out jval)) flipX = (bool)jval;
-        if (ctx.TryGetJValue(jcomponent, "FlipY", JTokenType.Boolean, out jval)) flipY = (bool)jval;
-        MRenderable.JsonParse(ctx, jcomponent, this);
-        return true;
+        if (ctx.TryGetJColor(key, val, "Color", out var jcolor)) color = jcolor;
+        else if (ctx.TryGetJVector2(key, val, "Size", out var vector2)) size = vector2;
+        else if (ctx.TryGetJValue(key, val, "FlipX", JTokenType.Boolean, out var jval)) flipX = (bool)jval;
+        else if (ctx.TryGetJValue(key, val, "FlipY", JTokenType.Boolean, out var jval2)) flipY = (bool)jval2;
+        else if (!MRenderable.JsonParsePair(ctx, key, val, this))
+        {
+            base.JsonParsePair(ctx, key, val);
+        }
     }
 
     public override SpriteRenderer Apply(SpriteRenderer component)

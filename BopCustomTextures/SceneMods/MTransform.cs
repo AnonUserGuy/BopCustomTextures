@@ -15,13 +15,12 @@ public class MTransform: MComponent<Transform>
     public Vector3? localEulerAngles;
     public Vector3? localScale;
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if (ctx.TryGetJVector3(jcomponent, "LocalPosition", out var vector3)) localPosition = vector3;
-        if (ctx.TryGetJQuaternion(jcomponent, "LocalRotation", out var quaternion)) localRotation = quaternion;
-        if (ctx.TryGetJEulerAngles(jcomponent, "LocalEulerAngles", out vector3)) localEulerAngles = vector3;
-        if (ctx.TryGetJVector3(jcomponent, "LocalScale", out vector3)) localScale = vector3;
-        return true;
+        if (ctx.TryGetJVector3(key, val, "LocalPosition", out var vector3)) localPosition = vector3;
+        else if (ctx.TryGetJQuaternion(key, val, "LocalRotation", out var quaternion)) localRotation = quaternion;
+        else if (ctx.TryGetJEulerAngles(key, val, "LocalEulerAngles", out vector3)) localEulerAngles = vector3;
+        else if (ctx.TryGetJVector3(key, val, "LocalScale", out vector3)) localScale = vector3;
     }
     public override Transform Apply(Transform component)
     {

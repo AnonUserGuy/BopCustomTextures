@@ -1,6 +1,7 @@
 using BopCustomTextures.Json;
 using BopCustomTextures.Scripts;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods;
@@ -14,10 +15,9 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
     public List<int> variants;
     public Dictionary<int, int> variantsIndexed;
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken jvariants)
     {
-        base.JsonParse(ctx, jcomponent);
-        if (jcomponent.TryGetValue("Variants", out var jvariants))
+        if (key.Equals("variants", StringComparison.OrdinalIgnoreCase))
         {
             switch (jvariants.Type)
             {
@@ -58,8 +58,11 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                     ctx.Logger.LogWarning($"JSON variants is a {jvariants.Type} when it should be an array, object, string, or integer");
                     break;
             }
+        } 
+        else
+        {
+            base.JsonParsePair(ctx, key, jvariants);
         }
-        return true;
     }
 
     public override CustomSpriteSwapper Apply(CustomSpriteSwapper component)

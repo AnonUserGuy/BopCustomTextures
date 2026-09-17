@@ -11,10 +11,10 @@ public abstract class MBehaviour<T> : MComponent<T> where T: Behaviour
 {
     public bool? enabled;
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JObject jcomponent)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if (ctx.TryGetJValue(jcomponent, "Enabled", JTokenType.Boolean, out var jbool)) enabled = (bool)jbool;
-        return true;
+        if (ctx.TryGetJValue(key, val, "enabled", JTokenType.Boolean, out var jbool)) enabled = (bool)jbool;
+        else base.JsonParsePair(ctx, key, val);
     }
 
     public override T Apply(T component)

@@ -5,3 +5,6 @@ csharp_style_namespace_declarations = file_scoped
 
 # IDE0090: Use 'new(...)'
 dotnet_diagnostic.IDE0090.severity = silent
+
+# IDE0018: Inline variable declaration
+dotnet_diagnostic.IDE0018.severity = silent
