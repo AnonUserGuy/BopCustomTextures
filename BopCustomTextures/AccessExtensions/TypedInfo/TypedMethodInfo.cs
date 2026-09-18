@@ -7,6 +7,14 @@ public class TypedMethodInfo<O, T> : TypedInfo<O>
 {
     public MethodInfo Method;
 
+    public override Type Type
+    {
+        get
+        {
+            return Method?.ReturnType;
+        }
+    }
+
     public TypedMethodInfo() { }
 
     public TypedMethodInfo(string name, Type[] parameters = null, Type[] generics = null)
@@ -22,9 +30,9 @@ public class TypedMethodInfo<O, T> : TypedInfo<O>
             BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name} with return type {typeof(T).Name}");
             return false;
         }
-        else if (Method.ReturnType != typeof(T))
+        else if (!typeof(T).IsAssignableFrom(Method.ReturnType))
         {
-            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(T).Name}");
+            BopCustomTexturesPlugin.LogWarning($"Found method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(T).Name}");
             Method = null;
             return false;
         }
@@ -54,6 +62,14 @@ public class TypedMethodInfo<O> : TypedInfo<O>
 {
     public MethodInfo Method;
 
+    public override Type Type
+    {
+        get
+        {
+            return Method?.ReturnType;
+        }
+    }
+
     public TypedMethodInfo() { }
 
     public TypedMethodInfo(string name, Type[] parameters = null, Type[] generics = null)
@@ -71,7 +87,7 @@ public class TypedMethodInfo<O> : TypedInfo<O>
         }
         else if (Method.ReturnType != typeof(void))
         {
-            BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(void).Name}");
+            BopCustomTexturesPlugin.LogWarning($"Found method \"{name}\" in class {typeof(O).Name}, but has return type {Method.ReturnType.Name} instead of {typeof(void).Name}");
             Method = null;
             return false;
         }

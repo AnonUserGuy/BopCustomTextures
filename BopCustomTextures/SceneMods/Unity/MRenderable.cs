@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using System;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod component definition for a "renderable" component, I.E. has a <see cref="UnityEngine.Material"/> attached to it.

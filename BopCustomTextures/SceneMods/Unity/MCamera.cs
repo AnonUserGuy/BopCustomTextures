@@ -2,7 +2,7 @@
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod <see cref="Camera"/> definition.
@@ -30,6 +30,7 @@ public class MCamera : MComponent<Camera>
         if (orthographicSize != null) component.orthographicSize = (float)orthographicSize;
         if (aspect != null) component.aspect = (float)aspect;
         if (backgroundColor != null) component.backgroundColor = ApplyColor((Color)backgroundColor, component.backgroundColor);
+        base.Apply(component);
         return component;
     }
 }

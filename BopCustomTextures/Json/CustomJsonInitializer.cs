@@ -1,5 +1,5 @@
 ﻿using BopCustomTextures.Customs;
-using BopCustomTextures.SceneMods;
+using BopCustomTextures.SceneMods.Unity;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System;
@@ -8,7 +8,6 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using FlipperSnapperAnimationStates;
 
 namespace BopCustomTextures.Json;
 
@@ -64,7 +63,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         var match = TerminalComponentRegex.Match(name);
         if (match.Success)
         {
-            if (MComponentParserRegistry.Instance.TryParse(this, match.Groups[2].Value, jtoken, out var mcomponent))
+            if (SceneModParserRegistry.Instance.TryParse(this, match.Groups[2].Value, jtoken, out var mcomponent))
             {
                 var mobj2 = new MGameObject(match.Groups[1].Value, [], [], [mcomponent]);
                 return mobj2;
@@ -91,7 +90,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
             if (dict.Key.StartsWith("!"))
             {
                 string componentName = dict.Key.Substring(1);
-                if (MComponentParserRegistry.Instance.TryParse(this, componentName, dict.Value, out var mcomponent))
+                if (SceneModParserRegistry.Instance.TryParse(this, componentName, dict.Value, out var mcomponent))
                 {
                     components.Add(mcomponent);
                 }
@@ -347,6 +346,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     }
     public bool TryGetJVector2(string key, JToken jvector2, out Vector2 vector2)
     {
+        if (!TryGetJVector2(jvector2, out vector2))
+        {
+            Logger.LogWarning($"JSON vector2 \"{key}\" is a {jvector2.Type} when it should be an object or array");
+            return false;
+        }
+        return true;
+    }
+    public bool TryGetJVector2(JToken jvector2, out Vector2 vector2)
+    {
         switch (jvector2)
         {
             case JObject jobj2:
@@ -356,7 +364,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 vector2 = InitJVector2(jarray2);
                 return true;
         }
-        Logger.LogWarning($"JSON vector2 \"{key}\" is a {jvector2.Type} when it should be an object or array");
         vector2 = default;
         return false;
     }
@@ -397,6 +404,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     }
     public bool TryGetJVector3(string key, JToken jvector3, out Vector3 vector3)
     {
+        if (!TryGetJVector3(jvector3, out vector3))
+        {
+            Logger.LogWarning($"JSON vector3 \"{key}\" is a {jvector3.Type} when it should be an object or array");
+            return false;
+        }
+        return true;
+    }
+    public bool TryGetJVector3(JToken jvector3, out Vector3 vector3)
+    {
         switch (jvector3)
         {
             case JObject jobj2:
@@ -406,7 +422,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 vector3 = InitJVector3(jarray2);
                 return true;
         }
-        Logger.LogWarning($"JSON vector3 \"{key}\" is a {jvector3.Type} when it should be an object or array");
         vector3 = default;
         return false;
     }
@@ -449,6 +464,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     }
     public bool TryGetJEulerAngles(string key, JToken jvector3, out Vector3 eulerAngles)
     {
+        if (!TryGetJEulerAngles(jvector3, out eulerAngles))
+        {
+            Logger.LogWarning($"JSON eulerAngles \"{key}\" is a {jvector3.Type} when it should be an object, array, float, or integer");
+            return false;
+        }
+        return true;
+    }
+    public bool TryGetJEulerAngles(JToken jvector3, out Vector3 eulerAngles)
+    {
         switch (jvector3.Type)
         {
             case JTokenType.Object:
@@ -462,7 +486,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 eulerAngles = new Vector3(float.NaN, float.NaN, (float)jvector3);
                 return true;
         }
-        Logger.LogWarning($"JSON eulerAngles \"{key}\" is a {jvector3.Type} when it should be an object, array, float, or integer");
         eulerAngles = default;
         return false;
     }
@@ -487,6 +510,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     }
     public bool TryGetJQuaternion(string key, JToken jquaternion, out Quaternion quaternion)
     {
+        if (!TryGetJQuaternion(jquaternion, out quaternion))
+        {
+            Logger.LogWarning($"JSON quaternion \"{key}\" is a {jquaternion.Type} when it should be an object or array");
+            return false;
+        }
+        return true;
+    }
+    public bool TryGetJQuaternion(JToken jquaternion, out Quaternion quaternion)
+    {
         switch (jquaternion)
         {
             case JObject jobj2:
@@ -496,7 +528,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 quaternion = InitJQuaternion(jarray2);
                 return true;
         }
-        Logger.LogWarning($"JSON quaternion \"{key}\" is a {jquaternion.Type} when it should be an object or array");
         quaternion = default;
         return false;
     }
@@ -541,6 +572,15 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
     }
     public bool TryGetJColor(string key, JToken jcolor, out Color color)
     {
+        if (!TryGetJColor(jcolor, out color))
+        {
+            Logger.LogWarning($"JSON color \"{key}\" is a {jcolor.Type} when it should be an object, array, or string");
+            return false;
+        }
+        return true;
+    }
+    public bool TryGetJColor(JToken jcolor, out Color color)
+    {
         switch (jcolor.Type)
         {
             case JTokenType.Object:
@@ -553,7 +593,6 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
                 color = InitJColor((string)jcolor);
                 return true;
         }
-        Logger.LogWarning($"JSON color \"{key}\" is a {jcolor.Type} when it should be an object, array, or string");
         color = default;
         return false;
     }

@@ -1,10 +1,19 @@
 ﻿using HarmonyLib;
+using System;
 using System.Reflection;
 
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
 public class TypedPropertyInfo<O, T> : TypedMemberInfo<O, T>
 {
     public PropertyInfo Property;
+
+    public override Type Type
+    {
+        get
+        {
+            return Property?.PropertyType;
+        }
+    }
 
     public TypedPropertyInfo() { }
 
@@ -21,7 +30,7 @@ public class TypedPropertyInfo<O, T> : TypedMemberInfo<O, T>
             BopCustomTexturesPlugin.LogWarning($"Unable to find property \"{name}\" in class {typeof(O).Name} of type {typeof(T).Name}");
             return false;
         }
-        else if (Property.PropertyType != typeof(T))
+        else if (!Property.PropertyType.IsAssignableFrom(typeof(T)))
         {
             BopCustomTexturesPlugin.LogWarning($"Found property \"{name}\" in class {typeof(O).Name}, but is of type {Property.PropertyType.Name} instead of {typeof(T).Name}");
             Property = null;

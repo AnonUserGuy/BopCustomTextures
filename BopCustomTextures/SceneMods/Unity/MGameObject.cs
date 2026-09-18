@@ -1,14 +1,14 @@
 ﻿using BopCustomTextures.Customs;
 using UnityEngine;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod <see cref="GameObject"/> definition. 
 /// Includes no reference to the <see cref="GameObject"/> to modify, only a path to it.
 /// </summary>
 /// <param name="name">Name of/Path to GameObject to modify</param>
-public class MGameObject(string name, MGameObject[] childObjs, MGameObject[] childObjsDeferred, IMComponent[] components) : MObject<GameObject>
+public class MGameObject(string name, MGameObject[] childObjs, MGameObject[] childObjsDeferred, IMComponent[] components) : MUnityObject<GameObject>
 {
     public string name = name;
     public MGameObject[] childObjs = childObjs;

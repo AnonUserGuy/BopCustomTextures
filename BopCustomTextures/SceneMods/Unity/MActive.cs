@@ -2,7 +2,7 @@
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod pseudo-component definition for the active/inactive state of a <see cref="GameObject"/>.

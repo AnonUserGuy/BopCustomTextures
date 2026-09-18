@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Wrapper for <see cref="MGameObject"/> with reference to actual <see cref="GameObject"/>.

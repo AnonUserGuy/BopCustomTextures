@@ -2,12 +2,12 @@
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod <see cref="MonoBehaviour"/> definition.
 /// </summary>
-public abstract class MBehaviour<T> : MComponent<T> where T: Behaviour
+public abstract class MBehaviour<T> : MComponent<T> where T : Behaviour
 {
     public bool? enabled;
 
@@ -20,6 +20,7 @@ public abstract class MBehaviour<T> : MComponent<T> where T: Behaviour
     public override T Apply(T component)
     {
         if (enabled != null) component.enabled = (bool)enabled;
+        base.Apply(component);
         return component;
     }
 }

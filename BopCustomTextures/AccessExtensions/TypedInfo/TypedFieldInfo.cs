@@ -1,10 +1,19 @@
 ﻿using HarmonyLib;
+using System;
 using System.Reflection;
 
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
 public class TypedFieldInfo<O, T> : TypedMemberInfo<O, T>
 {
     public FieldInfo Field;
+
+    public override Type Type
+    {
+        get
+        {
+            return Field?.FieldType;
+        }
+    }
 
     public TypedFieldInfo() { }
 
@@ -21,7 +30,7 @@ public class TypedFieldInfo<O, T> : TypedMemberInfo<O, T>
             BopCustomTexturesPlugin.LogWarning($"Unable to find field \"{name}\" in class {typeof(O).Name} of type {typeof(T).Name}");
             return false;
         }
-        else if (Field.FieldType != typeof(T))
+        else if (!Field.FieldType.IsAssignableFrom(typeof(T)))
         {
             BopCustomTexturesPlugin.LogWarning($"Found field \"{name}\" in class {typeof(O).Name}, but is of type {Field.FieldType.Name} instead of {typeof(T).Name}");
             Field = null;

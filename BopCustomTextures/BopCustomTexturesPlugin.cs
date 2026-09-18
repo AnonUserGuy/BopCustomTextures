@@ -63,7 +63,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
             Logger.LogError(e);
         }
         
-        MComponentParserRegistry.Initialize(Logger);
+        SceneModParserRegistry.Initialize(Logger);
 
         Manager = new CustomManager(Logger, ConfigManager, GetTempPath(),
             BopCustomTexturesEventTemplates.SceneModTemplate,

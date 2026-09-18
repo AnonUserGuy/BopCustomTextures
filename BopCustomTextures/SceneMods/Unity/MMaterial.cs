@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod <see cref="Material"/> definition.
 /// </summary>
-public class MMaterial: MObject<Material>
+public class MMaterial : MUnityObject<Material>
 {
     public Material material;
     public Shader shader;

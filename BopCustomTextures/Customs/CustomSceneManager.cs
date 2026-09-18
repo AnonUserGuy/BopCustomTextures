@@ -1,5 +1,4 @@
 using BopCustomTextures.Json;
-using BopCustomTextures.SceneMods;
 using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -8,6 +7,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using BopCustomTextures.SceneMods.Unity;
 
 namespace BopCustomTextures.Customs;
 

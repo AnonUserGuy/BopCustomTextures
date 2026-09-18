@@ -1,15 +1,16 @@
 using BopCustomTextures.Json;
 using BopCustomTextures.Scripts;
+using BopCustomTextures.SceneMods.Unity;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Game;
 
 /// <summary>
 /// Scene mod <see cref="CustomSpriteSwapper"/> definition.
 /// </summary>
-[MComponent("CustomSpriteSwapper")]
+[SceneModParser("CustomSpriteSwapper")]
 public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
 {
     public List<int> variants;
@@ -58,7 +59,7 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
                     ctx.Logger.LogWarning($"JSON variants is a {jvariants.Type} when it should be an array, object, string, or integer");
                     break;
             }
-        } 
+        }
         else
         {
             base.JsonParsePair(ctx, key, jvariants);
@@ -67,9 +68,9 @@ public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
 
     public override CustomSpriteSwapper Apply(CustomSpriteSwapper component)
     {
-        base.Apply(component);
         if (variants != null) component.ApplyVariants(variants);
         else if (variantsIndexed != null) component.ApplyVariants(variantsIndexed);
+        base.Apply(component);
         return component;
     }
 }

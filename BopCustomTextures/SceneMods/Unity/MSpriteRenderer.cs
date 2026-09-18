@@ -2,7 +2,7 @@
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod <see cref="SpriteRenderer"/> definition
@@ -40,6 +40,7 @@ public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
         if (flipY != null) component.flipY = (bool)flipY;
         if (material != null) component.material = material;
         if (mmaterial != null) component.material = mmaterial.Apply(component.material);
+        base.Apply(component);
         return component;
     }
 }

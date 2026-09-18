@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Unity;
 
 /// <summary>
 /// Scene mod UI.<see cref="Image"/> definition
@@ -29,6 +29,7 @@ public class MImage : MComponent<Image>, IMRenderable
     {
         if (material != null) component.material = material;
         if (mmaterial != null) component.material = mmaterial.Apply(component.material);
+        base.Apply(component);
         return component;
     }
 }
