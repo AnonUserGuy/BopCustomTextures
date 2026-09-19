@@ -1,4 +1,6 @@
 ﻿using BopCustomTextures.Json;
+using BopCustomTextures.SceneMods.Base;
+using BopCustomTextures.SceneMods.Unity.Structs;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -15,13 +17,13 @@ public class MCamera : MComponent<Camera>
     public float? aspect;
     public Color? backgroundColor;
 
-    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
+    public override void JsonParsePair(string key, JToken val)
     {
-        if (ctx.TryGetJValue(key, val, "orthographic", JTokenType.Boolean, out var jval)) orthographic = (bool)jval;
-        else if (ctx.TryGetJFloat(key, val, "orthographicSize", out var jfloat)) orthographicSize = jfloat;
-        else if (ctx.TryGetJFloat(key, val, "aspect", out jfloat)) aspect = jfloat;
-        else if (ctx.TryGetJColor(key, val, "backgroundColor", out var color)) backgroundColor = color;
-        else base.JsonParsePair(ctx, key, val);
+        if      (KeyMatch(key, "Orthographic") && MValue<bool>.TryJsonParse(val, out var jval)) orthographic = jval;
+        else if (KeyMatch(key, "OrthographicSize") && MFloat.TryJsonParse(val, out var jfloat)) orthographicSize = jfloat;
+        else if (KeyMatch(key, "Aspect") && MFloat.TryJsonParse(val, out jfloat)) aspect = jfloat;
+        else if (KeyMatch(key, "BackgroundColor") && MColor.TryJsonParse(val, out var color)) backgroundColor = color;
+        else base.JsonParsePair(key, val);
     }
 
     public override Camera Apply(Camera component)
@@ -29,7 +31,7 @@ public class MCamera : MComponent<Camera>
         if (orthographic != null) component.orthographic = (bool)orthographic;
         if (orthographicSize != null) component.orthographicSize = (float)orthographicSize;
         if (aspect != null) component.aspect = (float)aspect;
-        if (backgroundColor != null) component.backgroundColor = ApplyColor((Color)backgroundColor, component.backgroundColor);
+        if (backgroundColor != null) component.backgroundColor = MColor.Apply(backgroundColor, component.backgroundColor);
         base.Apply(component);
         return component;
     }

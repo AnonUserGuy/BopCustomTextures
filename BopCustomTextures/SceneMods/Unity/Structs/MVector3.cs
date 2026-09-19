@@ -7,10 +7,17 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 
 public class MVector3 : MBaseVector<Vector3>
 {
-	public const int Width = 3;
+    private const int width = 3;
+    public override int Width { get => width; }
 
-	[SceneModParser(typeof(Vector3))]
-	public static bool TryJsonParse(JToken val, out MVector3 mvector)
+    public override float this[int i]
+    {
+        get => Value[i];
+        set => Value[i] = value;
+    }
+
+    [SceneModParser(typeof(Vector3))]
+	public static bool TryJsonParseWrapped(JToken val, out MVector3 mvector)
 	{
 		switch (val)
 		{
@@ -25,41 +32,61 @@ public class MVector3 : MBaseVector<Vector3>
 		return false;
 	}
 
-	public static bool TryJsonParseEulerAngles(JToken val, out MVector3 mvector)
+    new public static bool TryJsonParse(JToken val, out Vector3 vector)
+    {
+        if (TryJsonParseWrapped(val, out var mvector))
+        {
+            vector = mvector.Value;
+            return true;
+        }
+        vector = default;
+        return false;
+    }
+
+    public static bool TryJsonParseEulerAngles(JToken val, out Vector3 mvector)
 	{
 		if (val.Type == JTokenType.Float || val.Type == JTokenType.Integer)
 		{
-            if (!MFloat.TryJsonParse(val, out var mfloat))
+            if (!MFloat.TryJsonParse(val, out float mfloat))
 			{
-				mvector = null;
+				mvector = default;
 				return false;
 			}
-			mvector = new(null, null, mfloat);
+			mvector = new(float.NaN, float.NaN, mfloat);
 			return true;
         }
 		return TryJsonParse(val, out mvector);
     }
 
-
-	public MVector3(JObject jobj) : base(Width)
+    public MVector3(JObject jobj)
 	{
 		JToken jfloat;
-		MFloat mfloat;
-		if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[0] = mfloat;
-		if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[1] = mfloat;
-		if (jobj.TryGetValue("z", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[2] = mfloat;
+		float mfloat;
+		if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[0] = mfloat;
+		if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[1] = mfloat;
+		if (jobj.TryGetValue("z", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[2] = mfloat;
 	}
 
-	public MVector3(JArray jarray) : base(Width, jarray) { }
+	public MVector3(JArray jarray) : base(jarray) { }
 
-    public MVector3(params MFloat[] values) : base(Width, values) { }
+    public MVector3(params float[] values) : base(values) { }
 
-    public override Vector3 Apply(Vector3 src)
-	{
-		for (int i = 0; i < Width; i++)
-		{
-			if (Values[i] != null) src[i] = Values[i].Value;
-		}
-		return src;
-	}
+    public static Vector3 Apply(Vector3? src, Vector3 dest)
+    {
+        if (src.HasValue) Apply(src.Value, dest);
+        return dest;
+    }
+    public static Vector3 Apply(Vector3 src, Vector3 dest)
+    {
+        for (int i = 0; i < width; i++)
+        {
+            if (!float.IsNaN(src[i])) dest[i] = src[i];
+        }
+        return dest;
+    }
+
+    public override Vector3 Apply(Vector3 dest)
+    {
+        return Apply(Value, dest);
+    }
 }

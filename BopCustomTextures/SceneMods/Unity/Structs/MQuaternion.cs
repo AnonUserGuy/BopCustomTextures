@@ -7,10 +7,17 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 
 public class MQuaternion : MBaseVector<Quaternion>
 {
-    public const int Width = 4;
+    private const int width = 4;
+    public override int Width { get => width; }
+
+    public override float this[int i]
+    {
+        get => Value[i];
+        set => Value[i] = value;
+    }
 
     [SceneModParser(typeof(Quaternion))]
-    public static bool TryJsonParse(JToken val, out MQuaternion mvector)
+    public static bool TryJsonParseWrapped(JToken val, out MQuaternion mvector)
     {
         switch (val)
         {
@@ -25,26 +32,47 @@ public class MQuaternion : MBaseVector<Quaternion>
         return false;
     }
 
-    public MQuaternion(JObject jobj) : base(Width)
+    new public static bool TryJsonParse(JToken val, out Quaternion vector)
     {
-        JToken jfloat;
-        MFloat mfloat;
-        if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[0] = mfloat;
-        if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[1] = mfloat;
-        if (jobj.TryGetValue("z", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[2] = mfloat;
-        if (jobj.TryGetValue("w", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[3] = mfloat;
+        if (TryJsonParseWrapped(val, out var mvector))
+        {
+            vector = mvector.Value;
+            return true;
+        }
+        vector = default;
+        return false;
     }
 
-    public MQuaternion(JArray jarray) : base(Width, jarray) { }
-
-    public MQuaternion(params MFloat[] values) : base(Width, values) { }
-
-    public override Quaternion Apply(Quaternion src)
+    public MQuaternion(JObject jobj)
     {
-        for (int i = 0; i < Width; i++)
+        JToken jfloat;
+        float mfloat;
+        if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[0] = mfloat;
+        if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[1] = mfloat;
+        if (jobj.TryGetValue("z", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[2] = mfloat;
+        if (jobj.TryGetValue("w", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[3] = mfloat;
+    }
+
+    public MQuaternion(JArray jarray) : base(jarray) { }
+
+    public MQuaternion(params float[] values) : base(values) { }
+
+    public static Quaternion Apply(Quaternion? src, Quaternion dest)
+    {
+        if (src.HasValue) Apply(src.Value, dest);
+        return dest;
+    }
+    public static Quaternion Apply(Quaternion src, Quaternion dest)
+    {
+        for (int i = 0; i < width; i++)
         {
-            if (Values[i] != null) src[i] = Values[i].Value;
+            if (!float.IsNaN(src[i])) dest[i] = src[i];
         }
-        return src;
+        return dest;
+    }
+
+    public override Quaternion Apply(Quaternion dest)
+    {
+        return Apply(Value, dest);
     }
 }

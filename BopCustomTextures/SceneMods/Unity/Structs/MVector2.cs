@@ -7,10 +7,16 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 
 public class MVector2 : MBaseVector<Vector2>
 {
-    public const int Width = 2;
+    private const int width = 2;
+    public override int Width { get => width; }
+
+    public override float this[int i] {
+        get => Value[i];
+        set => Value[i] = value;
+    }
 
     [SceneModParser(typeof(Vector2))]
-    public static bool TryJsonParse(JToken val, out MVector2 mvector)
+    public static bool TryJsonParseWrapped(JToken val, out MVector2 mvector)
     {
         switch (val)
         {
@@ -25,25 +31,45 @@ public class MVector2 : MBaseVector<Vector2>
         return false;
     }
 
-    public MVector2(JObject jobj) : base(Width)
+    new public static bool TryJsonParse(JToken val, out Vector2 vector)
     {
-        JToken jfloat;
-        MFloat mfloat;
-        if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[0] = mfloat;
-        if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) Values[1] = mfloat;
+        if (TryJsonParseWrapped(val, out var mvector))
+        {
+            vector = mvector.Value;
+            return true;
+        }
+        vector = default;
+        return false;
     }
 
-    public MVector2(JArray jarray) : base(Width, jarray) { }
-
-    public MVector2(params MFloat[] values) : base(Width, values) { }
-
-
-    public override Vector2 Apply(Vector2 src)
+    public MVector2(JObject jobj)
     {
-        for (int i = 0; i < Width; i++)
+        JToken jfloat;
+        float mfloat;
+        if (jobj.TryGetValue("x", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[0] = mfloat;
+        if (jobj.TryGetValue("y", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[1] = mfloat;
+    }
+
+    public MVector2(JArray jarray) : base(jarray) { }
+
+    public MVector2(params float[] values) : base(values) { }
+
+    public static Vector2 Apply(Vector2? src, Vector2 dest)
+    {
+        if (src.HasValue) Apply(src.Value, dest);
+        return dest;
+    }
+    public static Vector2 Apply(Vector2 src, Vector2 dest)
+    {
+        for (int i = 0; i < width; i++)
         {
-            if (Values[i] != null) src[i] = Values[i].Value;
+            if (!float.IsNaN(src[i])) dest[i] = src[i];
         }
-        return src;
+        return dest;
+    }
+
+    public override Vector2 Apply(Vector2 dest)
+    {
+        return Apply(Value, dest);
     }
 }

@@ -2,78 +2,87 @@
 using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
-public abstract class MBaseVector<T>(int width) : MBase<T>
+public abstract class MBaseVector<T> : MValue<T> where T: struct
 {
-    public MFloat[] Values = new MFloat[width];
+    public abstract int Width { get; }
 
-    public MBaseVector(int width, JArray jvector2) : this(width)
+    public abstract float this[int i] { get; set; }
+
+    public MBaseVector(T val)
     {
-        MFloat mfloat;
-        for (int i = 0; i < width && i < jvector2.Count; i++)
+        Value = val;
+    }
+
+    public MBaseVector()
+    {
+        Value = default;
+        for (int i = 0; i < Width; i++)
         {
-            if (MFloat.TryJsonParse(jvector2[i], out mfloat)) Values[i] = mfloat;
+            this[i] = float.NaN;
         }
     }
 
-    public MBaseVector(int width, params MFloat[] values): this(width)
+    public MBaseVector(JArray jvector2)
     {
-        for (int i = 0; i < width && i < values.Length; i++)
+        for (int i = 0; i < Width && i < jvector2.Count; i++)
         {
-            Values[i] = values[i];
+            if (MFloat.TryJsonParse(jvector2[i], out float mfloat)) this[i] = mfloat;
         }
     }
 
-    public MFloat this[int i]
+    public MBaseVector(params float[] values)
     {
-        get => Values[i];
-        set => Values[i] = value;
+        for (int i = 0; i < Width && i < values.Length; i++)
+        {
+            this[i] = values[i];
+        }
     }
 
-    public MFloat X
+    public float X
     {
-        get => Values[0];
-        set => Values[0] = value;
+        get => this[0];
+        set => this[0] = value;
     }
 
-    public MFloat Y
+    public float Y
     {
-        get => Values[1];
-        set => Values[1] = value;
+        get => this[1];
+        set => this[1] = value;
     }
 
-    public MFloat Z
+    public float Z
     {
-        get => Values[2];
-        set => Values[2] = value;
+        get => this[2];
+        set => this[2] = value;
     }
 
-    public MFloat W
+    public float W
     {
-        get => Values[3];
-        set => Values[3] = value;
+        get => this[3];
+        set => this[3] = value;
     }
 
-    public MFloat R
+    public float R
     {
-        get => Values[0];
-        set => Values[0] = value;
+        get => this[0];
+        set => this[0] = value;
     }
 
-    public MFloat G
+    public float G
     {
-        get => Values[1];
-        set => Values[1] = value;
+        get => this[1];
+        set => this[1] = value;
     }
 
-    public MFloat B
+    public float B
     {
-        get => Values[2];
-        set => Values[2] = value;
+        get => this[2];
+        set => this[2] = value;
     }
 
-    public MFloat A
+    public float A
     {
-        get => Values[3];
-        set => Values[3] = value;
+        get => this[3];
+        set => this[3] = value;
     }
 }

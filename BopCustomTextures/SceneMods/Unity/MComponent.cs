@@ -20,7 +20,7 @@ public interface IMComponent
     /// Apply scene mod component to <see cref="GameObject"/>.
     /// </summary>
     /// <param name="obj"><see cref="GameObject"/> to apply to.</param>
-    //public abstract void Apply(GameObject obj);
+    public abstract void Apply(GameObject obj);
 }
 
 /// <summary>
@@ -31,5 +31,14 @@ public class MComponent<T> : MUnityObject<T>, IMComponent where T : Component
     public static bool KeyMatch(string key1, string key2)
     {
         return key1.Equals(key2, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Apply(GameObject obj)
+    {
+        var component = obj.GetComponent<T>();
+        if (component != null)
+        {
+            Apply(component);
+        }
     }
 }

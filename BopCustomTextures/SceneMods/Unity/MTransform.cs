@@ -11,10 +11,10 @@ namespace BopCustomTextures.SceneMods.Unity;
 [MComponent("Transform")]
 public class MTransform : MComponent<Transform>
 {
-    public MVector3 localPosition;
-    public MQuaternion localRotation;
-    public MVector3 localEulerAngles;
-    public MVector3 localScale;
+    public Vector3? localPosition;
+    public Quaternion? localRotation;
+    public Vector3? localEulerAngles;
+    public Vector3? localScale;
 
     public override void JsonParsePair(string key, JToken val)
     {
@@ -26,10 +26,10 @@ public class MTransform : MComponent<Transform>
     }
     public override Transform Apply(Transform component)
     {
-        if (localPosition != null) component.localPosition = localPosition.Apply(component.localPosition);
-        if (localRotation != null) component.localRotation = localRotation.Apply(component.localRotation);
-        else if (localEulerAngles != null) component.localEulerAngles = localEulerAngles.Apply(component.localEulerAngles);
-        if (localScale != null) component.localScale = localScale.Apply(component.localScale);
+        if      (localPosition != null) component.localPosition = MVector3.Apply(localPosition, component.localPosition);
+        if      (localRotation != null) component.localRotation = MQuaternion.Apply(localRotation, component.localRotation);
+        else if (localEulerAngles != null) component.localEulerAngles = MVector3.Apply(localEulerAngles, component.localEulerAngles);
+        if      (localScale != null) component.localScale = MVector3.Apply(localScale, component.localScale);
         base.Apply(component);
         return component;
     }

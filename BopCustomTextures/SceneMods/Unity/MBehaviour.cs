@@ -1,4 +1,4 @@
-﻿using BopCustomTextures.Json;
+﻿using BopCustomTextures.SceneMods.Base;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -11,10 +11,10 @@ public abstract class MBehaviour<T> : MComponent<T> where T : Behaviour
 {
     public bool? enabled;
 
-    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
+    public override void JsonParsePair(string key, JToken val)
     {
-        if (ctx.TryGetJValue(key, val, "enabled", JTokenType.Boolean, out var jbool)) enabled = (bool)jbool;
-        else base.JsonParsePair(ctx, key, val);
+        if (KeyMatch(key, "Enabled") && MValue<bool>.TryJsonParse(val, out var jval)) enabled = jval;
+        else base.JsonParsePair(key, val);
     }
 
     public override T Apply(T component)

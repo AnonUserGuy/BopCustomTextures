@@ -4,12 +4,23 @@ using System.Text.RegularExpressions;
 
 namespace BopCustomTextures.SceneMods.Base;
 
-public class MFloat(float value): MValue<float>(value)
+public class MFloat : MValue<float>
 {
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     [SceneModParser(typeof(float))]
-    public static bool TryJsonParse(JToken jtoken, out MFloat res)
+    public static bool TryJsonParseWrapped(JToken jtoken, out MFloat res)
+    {
+        if (TryJsonParse(jtoken, out float val))
+        {
+            res = new(val);
+            return true;
+        }
+        res = null;
+        return false;
+    }
+
+    new public static bool TryJsonParse(JToken jtoken, out float res)
     {
         if (jtoken.Type == JTokenType.String)
         {
@@ -18,21 +29,31 @@ public class MFloat(float value): MValue<float>(value)
             {
                 if (match.Groups[1].Length > 0 && match.Groups[1].Value[0] == '-')
                 {
-                    res = new(float.NegativeInfinity);
+                    res = float.NegativeInfinity;
                 }
                 else
                 {
-                    res = new(float.PositiveInfinity);
+                    res = float.PositiveInfinity;
                 }
                 return true;
             }
         }
         else if (jtoken.Type == JTokenType.Float || jtoken.Type == JTokenType.Integer)
         {
-            res = new((float)jtoken);
+            res = (float)jtoken;
             return true;
         }
         res = default;
         return false;
+    }
+
+    public MFloat()
+    {
+
+    }
+
+    public MFloat(float val)
+    {
+        Value = val;
     }
 }

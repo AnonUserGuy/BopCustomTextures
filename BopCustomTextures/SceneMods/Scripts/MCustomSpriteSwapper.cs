@@ -5,12 +5,12 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 
-namespace BopCustomTextures.SceneMods.Game;
+namespace BopCustomTextures.SceneMods.Scripts;
 
 /// <summary>
 /// Scene mod <see cref="CustomSpriteSwapper"/> definition.
 /// </summary>
-[SceneModParser("CustomSpriteSwapper")]
+[MComponent("CustomSpriteSwapper")]
 public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
 {
     public List<int> variants;

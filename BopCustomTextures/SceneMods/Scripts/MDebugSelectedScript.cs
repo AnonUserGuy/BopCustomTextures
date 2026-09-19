@@ -1,10 +1,11 @@
 ﻿#if DEBUG
 using BopCustomTextures.Json;
 using BopCustomTextures.Scripts;
+using BopCustomTextures.SceneMods.Unity;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 
-namespace BopCustomTextures.SceneMods;
+namespace BopCustomTextures.SceneMods.Scripts;
 
 [MComponent("debug")]
 public class MDebugSelectedScript : IMComponent
