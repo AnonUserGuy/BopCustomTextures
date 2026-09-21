@@ -15,6 +15,8 @@ public interface ILogger
     public void LogOutdatedPlugin(object data);
     public void LogUpgradeMixtape(object data);
 
+    public void LogJsonParseError(object path, object type, object data);
+
     public void Log(LogLevel level, object data);
     public void LogFatal(object data);
     public void LogError(object data);

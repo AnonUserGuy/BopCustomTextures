@@ -1,10 +1,10 @@
 ﻿using BopCustomTextures.Json;
-using BopCustomTextures.SceneMods.Base;
+using BopCustomTextures.SceneMods.System;
 using BopCustomTextures.SceneMods.Unity.Structs;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace BopCustomTextures.SceneMods.Unity;
+namespace BopCustomTextures.SceneMods.Unity.Components;
 
 /// <summary>
 /// Scene mod <see cref="Camera"/> definition.
@@ -17,13 +17,13 @@ public class MCamera : MComponent<Camera>
     public float? aspect;
     public Color? backgroundColor;
 
-    public override void JsonParsePair(string key, JToken val)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if      (KeyMatch(key, "Orthographic") && MValue<bool>.TryJsonParse(val, out var jval)) orthographic = jval;
-        else if (KeyMatch(key, "OrthographicSize") && MFloat.TryJsonParse(val, out var jfloat)) orthographicSize = jfloat;
-        else if (KeyMatch(key, "Aspect") && MFloat.TryJsonParse(val, out jfloat)) aspect = jfloat;
-        else if (KeyMatch(key, "BackgroundColor") && MColor.TryJsonParse(val, out var color)) backgroundColor = color;
-        else base.JsonParsePair(key, val);
+        if      (KeyMatch(key, "Orthographic") && MValue<bool>.TryJsonParse(ctx, val, out var jval)) orthographic = jval;
+        else if (KeyMatch(key, "OrthographicSize") && MFloat.TryJsonParse(ctx, val, out var jfloat)) orthographicSize = jfloat;
+        else if (KeyMatch(key, "Aspect") && MFloat.TryJsonParse(ctx, val, out jfloat)) aspect = jfloat;
+        else if (KeyMatch(key, "BackgroundColor") && MColor.TryJsonParse(ctx, val, out var color)) backgroundColor = color;
+        else base.JsonParsePair(ctx, key, val);
     }
 
     public override Camera Apply(Camera component)
@@ -32,7 +32,6 @@ public class MCamera : MComponent<Camera>
         if (orthographicSize != null) component.orthographicSize = (float)orthographicSize;
         if (aspect != null) component.aspect = (float)aspect;
         if (backgroundColor != null) component.backgroundColor = MColor.Apply(backgroundColor, component.backgroundColor);
-        base.Apply(component);
-        return component;
+        return base.Apply(component);
     }
 }

@@ -1,5 +1,5 @@
 ﻿using BopCustomTextures.Json;
-using BopCustomTextures.SceneMods.Base;
+using BopCustomTextures.SceneMods.System;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
@@ -17,44 +17,20 @@ public class MColor : MBaseVector<Color>
         set => Value[i] = value;
     }
 
-    [SceneModParser(typeof(Color))]
-    public static bool TryJsonParseWrapped(JToken val, out MColor mvector)
+    public override bool JsonParse(CustomJsonInitializer ctx, JToken val)
     {
-        switch (val.Type)
+        if (val.Type == JTokenType.String)
         {
-            case JTokenType.Object:
-                mvector = new((JObject)val);
-                return true;
-            case JTokenType.Array:
-                mvector = new((JArray)val);
-                return true;
-            case JTokenType.String:
-                return TryJsonParseWrapped((string)val, out mvector);
+            InitValue();
+            return JsonParse(ctx, val, (string)val);
         }
-        mvector = null;
-        return false;
+        return base.JsonParse(ctx, val);
     }
 
-    public static bool TryJsonParseWrapped(string str, out MColor mvector)
+    new public static bool TryJsonParse(CustomJsonInitializer ctx, JToken val, out Color vector)
     {
-        str = str.TrimStart('#');
-        if (str.Length > 8)
-        {
-            str = str.Substring(0, 8);
-        }
-        if (!int.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
-        {
-            BopCustomTexturesPlugin.LogWarning($"JSON color string \"{str}\" couldn't be parsed as as color");
-            mvector = null;
-            return false;
-        }
-        mvector = new(str.Length / 2, rgb);
-        return true;
-    }
-
-    new public static bool TryJsonParse(JToken val, out Color vector)
-    {
-        if (TryJsonParseWrapped(val, out var mvector))
+        var mvector = new MColor();
+        if (mvector.JsonParse(ctx, val))
         {
             vector = mvector.Value;
             return true;
@@ -63,33 +39,40 @@ public class MColor : MBaseVector<Color>
         return false;
     }
 
-
-    private MColor(int width, int rgb)
+    public bool JsonParse(CustomJsonInitializer ctx, JToken val, string str)
     {
-        for (int i = width - 1; i >= 0; i--)
+        str = str.TrimStart('#');
+        if (str.Length > 8)
+        {
+            str = str.Substring(0, 8);
+        }
+        if (!int.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            ctx.Logger.LogJsonParseError(val.Path, "Color", $"couldn't parse string as color \"{str}\"");
+            return false;
+        }
+        for (int i = str.Length / 2 - 1; i >= 0; i--)
         {
             this[i] = (rgb & 0xFF) / 255.0f;
             rgb >>= 8;
         }
+        return true;
     }
 
-    public MColor(JObject jobj)
+    public override bool JsonParse(CustomJsonInitializer ctx, JObject jobj)
     {
         JToken jfloat;
         float mfloat;
-        if (jobj.TryGetValue("r", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[0] = mfloat;
-        if (jobj.TryGetValue("g", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[1] = mfloat;
-        if (jobj.TryGetValue("b", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[2] = mfloat;
-        if (jobj.TryGetValue("a", out jfloat) && MFloat.TryJsonParse(jfloat, out mfloat)) this[3] = mfloat;
+        if (jobj.TryGetValue("r", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[0] = mfloat;
+        if (jobj.TryGetValue("g", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[1] = mfloat;
+        if (jobj.TryGetValue("b", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[2] = mfloat;
+        if (jobj.TryGetValue("a", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[3] = mfloat;
+        return true;
     }
-
-    public MColor(JArray jarray) : base(jarray) { }
-
-    public MColor(params float[] values) : base(values) { }
 
     public static Color Apply(Color? src, Color dest)
     {
-        if (src.HasValue) Apply(src.Value, dest);
+        if (src.HasValue) dest = Apply(src.Value, dest);
         return dest;
     }
     public static Color Apply(Color src, Color dest)

@@ -28,24 +28,24 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
 
     public void LogFileLoading(object data)
     {
-        Log(ConfigManager.LogFileLoading.Value, data);
+        Log(ConfigManager.LogFileLoading.Value, data, "LogFileLoading");
     }
     public void LogUnloading(object data)
     {
-        Log(ConfigManager.LogUnloading.Value, data);
+        Log(ConfigManager.LogUnloading.Value, data, "LogUnloading");
     }
     public void LogSeperateTextureSprites(object data)
     {
-        Log(ConfigManager.LogSeperateTextureSprites.Value, data);
+        Log(ConfigManager.LogSeperateTextureSprites.Value, data, "LogSeperateTextureSprites");
     }
     public void LogAtlasTextureSprites(object data)
     {
-        Log(ConfigManager.LogAtlasTextureSprites.Value, data);
+        Log(ConfigManager.LogAtlasTextureSprites.Value, data, "LogAtlasTextureSprites");
     }
 
     public void LogMComponentRegistering(object data)
     {
-        Log(ConfigManager.LogMComponentRegistering.Value, data);
+        Log(ConfigManager.LogMComponentRegistering.Value, data, "LogMComponentRegistering");
     }
 
     public void LogOutdatedPlugin(object data)
@@ -57,11 +57,16 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
         Log(ConfigManager.LogUpgradeMixtape.Value, data);
     }
 
+    public void LogJsonParseError(object path, object type, object data)
+    {
+        Log(LogLevel.Error, $"{type} parse error at \"{path}\": {data}");
+    }
+
     public void LogEditor(object data)
     {
         LogEditor(LogLevel.None, data);
     }
-    public void LogEditor(LogLevel level, object data)
+    public void LogEditor(LogLevel level, object data, object title = null)
     {
         if (ErrorCanvas == null || TxtBody == null)
         {
@@ -94,31 +99,57 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
         ErrorCanvas.SetActive(true);
         if (TxtTitle != null)
         {
-            level &= ~LogLevel.MixtapeEditor;
-            if (level != LogLevel.None)
+            if (title != null)
             {
-                TxtTitle.text = $"{MyPluginInfo.PLUGIN_NAME} - {string.Join(", ", LogLevelToStrings(level))}";
-            } 
+                TxtTitle.text = $"{MyPluginInfo.PLUGIN_NAME} - {title}";
+            }
             else
             {
-                TxtTitle.text = MyPluginInfo.PLUGIN_NAME;
+                level &= ~LogLevel.MixtapeEditor;
+                if (level != LogLevel.None)
+                {
+                    TxtTitle.text = $"{MyPluginInfo.PLUGIN_NAME} - {string.Join(", ", LogLevelToStrings(level))}";
+                }
+                else
+                {
+                    TxtTitle.text = MyPluginInfo.PLUGIN_NAME;
+                }
             }
             
             TxtBody.text = data.ToString();
         } 
         else
         {
-            TxtBody.text = $"[{Logger.SourceName}] {data}";
+            if (title != null)
+            {
+                TxtBody.text = $"[{Logger.SourceName}] [{title}] {data}";
+            }
+            else
+            {
+                TxtBody.text = $"[{Logger.SourceName}] {data}";
+            }
         }
     }
 
     public void Log(LogLevel level, object data)
     {
+        Log(level, data, null);
+    }
+
+    public void Log(LogLevel level, object data, object title = null)
+    {
         if ((level & LogLevel.MixtapeEditor) == LogLevel.MixtapeEditor)
         {
-            LogEditor(level, data);
+            LogEditor(level, data, title);
         }
-        Logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, data);
+        if (title != null)
+        {
+            Logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, $"[{title}] {data}");
+        }
+        else
+        {
+            Logger.Log((BepInEx.Logging.LogLevel)level & BepInEx.Logging.LogLevel.All, data);
+        }
     }
 
     public void LogFatal(object data)

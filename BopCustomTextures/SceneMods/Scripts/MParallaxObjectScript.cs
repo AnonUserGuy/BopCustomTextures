@@ -1,6 +1,6 @@
 ﻿using BopCustomTextures.Json;
-using BopCustomTextures.SceneMods.Base;
-using BopCustomTextures.SceneMods.Unity;
+using BopCustomTextures.SceneMods.System;
+using BopCustomTextures.SceneMods.Unity.Components;
 using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Scripts;
@@ -14,12 +14,12 @@ public class MParallaxObjectScript : MBehaviour<ParallaxObjectScript>
     public float? parallaxScale;
     public float? loopDistance;
 
-    public override void JsonParsePair(string key, JToken val)
+    public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
         float jfloat;
-        if (KeyMatch(key, "ParallaxScale") && MFloat.TryJsonParse(val, out jfloat)) parallaxScale = jfloat;
-        if (KeyMatch(key, "LoopDistance") && MFloat.TryJsonParse(val, out jfloat)) loopDistance = jfloat;
-        else base.JsonParsePair(key, val);
+        if      (KeyMatch(key, "ParallaxScale") && MFloat.TryJsonParse(ctx, val, out jfloat)) parallaxScale = jfloat;
+        else if (KeyMatch(key, "LoopDistance") && MFloat.TryJsonParse(ctx, val, out jfloat)) loopDistance = jfloat;
+        else base.JsonParsePair(ctx, key, val);
     }
 
     public override ParallaxObjectScript Apply(ParallaxObjectScript component)

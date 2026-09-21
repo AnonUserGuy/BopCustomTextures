@@ -36,23 +36,5 @@ public class CustomSpriteSwapper : MonoBehaviour
         last = textureManager.ReplaceCustomSprite(lastVanilla, variants);
         spriteRenderer.sprite = last;
     }
-
-    public void ApplyVariants(List<int> newVariants)
-    {
-        variants.Clear();
-        foreach (var variants in newVariants)
-        {
-            this.variants.Add(variants);
-        }
-        Replace();
-    }
-    public void ApplyVariants(Dictionary<int, int> indexedVariants)
-    {
-        foreach (var pair in indexedVariants)
-        {
-            variants[pair.Key] = pair.Value;
-        }
-        Replace();
-    }
 }
 

@@ -2,7 +2,7 @@
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 
-namespace BopCustomTextures.SceneMods.Unity;
+namespace BopCustomTextures.SceneMods.Unity.Components;
 
 /// <summary>
 /// Scene mod pseudo-component definition for the active/inactive state of a <see cref="GameObject"/>.
@@ -16,7 +16,7 @@ public class MActive : IMComponent
     {
         if (jcomponent.Type != JTokenType.Boolean)
         {
-            ctx.Logger.LogWarning($"JSON Active is a {jcomponent.Type} when it should be a Boolean");
+            ctx.Logger.LogJsonParseError(jcomponent.Path, "!Active", "not a bool");
             return false;
         }
         value = (bool)jcomponent;

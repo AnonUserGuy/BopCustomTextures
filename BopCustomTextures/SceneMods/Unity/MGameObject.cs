@@ -1,5 +1,10 @@
-﻿using BopCustomTextures.Customs;
+﻿using BopCustomTextures.Json;
+using BopCustomTextures.Customs;
+using BopCustomTextures.SceneMods.Unity.Components;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace BopCustomTextures.SceneMods.Unity;
 
@@ -7,29 +12,123 @@ namespace BopCustomTextures.SceneMods.Unity;
 /// Scene mod <see cref="GameObject"/> definition. 
 /// Includes no reference to the <see cref="GameObject"/> to modify, only a path to it.
 /// </summary>
-/// <param name="name">Name of/Path to GameObject to modify</param>
-public class MGameObject(string name, MGameObject[] childObjs, MGameObject[] childObjsDeferred, IMComponent[] components) : MUnityObject<GameObject>
+public class MGameObject : MUnityObject<GameObject>
 {
-    public string name = name;
-    public MGameObject[] childObjs = childObjs;
-    public MGameObject[] childObjsDeferred = childObjsDeferred;
-    public IMComponent[] components = components;
+    public string name;
+    public bool isDeferred;
+    public List<MGameObject> childObjs = [];
+    public List<MGameObject> childObjsDeferred = [];
+    public List<IMComponent> components = [];
+    public List<MUnknownComponent> unknownComponents = [];
+
+    private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
+
+    public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
+    {
+        /*
+        while (jobj.Count == 1)
+        {
+            var dict = jobj.Properties().First();
+            logger.LogWarning($"{name} - {dict.Name}");
+            if (dict.Value.Type != JTokenType.Object ||
+                dict.Name.StartsWith("!") ||
+                dict.Name.StartsWith("~"))
+            {
+                break;
+            }
+            if (name.EndsWith("/") || name.EndsWith("\\"))
+            {
+                name += dict.Name;
+            } 
+            else
+            {
+                name += "/" + dict.Name;
+            }
+            logger.LogError(name);
+            jobj = (JObject)dict.Value;
+        }
+        */
+
+        // check if is a single component on a gameobject
+        var match = TerminalComponentRegex.Match(name);
+        if (match.Success)
+        {
+            name = match.Groups[1].Value;
+            string componentName = match.Groups[2].Value;
+            return AddComponent(ctx, jtoken, componentName, jtoken);
+        }
+
+        if (jtoken.Type != JTokenType.Object)
+        {
+            ctx.Logger.LogJsonParseError(jtoken.Path, $"GameObject \"{name}\"", $"is a {jtoken.Type} when it should be an object");
+            return false;
+        }
+
+        foreach (KeyValuePair<string, JToken> dict in (JObject)jtoken)
+        {
+            if (dict.Key.StartsWith("!"))
+            {
+                string componentName = dict.Key.Substring(1);
+                AddComponent(ctx, jtoken, componentName, dict.Value);
+            }
+            else
+            {
+                string childName = dict.Key;
+                bool isChildDeferred = isDeferred;
+                if (childName.StartsWith("~"))
+                {
+                    isChildDeferred = true;
+                    childName = childName.Substring(1);
+                }
+
+                var mchildObj = new MGameObject{name = childName, isDeferred = isChildDeferred};
+
+                if (!mchildObj.JsonParse(ctx, dict.Value))
+                {
+                    continue;
+                }
+                if (isChildDeferred)
+                {
+                    childObjsDeferred.Add(mchildObj);
+                }
+                else
+                {
+                    childObjs.Add(mchildObj);
+                }
+            }
+        }
+
+        if (components.Count == 0 && childObjs.Count == 0 && childObjsDeferred.Count == 0 && unknownComponents.Count == 0)
+        {
+            ctx.Logger.LogJsonParseError(jtoken.Path, $"GameObject \"{name}\"", "doesn't do anything");
+            return false;
+        }
+
+        return true;
+    }
+
+
+    public bool AddComponent(CustomJsonInitializer ctx, JToken jtoken, string componentName, JToken jcomponent)
+    {
+        if (!MComponentParserRegistry.Instance.HasComponentRegistered(componentName))
+        {
+            unknownComponents.Add(new(ctx, componentName, jcomponent));
+        }
+        else if (MComponentParserRegistry.Instance.TryParseComponent(ctx, componentName, jcomponent, out var mcomponent))
+        {
+            components.Add(mcomponent);
+        }
+        else
+        {
+            ctx.Logger.LogJsonParseError(jtoken.Path, $"GameObject \"{name}\"", $"JSON Component \"{componentName}\" failed to parse");
+            return false;
+        }
+        return true;
+    }
 
     public override GameObject Apply(GameObject obj)
     {
-        foreach (var mcomponent in components)
-        {
-            mcomponent.Apply(obj);
-        }
-
-        foreach (var mchildObj in childObjsDeferred)
-        {
-            foreach (var childObj in CustomSceneManager.FindGameObjectsInChildren(obj, mchildObj.name))
-            {
-                mchildObj.Apply(childObj, obj);
-            }
-        }
-        return obj;
+        return Apply(obj, null);
     }
 
     /// <summary>
@@ -37,11 +136,20 @@ public class MGameObject(string name, MGameObject[] childObjs, MGameObject[] chi
     /// bad access using "..".
     /// </summary>
     /// <param name="obj"><see cref="GameObject"/> to apply scene mod to.</param>
-    /// <param name="rootObj">Root <see cref="GameObject"/> of game. 
-    /// Deferred child selectors won't be able to ascend past it with "..".</param>
+    /// <param name="rootObj">Root <see cref="GameObject"/> of game, or <see langword="null"/>. 
+    /// If not null, deferred child selectors won't be able to ascend past it with "..".</param>
     /// <returns><see cref="GameObject"/> with scene mod applied to it.</returns>
     public GameObject Apply(GameObject obj, GameObject rootObj)
     {
+        for (var i = 0; i < unknownComponents.Count; i++)
+        {
+            var munknown = unknownComponents[i];
+            if (MComponentParserRegistry.Instance.TryLateParseComponent(munknown.Ctx, munknown.Name, munknown.JToken, obj, out var mcomponent))
+            {
+                unknownComponents.RemoveAt(i--);
+                components.Add(mcomponent);
+            }
+        }
         foreach (var mcomponent in components)
         {
             mcomponent.Apply(obj);

@@ -2,25 +2,23 @@
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 
-namespace BopCustomTextures.SceneMods.Base;
+namespace BopCustomTextures.SceneMods.System;
 
 public class MFloat : MValue<float>
 {
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    [SceneModParser(typeof(float))]
-    public static bool TryJsonParseWrapped(JToken jtoken, out MFloat res)
+    public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
     {
-        if (TryJsonParse(jtoken, out float val))
+        if (TryJsonParse(ctx, jtoken, out float val))
         {
-            res = new(val);
+            Value = val;
             return true;
         }
-        res = null;
         return false;
     }
 
-    new public static bool TryJsonParse(JToken jtoken, out float res)
+    new public static bool TryJsonParse(CustomJsonInitializer ctx, JToken jtoken, out float res)
     {
         if (jtoken.Type == JTokenType.String)
         {
@@ -37,23 +35,16 @@ public class MFloat : MValue<float>
                 }
                 return true;
             }
+            ctx.Logger.LogJsonParseError(jtoken.Path, "mfloat", "string wasn't \"Infinity\" or \"-Infinity\"");
         }
         else if (jtoken.Type == JTokenType.Float || jtoken.Type == JTokenType.Integer)
         {
             res = (float)jtoken;
             return true;
         }
+        ctx.Logger.LogJsonParseError(jtoken.Path, "mfloat", "not a float, int, \"Infinity\", or \"-Infinity\"");
+
         res = default;
         return false;
-    }
-
-    public MFloat()
-    {
-
-    }
-
-    public MFloat(float val)
-    {
-        Value = val;
     }
 }

@@ -1,9 +1,9 @@
 ﻿#if DEBUG
 using BopCustomTextures.Json;
 using BopCustomTextures.Scripts;
-using BopCustomTextures.SceneMods.Unity;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
+using BopCustomTextures.SceneMods.Unity.Components;
 
 namespace BopCustomTextures.SceneMods.Scripts;
 

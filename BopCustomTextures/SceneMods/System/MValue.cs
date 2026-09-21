@@ -1,32 +1,30 @@
 ﻿using BopCustomTextures.Json;
 using Newtonsoft.Json.Linq;
 
-namespace BopCustomTextures.SceneMods.Base;
+namespace BopCustomTextures.SceneMods.System;
 
 public class MValue<T> : MBase<T> where T : struct
 {
     public T Value;
 
-    [SceneModParser(typeof(int))]
-    [SceneModParser(typeof(bool))]
-    public static bool TryJsonParseWrapped(JToken jtoken, out MValue<T> res)
+    public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
     {
-        if (TryJsonParse(jtoken, out T val))
+        if (TryJsonParse(ctx, jtoken, out T val))
         {
-            res = new(val);
+            Value = val;
             return true;
         }
-        res = null;
         return false;
     }
 
-    public static bool TryJsonParse(JToken jtoken, out T res)
+    public static bool TryJsonParse(CustomJsonInitializer ctx, JToken jtoken, out T res)
     {
         if (jtoken is JValue jvalue && jvalue.Value is T val)
         {
             res = val;
             return true;
         }
+        ctx.Logger.LogJsonParseError(jtoken.Path, typeof(T).Name, "not value");
         res = default;
         return false;
     }
@@ -34,15 +32,5 @@ public class MValue<T> : MBase<T> where T : struct
     public override T Apply(T obj)
     {
         return Value;
-    }
-
-    public MValue()
-    {
-
-    }
-
-    public MValue(T val)
-    {
-        Value = val;
     }
 }

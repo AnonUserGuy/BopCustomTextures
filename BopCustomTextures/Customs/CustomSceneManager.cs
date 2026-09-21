@@ -331,7 +331,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             }
             if (names[i] == "..")
             {
-                if (parentObj == rootObj || // prevent selecting objects outside of game
+                if ((rootObj != null && parentObj == rootObj) || // prevent selecting objects outside of game
                     parentObj.transform.parent == null)
                 {
                     yield break;

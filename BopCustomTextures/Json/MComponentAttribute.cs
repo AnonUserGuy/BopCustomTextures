@@ -8,9 +8,11 @@ namespace BopCustomTextures.Json;
 /// Will automatically be registered if <see cref="MComponentParserRegistry.RegisterAssembly(System.Reflection.Assembly)"/>
 /// is invoked the assembly containing it.
 /// </summary>
-/// <param name="name">Name of component in JSON.</param>
-[AttributeUsage(AttributeTargets.Class)]
-public class MComponentAttribute(string name) : Attribute
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+public class MComponentAttribute(string[] types, float priority = 0) : Attribute
 {
-    public string Name { get; } = name;
+    public string[] Names = types;
+    public float Priority = priority;
+
+    public MComponentAttribute(string type, float priority = 0) : this([type], priority) { }
 }

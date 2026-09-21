@@ -10,7 +10,7 @@ namespace BopCustomTextures.Customs;
 /// <param name="logger">Plugin-specific logger.</param>
 public class BaseCustomManager(ILogger logger)
 {
-    public ILogger Logger = logger;
+    public readonly ILogger Logger = logger;
 
     private static readonly Regex SceneKeyRegex = new Regex("^(.*?)(?:Custom|Mixtape)?$", RegexOptions.Compiled);
 
