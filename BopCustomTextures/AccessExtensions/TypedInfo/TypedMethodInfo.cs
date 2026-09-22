@@ -7,13 +7,7 @@ public class TypedMethodInfo<O, T> : TypedInfo<O>
 {
     public MethodInfo Method;
 
-    public override Type Type
-    {
-        get
-        {
-            return Method?.ReturnType;
-        }
-    }
+    public override Type Type => Method?.ReturnType;
 
     public TypedMethodInfo() { }
 
@@ -62,13 +56,7 @@ public class TypedMethodInfo<O> : TypedInfo<O>
 {
     public MethodInfo Method;
 
-    public override Type Type
-    {
-        get
-        {
-            return Method?.ReturnType;
-        }
-    }
+    public override Type Type => Method?.ReturnType;
 
     public TypedMethodInfo() { }
 

@@ -28,24 +28,24 @@ public class ManualLogSourceCustom(ManualLogSource logger, ConfigManager configM
 
     public void LogFileLoading(object data)
     {
-        Log(ConfigManager.LogFileLoading.Value, data, "LogFileLoading");
+        Log(ConfigManager.LogFileLoading.Value, data, "File Loading");
     }
     public void LogUnloading(object data)
     {
-        Log(ConfigManager.LogUnloading.Value, data, "LogUnloading");
+        Log(ConfigManager.LogUnloading.Value, data, "Unloading");
     }
     public void LogSeperateTextureSprites(object data)
     {
-        Log(ConfigManager.LogSeperateTextureSprites.Value, data, "LogSeperateTextureSprites");
+        Log(ConfigManager.LogSeperateTextureSprites.Value, data, "Seperate Sprite");
     }
     public void LogAtlasTextureSprites(object data)
     {
-        Log(ConfigManager.LogAtlasTextureSprites.Value, data, "LogAtlasTextureSprites");
+        Log(ConfigManager.LogAtlasTextureSprites.Value, data, "Atlas Sprite");
     }
 
     public void LogMComponentRegistering(object data)
     {
-        Log(ConfigManager.LogMComponentRegistering.Value, data, "LogMComponentRegistering");
+        Log(ConfigManager.LogMComponentRegistering.Value, data, "Registry");
     }
 
     public void LogOutdatedPlugin(object data)

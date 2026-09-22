@@ -7,13 +7,9 @@ public class TypedFieldInfo<O, T> : TypedMemberInfo<O, T>
 {
     public FieldInfo Field;
 
-    public override Type Type
-    {
-        get
-        {
-            return Field?.FieldType;
-        }
-    }
+    public override Type Type => Field?.FieldType;
+
+    public override bool IsReadOnly => Field == null || Field.IsInitOnly;
 
     public TypedFieldInfo() { }
 

@@ -2,11 +2,11 @@
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
-namespace BopCustomTextures.SceneMods.System;
+namespace BopCustomTextures.SceneMods.System.Generic;
 
-public interface IMIndexable: IMIndexable<IMBase>;
+public interface IMIndexable : IMIndexable<IMBase>;
 
-public interface IMIndexable<M> where M: IMBase
+public interface IMIndexable<M> where M : IMBase
 {
     public List<M> Values { get; set; }
     public Dictionary<int, M> ValuesIndexed { get; set; }
@@ -16,37 +16,46 @@ public static class MIndexable
 {
     public static bool JsonParse<M, T>(CustomJsonInitializer ctx, JToken val, IMIndexable<M> mindexable) where M : IMBase<T>, new()
     {
-        switch (val.Type)
+        M mel;
+        switch (val)
         {
-            case JTokenType.Array:
+            case JArray jarray:
                 mindexable.Values = [];
-                foreach (var jel in (JArray)val)
+                foreach (var jel in jarray)
                 {
-                    M mel = new();
+                    mel = new();
                     if (mel.JsonParse(ctx, jel))
                     {
                         mindexable.Values.Add(mel);
                     }
                 }
                 return true;
-            case JTokenType.Object:
+            case JObject jobj:
                 mindexable.ValuesIndexed = [];
-                foreach (var pair in (JObject)val)
+                foreach (var pair in jobj)
                 {
                     if (!int.TryParse(pair.Key, out var index))
                     {
                         ctx.Logger.LogJsonParseError(val.Path, typeof(M).Name, $"key \"{pair.Key}\" isn't an int");
                         continue;
                     }
-                    M mel = new();
+                    mel = new();
                     if (mel.JsonParse(ctx, pair.Value))
                     {
                         mindexable.ValuesIndexed[index] = mel;
                     }
                 }
                 return true;
+            default:
+                mel = new();
+                if (mel.JsonParse(ctx, val))
+                {
+                    mindexable.Values = [mel];
+                    return true;
+                }
+                break;
         }
-        ctx.Logger.LogJsonParseError(val.Path, typeof(M).Name, "not object or array");
+        ctx.Logger.LogJsonParseError(val.Path, typeof(M).Name, $"not object, array, or single {typeof(T).Name}");
         return false;
     }
 }

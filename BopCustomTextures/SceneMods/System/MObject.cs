@@ -11,8 +11,7 @@ public class MObject<T>: MBase<T> where T: class
 
     public override bool JsonParse(CustomJsonInitializer ctx, JToken val)
     {
-        JObject jobj = (JObject)val;
-        if (jobj == null)
+        if (val is not JObject jobj)
         {
             ctx.Logger.LogJsonParseError(val.Path, typeof(T).Name, "not an object");
             return false;
@@ -48,7 +47,15 @@ public class MObject<T>: MBase<T> where T: class
             {
                 var member = pair.Key;
                 var mod = pair.Value;
-                member.SetValue(obj, mod.Apply(member.GetValue(obj)));
+
+                if (member.IsReadOnly)
+                {
+                    mod.ApplyReadOnly(member.GetValue(obj));
+                }
+                else
+                {
+                    member.SetValue(obj, mod.Apply(member.GetValue(obj)));
+                }
             }
         }
         return obj;

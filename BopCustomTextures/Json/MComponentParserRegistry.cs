@@ -45,22 +45,21 @@ public class MComponentParserRegistry(ILogger logger)
     private class Tree<T> : IEnumerable<KeyValuePair<T, Tree<T>>>
     {
         public Dictionary<T, Tree<T>> Descendents = [];
+        public int Count => Descendents.Count;
         public Tree<T> this[T i] { get => Descendents[i]; set => Descendents[i] = value; }
         public IEnumerator<KeyValuePair<T, Tree<T>>> GetEnumerator() => Descendents.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         public bool TryGetValue(T i, out Tree<T> val) => Descendents.TryGetValue(i, out val);
 
-        public bool TryFind<Q>(Q tin, out T tout, Func<Q, T, bool> comparer)
+        public bool TryFind<Q>(Q tin, out T tout, Func<Q, T, bool> isMatch, Func<T, bool> isValidOutput = null)
         {
             foreach (var pair in this)
             {
-                if (comparer(tin, pair.Key))
+                if (isMatch(tin, pair.Key))
                 {
-                    if (!pair.Value.TryFind(tin, out tout, comparer))
-                    {
-                        tout = pair.Key;
-                    }
-                    return true;
+                    if (pair.Value.TryFind(tin, out tout, isMatch, isValidOutput)) return true;
+                    tout = pair.Key;
+                    if (isValidOutput == null || isValidOutput(tout)) return true;
                 }
             }
             tout = default;
@@ -78,75 +77,10 @@ public class MComponentParserRegistry(ILogger logger)
                     node0 = new();
                     node[tin] = node0;
                 }
-                else
-                {
-                    //BopCustomTexturesPlugin.LogWarning($"{tin} had");
-                }
                 node = node0;
             }
             return node;
         }
-    }
-
-    private class MTypeTree : Tree<Type>
-    {
-        public static bool IsMatch(Type typeIn, Type typeOut)
-        {
-            //BopCustomTexturesPlugin.LogWarning("");
-            //BopCustomTexturesPlugin.LogWarning($"{typeIn} == {typeOut}?");
-
-            if (typeOut.IsGenericTypeDefinition)
-            {
-                var argCount = typeOut.GetGenericArguments().Length;
-                if (argCount % 2 == 0)
-                {
-                    if (!typeIn.IsGenericType
-                        || typeOut.BaseType == null
-                        || !typeOut.BaseType.IsGenericType)
-                    {
-                        return false;
-                    }
-                    var typeOutXXX = typeOut.BaseType.GetGenericArguments()[0];
-
-                    //BopCustomTexturesPlugin.LogWarning("case 1");
-
-                    return typeOutXXX.IsGenericType
-                        && typeOutXXX.GetGenericTypeDefinition() == typeIn.GetGenericTypeDefinition();
-                }
-                else
-                {
-                    //BopCustomTexturesPlugin.LogWarning("case 2");
-
-                    Type[] testArgs = new Type[argCount];
-                    testArgs[0] = typeIn;
-                    for (var i = 1; i < testArgs.Length; i += 2)
-                    {
-                        testArgs[i] = typeof(MFloat);
-                        testArgs[i + 1] = typeof(float);
-                    }
-                    try
-                    {
-                        typeOut.MakeGenericType(testArgs);
-                        return true;
-                    }
-                    catch (ArgumentException)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            //BopCustomTexturesPlugin.LogWarning("case 3");
-            //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType);
-            //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType);
-            //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType ? typeOut.BaseType.GetGenericArguments()[0] : "invalid");
-
-            return typeOut.BaseType != null 
-                && typeOut.BaseType.IsGenericType 
-                && typeOut.BaseType.GetGenericArguments()[0] == typeIn;
-        }
-
-        public bool TryFind(Type typeIn, out Type typeOut) => TryFind(typeIn, out typeOut, IsMatch);
     }
 
     private static MComponentParserRegistry instance;
@@ -154,7 +88,7 @@ public class MComponentParserRegistry(ILogger logger)
 
     private readonly Dictionary<string, MComponentRegister> MComponentRegistry = [];
     private readonly Dictionary<Type, MTypeRegister> MTypeRegistry = [];
-    private readonly MTypeTree MTypeTreeBase = new();
+    private readonly Tree<Type> MTypeTreeBase = new();
     private readonly Dictionary<Type, Type> TypeToMType = [];
 
     public static MComponentParserRegistry Instance { get => instance; }
@@ -376,23 +310,31 @@ public class MComponentParserRegistry(ILogger logger)
         if (changed)
         {
             TypeToMType.Clear();
-#if DEBUG
-            PrintTree("base", MTypeTreeBase);
-#endif
+            Logger.LogMComponentRegistering("MType tree is now as follows:");
+            PrintTree(MTypeTreeBase);
         }
         Logger.LogMComponentRegistering($"Registered all MComponents in assembly: {assembly.FullName}");
     }
 
-#if DEBUG
-    private void PrintTree<T>(string path, Tree<T> node)
+    private void PrintTree(Tree<Type> node, string prefix = "")
     {
-        Logger.LogWarning(path);
-        foreach (var subnode in node)
+        using var iter = node.GetEnumerator();
+        if (iter.MoveNext())
         {
-            PrintTree(path + " -> " + subnode.Key, subnode.Value);
+            var prefixBar = prefix + "├── ";
+            var prefixNoBar = prefix + "│   ";
+
+            var pair = iter.Current;
+            while (iter.MoveNext())
+            {
+                Logger.LogMComponentRegistering($"{prefixBar}{(pair.Key.IsAbstract ? $"({pair.Key.Name})" : pair.Key.Name)}");
+                PrintTree(pair.Value, prefixNoBar);
+                pair = iter.Current;
+            }
+            Logger.LogMComponentRegistering($"{prefix}└── {(pair.Key.IsAbstract ? $"({pair.Key.Name})" : pair.Key.Name)}");
+            PrintTree(pair.Value, prefix + "    ");
         }
     }
-#endif
 
     public bool HasComponentRegistered(string name)
     {
@@ -507,12 +449,12 @@ public class MComponentParserRegistry(ILogger logger)
             return typeof(MArray<,>).MakeGenericType(msubType, subType);
         }
 
-        if (MTypeTreeBase.TryFind(type, out var mtype))
+        if (TryFind(type, out var mtype))
         {
-            while (mtype != typeof(MBase<>) && mtype.IsAbstract)
+            /*while (mtype != typeof(MBase<>) && mtype.IsAbstract)
             {
                 mtype = mtype.BaseType.IsGenericType ? mtype.BaseType.GetGenericTypeDefinition() : mtype.BaseType;
-            }
+            }*/
             if (mtype.IsAbstract)
             {
                 Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": MType {mtype.Name} is abstract");
@@ -526,7 +468,6 @@ public class MComponentParserRegistry(ILogger logger)
             var margsCount = mtype.GetGenericArguments().Length;
             if (margsCount == 1)
             {
-                Logger.LogError("hello");
                 return mtype.MakeGenericType(type);
             }
 
@@ -646,4 +587,64 @@ public class MComponentParserRegistry(ILogger logger)
             yield return parent;
         }
     }
+
+    private static bool IsMatch(Type typeIn, Type typeOut)
+    {
+        //BopCustomTexturesPlugin.LogWarning("");
+        //BopCustomTexturesPlugin.LogWarning($"{typeIn} == {typeOut}?");
+
+        if (typeOut.IsGenericTypeDefinition)
+        {
+            var argCount = typeOut.GetGenericArguments().Length;
+            if (argCount % 2 == 0)
+            {
+                if (!typeIn.IsGenericType
+                    || typeOut.BaseType == null
+                    || !typeOut.BaseType.IsGenericType)
+                {
+                    return false;
+                }
+                var typeOutXXX = typeOut.BaseType.GetGenericArguments()[0];
+
+                //BopCustomTexturesPlugin.LogWarning("case 1");
+
+                return typeOutXXX.IsGenericType
+                    && typeOutXXX.GetGenericTypeDefinition() == typeIn.GetGenericTypeDefinition();
+            }
+            else
+            {
+                //BopCustomTexturesPlugin.LogWarning("case 2");
+
+                Type[] testArgs = new Type[argCount];
+                testArgs[0] = typeIn;
+                for (var i = 1; i < testArgs.Length; i += 2)
+                {
+                    testArgs[i] = typeof(MFloat);
+                    testArgs[i + 1] = typeof(float);
+                }
+                try
+                {
+                    typeOut.MakeGenericType(testArgs);
+                    return true;
+                }
+                catch (ArgumentException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        //BopCustomTexturesPlugin.LogWarning("case 3");
+        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType);
+        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType);
+        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType ? typeOut.BaseType.GetGenericArguments()[0] : "invalid");
+
+        return typeOut.BaseType != null
+            && typeOut.BaseType.IsGenericType
+            && typeOut.BaseType.GetGenericArguments()[0] == typeIn;
+    }
+
+    private static bool IsValidOutput(Type typeOut) => !typeOut.IsAbstract;
+
+    private bool TryFind(Type typeIn, out Type typeOut) => MTypeTreeBase.TryFind(typeIn, out typeOut, IsMatch, IsValidOutput);
 }

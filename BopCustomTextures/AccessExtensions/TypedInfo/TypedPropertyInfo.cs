@@ -7,13 +7,9 @@ public class TypedPropertyInfo<O, T> : TypedMemberInfo<O, T>
 {
     public PropertyInfo Property;
 
-    public override Type Type
-    {
-        get
-        {
-            return Property?.PropertyType;
-        }
-    }
+    public override Type Type => Property?.PropertyType;
+
+    public override bool IsReadOnly => Property == null || !Property.CanWrite;
 
     public TypedPropertyInfo() { }
 

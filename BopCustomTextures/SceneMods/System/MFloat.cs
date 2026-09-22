@@ -4,47 +4,62 @@ using System.Text.RegularExpressions;
 
 namespace BopCustomTextures.SceneMods.System;
 
-public class MFloat : MValue<float>
+public class MFloat : MValue<float>, IMKey<float>
 {
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
     {
-        if (TryJsonParse(ctx, jtoken, out float val))
-        {
-            Value = val;
-            return true;
-        }
-        return false;
+        return TryJsonParse(ctx, jtoken, out Value);
+    }
+
+    public bool JsonParseKey(CustomJsonInitializer ctx, string key)
+    {
+        return TryJsonParseKey(ctx, key, out Value);
     }
 
     new public static bool TryJsonParse(CustomJsonInitializer ctx, JToken jtoken, out float res)
     {
         if (jtoken.Type == JTokenType.String)
         {
-            Match match = InfinityRegex.Match((string)jtoken);
-            if (match.Success)
-            {
-                if (match.Groups[1].Length > 0 && match.Groups[1].Value[0] == '-')
-                {
-                    res = float.NegativeInfinity;
-                }
-                else
-                {
-                    res = float.PositiveInfinity;
-                }
-                return true;
-            }
-            ctx.Logger.LogJsonParseError(jtoken.Path, "mfloat", "string wasn't \"Infinity\" or \"-Infinity\"");
+            if (TryParseInfinity((string)jtoken, out res)) return true;
+            ctx.Logger.LogJsonParseError(jtoken.Path, "float", "string wasn't \"Infinity\" or \"-Infinity\"");
+            return false;
         }
         else if (jtoken.Type == JTokenType.Float || jtoken.Type == JTokenType.Integer)
         {
             res = (float)jtoken;
             return true;
         }
-        ctx.Logger.LogJsonParseError(jtoken.Path, "mfloat", "not a float, int, \"Infinity\", or \"-Infinity\"");
+        ctx.Logger.LogJsonParseError(jtoken.Path, "float", "not a float, int, \"Infinity\", or \"-Infinity\"");
 
         res = default;
+        return false;
+    }
+
+    public static bool TryJsonParseKey(CustomJsonInitializer ctx, string key, out float res)
+    {
+        if (TryParseInfinity(key, out res) || float.TryParse(key, out res)) return true;
+        ctx.Logger.LogJsonParseError(key, "float", "not parseable as float, \"Infinity\", or \"-Infinity\"");
+        return false;
+    }
+
+    public static bool TryParseInfinity(string str, out float inf)
+    {
+        Match match = InfinityRegex.Match(str);
+        if (match.Success)
+        {
+            if (match.Groups[1].Length > 0 && match.Groups[1].Value[0] == '-')
+            {
+                inf = float.NegativeInfinity;
+            }
+            else
+            {
+                inf = float.PositiveInfinity;
+            }
+            return true;
+        }
+        inf = float.NaN;
         return false;
     }
 }

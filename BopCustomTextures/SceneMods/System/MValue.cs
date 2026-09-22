@@ -9,12 +9,7 @@ public class MValue<T> : MBase<T> where T : struct
 
     public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
     {
-        if (TryJsonParse(ctx, jtoken, out T val))
-        {
-            Value = val;
-            return true;
-        }
-        return false;
+        return TryJsonParse(ctx, jtoken, out Value);
     }
 
     public static bool TryJsonParse(CustomJsonInitializer ctx, JToken jtoken, out T res)

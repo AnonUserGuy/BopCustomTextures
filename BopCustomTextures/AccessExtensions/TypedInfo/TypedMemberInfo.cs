@@ -3,6 +3,8 @@
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
 public abstract class TypedMemberInfo<O, T> : TypedInfo<O>
 {
+    public abstract bool IsReadOnly { get; }
+
     public static TypedMemberInfo<O, T> Create(string name)
     {
         var field = AccessTools.Field(typeof(O), name);
