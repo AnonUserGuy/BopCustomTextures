@@ -8,7 +8,7 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 public class MVector3 : MBaseVector<Vector3>
 {
     private const int width = 3;
-    public override int Width { get => width; }
+    public override int Width => width;
 
     public override float this[int i]
     {

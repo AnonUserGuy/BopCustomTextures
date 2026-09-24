@@ -1,6 +1,5 @@
 ﻿using BopCustomTextures.Json;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
@@ -32,7 +31,7 @@ public class MArray<M, T> : MBase<T[]>, IMIndexable<M> where M : IMBase<T>, new(
             }
             for (int i = array.Length; i < Values.Count; i++)
             {
-                newArray[i] = Values[i].Apply(default);
+                newArray[i] = Values[i].Apply();
             }
             return newArray;
         }
@@ -40,10 +39,27 @@ public class MArray<M, T> : MBase<T[]>, IMIndexable<M> where M : IMBase<T>, new(
         {
             foreach (var pair in ValuesIndexed)
             {
-                array[pair.Key] = pair.Value.Apply(array[pair.Key]);
+                if (array.Length > pair.Key)
+                {
+                    array[pair.Key] = pair.Value.Apply(array[pair.Key]);
+                }
             }
         }
         return array;
+    }
+
+    public override T[] Apply()
+    {
+        if (Values != null)
+        {
+            T[] newArray = new T[Values.Count];
+            for (int i = 0; i < Values.Count; i++)
+            {
+                newArray[i] = Values[i].Apply();
+            }
+            return newArray;
+        }
+        return null;
     }
 
     public override void ApplyReadOnly(T[] array)
@@ -63,16 +79,5 @@ public class MArray<M, T> : MBase<T[]>, IMIndexable<M> where M : IMBase<T>, new(
                 array[pair.Key] = pair.Value.Apply(array[pair.Key]);
             }
         }
-    }
-
-    public override bool IsAssignable(Type type)
-    {
-        return type.IsArray && IsInnerAssignable(type.GetElementType());
-    }
-
-    public bool IsInnerAssignable(Type innerType)
-    {
-        M dummy = new();
-        return dummy.IsAssignable(innerType);
     }
 }

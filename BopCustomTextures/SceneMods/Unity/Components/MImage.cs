@@ -21,9 +21,9 @@ public class MImage : MBehaviour<Image>, IMRenderable
         }
     }
 
-    public override Image Apply(Image component)
+    public override Image ApplyInternal(Image component)
     {
         if (mmaterial != null) component.material = mmaterial.Apply(component.material);
-        return base.Apply(component);
+        return base.ApplyInternal(component);
     }
 }

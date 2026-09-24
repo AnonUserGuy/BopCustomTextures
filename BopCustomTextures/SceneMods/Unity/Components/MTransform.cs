@@ -24,13 +24,12 @@ public class MTransform : MComponent<Transform>
         else if (KeyMatch(key, "LocalScale") && MVector3.TryJsonParse(ctx, val, out vector3)) localScale = vector3;
         else base.JsonParsePair(ctx, key, val);
     }
-    public override Transform Apply(Transform component)
+    public override Transform ApplyInternal(Transform component)
     {
         if (localPosition != null) component.localPosition = MVector3.Apply(localPosition, component.localPosition);
         if (localRotation != null) component.localRotation = MQuaternion.Apply(localRotation, component.localRotation);
         else if (localEulerAngles != null) component.localEulerAngles = MVector3.Apply(localEulerAngles, component.localEulerAngles);
         if (localScale != null) component.localScale = MVector3.Apply(localScale, component.localScale);
-        base.Apply(component);
-        return component;
+        return base.ApplyInternal(component);
     }
 }

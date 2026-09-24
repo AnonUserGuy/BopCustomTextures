@@ -4,7 +4,8 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
-public class MIList<M, T> : MIEnumerable<IList<T>, M, T>, IMIndexable<M> 
+public class MIList<G, M, T> : MObject<G>, IMIndexable<M> 
+    where G : class, IList<T>, new()
     where M : IMBase<T>, new()
 {
     private List<M> values;
@@ -18,7 +19,7 @@ public class MIList<M, T> : MIEnumerable<IList<T>, M, T>, IMIndexable<M>
         return MIndexable.JsonParse<M, T>(ctx, val, this);
     }
 
-    public override IList<T> Apply(IList<T> list)
+    public override G Apply(G list)
     {
         if (Values != null)
         {
@@ -29,7 +30,7 @@ public class MIList<M, T> : MIEnumerable<IList<T>, M, T>, IMIndexable<M>
             }
             for (int i = list.Count; i < Values.Count; i++)
             {
-                list.Add(Values[i].Apply(default));
+                list.Add(Values[i].Apply());
             }
             for (int i = list.Count - 1; i >= Values.Count; i--)
             {
@@ -40,10 +41,26 @@ public class MIList<M, T> : MIEnumerable<IList<T>, M, T>, IMIndexable<M>
         {
             foreach (var pair in ValuesIndexed)
             {
-                list[pair.Key] = pair.Value.Apply(list[pair.Key]);
+                if (list.Count > pair.Key)
+                {
+                    list[pair.Key] = pair.Value.Apply(list[pair.Key]);
+                }
             }
         }
         return list;
     }
 
+    public override G Apply()
+    {
+        if (Values != null)
+        {
+            G list = [];
+            for (int i = 0; i < Values.Count; i++)
+            {
+                list[i] = Values[i].Apply();
+            }
+            return list;
+        }
+        return null;
+    }
 }

@@ -22,11 +22,10 @@ public class MParallaxObjectScript : MBehaviour<ParallaxObjectScript>
         else base.JsonParsePair(ctx, key, val);
     }
 
-    public override ParallaxObjectScript Apply(ParallaxObjectScript component)
+    public override ParallaxObjectScript ApplyInternal(ParallaxObjectScript component)
     {
         if (parallaxScale != null) component.parallaxScale = (float)parallaxScale;
         if (loopDistance != null) component.loopDistance = (float)loopDistance;
-        base.Apply(component);
-        return component;
+        return base.ApplyInternal(component);
     }
 }

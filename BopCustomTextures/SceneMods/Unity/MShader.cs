@@ -5,15 +5,14 @@ using UnityEngine;
 namespace BopCustomTextures.SceneMods.Unity;
 public class MShader : MUnityObject<Shader>
 {
-    public Shader shader;
-
     public override bool JsonParse(CustomJsonInitializer ctx, JToken val)
     {
         if (val.Type == JTokenType.String)
         {
             if (ctx.TryGetShader((string)val, out var mshader))
             {
-                shader = mshader;
+                Ref = mshader;
+                HasRef = true;
                 return true;
             }
             ctx.Logger.LogJsonParseError(val.Path, "Shader", $"Couldn't find shader named \"{val}\"");
@@ -27,15 +26,13 @@ public class MShader : MUnityObject<Shader>
 
     public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        if (val.Type == JTokenType.String 
-            && (KeyMatch(key, "Name") || KeyMatch(key, "Shader")) 
-            && ctx.TryGetShader((string)val, out var mshader)) shader = mshader;
+        if (val.Type == JTokenType.String
+            && (KeyMatch(key, "Name") || KeyMatch(key, "Shader"))
+            && ctx.TryGetShader((string)val, out var mshader))
+        {
+            Ref = mshader;
+            HasRef = true;
+        }
         else base.JsonParsePair(ctx, key, val);
-    }
-
-    public override Shader Apply(Shader obj)
-    {
-        if (shader != null) obj = shader;
-        return base.Apply(obj);
     }
 }

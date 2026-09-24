@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using UnityEngine.Bindings;
 
 namespace BopCustomTextures.Json;
 
@@ -50,21 +51,6 @@ public class MComponentParserRegistry(ILogger logger)
         public IEnumerator<KeyValuePair<T, Tree<T>>> GetEnumerator() => Descendents.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         public bool TryGetValue(T i, out Tree<T> val) => Descendents.TryGetValue(i, out val);
-
-        public bool TryFind<Q>(Q tin, out T tout, Func<Q, T, bool> isMatch, Func<T, bool> isValidOutput = null)
-        {
-            foreach (var pair in this)
-            {
-                if (isMatch(tin, pair.Key))
-                {
-                    if (pair.Value.TryFind(tin, out tout, isMatch, isValidOutput)) return true;
-                    tout = pair.Key;
-                    if (isValidOutput == null || isValidOutput(tout)) return true;
-                }
-            }
-            tout = default;
-            return false;
-        }
 
         public Tree<T> Add(IEnumerable<T> tins)
         {
@@ -384,18 +370,21 @@ public class MComponentParserRegistry(ILogger logger)
     {
         if (!TypeToMType.TryGetValue(type, out mtype))
         {
-            mtype = FindType(type);
-            if (mtype != null)
+            if (TryFindType(type, out mtype))
             {
-                Logger.LogMComponentRegistering($"Successfully registered concrete MType for {type.FullName}: {mtype.FullName ?? mtype.Name}"); 
+                Logger.LogMComponentRegistering($"Successfully registered concrete MType for {type.FullName}: {mtype.FullName ?? mtype.Name}");
                 // if mtype.FullName is null then it most certainly did not successfully register concrete mtype
+                TypeToMType[type] = mtype;
             }
-            TypeToMType[type] = mtype;
+            else
+            {
+                TypeToMType[type] = null;
+            }
         }
         return mtype != null;
     }
 
-    private Type FindType(Type type)
+    private bool TryFindType(Type type, out Type mtype)
     {
         /*foreach (var type in SelfAndAncestors(type1))
         {
@@ -444,72 +433,154 @@ public class MComponentParserRegistry(ILogger logger)
             if (!TryGetType(subType, out var msubType))
             {
                 Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": Couldn't register element type");
-                return null;
+                mtype = null;
+                return false;
             }
-            return typeof(MArray<,>).MakeGenericType(msubType, subType);
+            mtype = typeof(MArray<,>).MakeGenericType(msubType, subType);
+            return true;
         }
 
-        if (TryFind(type, out var mtype))
+        var args = type.GetGenericArguments();
+        Type[] margs = new Type[args.Length * 2 + 1];
+        margs[0] = type;
+
+        for (var i = 0; i < args.Length; i++)
         {
-            /*while (mtype != typeof(MBase<>) && mtype.IsAbstract)
+            var subType = args[i];
+            if (!TryGetType(subType, out var msubType))
             {
-                mtype = mtype.BaseType.IsGenericType ? mtype.BaseType.GetGenericTypeDefinition() : mtype.BaseType;
-            }*/
-            if (mtype.IsAbstract)
-            {
-                Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": MType {mtype.Name} is abstract");
-                return null;
+                Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": Couldn't register argument {subType.Name} type");
+                mtype = null;
+                return false;
             }
-            if (!mtype.IsGenericTypeDefinition)
-            {
-                return mtype;
-            }
-
-            var margsCount = mtype.GetGenericArguments().Length;
-            if (margsCount == 1)
-            {
-                return mtype.MakeGenericType(type);
-            }
-
-            if (!type.IsGenericType)
-            {
-                Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": MType {mtype.Name} is generic, but {type} is not");
-                return null;
-            }
-
-            var args = type.GetGenericArguments();
-           
-            if (args.Length != margsCount / 2)
-            {
-                Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": Invalid generic argument count. " + GenericConstraint);
-                return null;
-            }
-
-            var margs = new Type[margsCount];
-            var offset = margsCount % 2;
-
-            if (offset == 1)
-            {
-                margs[0] = type;
-            }
-
-            for (var i = 0; i < args.Length; i++)
-            {
-                var subType = args[i];
-                if (!TryGetType(subType, out var msubType))
-                {
-                    Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": Couldn't register generic parameter type");
-                    return null;
-                }
-                margs[offset + 2 * i] = msubType;
-                margs[offset + 2 * i + 1] = subType;
-            }
-
-            return mtype.MakeGenericType(margs);
+            margs[1 + 2 * i] = msubType;
+            margs[2 + 2 * i] = subType;
         }
+
+        if (TryTreeFindType(type, margs, MTypeTreeBase, out mtype)) return true;
 
         Logger.LogError($"Failed to register concrete MType for \"{type.Name}\": No suitable MType found");
-        return null;
+        return false;
+    }
+
+    private bool TryTreeFindType(Type type, Type[] margs, Tree<Type> node, out Type finalMType)
+    {
+        foreach (var pair in node)
+        {
+            if (TryCreateType(type, margs, pair.Key, out var prospectiveMType))
+            {
+                if (TryTreeFindType(type, margs, pair.Value, out finalMType)) return true;
+                if (!prospectiveMType.IsAbstract)
+                {
+                    finalMType = prospectiveMType;
+                    return true;
+                }
+            }
+        }
+        finalMType = null;
+        return false;
+    }
+
+    private bool TryCreateType(Type type, Type[] margs, Type mtype, out Type finalMType)
+    {
+        Logger.LogMComponentRegistering($"{type.Name} == {mtype.Name}?");
+        if (mtype.GetGenericArguments().Length % 2 == 0)
+        {
+            Logger.LogMComponentRegistering($"{mtype.Name} is leaf node");
+            if (mtype.BaseType == null || !mtype.BaseType.IsGenericType)
+            {
+                Logger.LogMComponentRegistering($"{mtype.Name}'s ancestor {mtype.BaseType?.Name} isn't generic");
+                finalMType = null;
+                return false;
+            }
+
+            var targetType = mtype.BaseType.GetGenericArguments()[0];
+
+            if (targetType.IsGenericType || targetType.IsGenericTypeDefinition)
+            {
+                if (targetType.IsGenericType)
+                {
+                    targetType = targetType.GetGenericTypeDefinition();
+                }
+                var targetArgsCount = targetType.GetGenericArguments().Length;
+                var args = type.GetGenericArguments();
+                if (args.Length != targetArgsCount)
+                {
+                    Logger.LogMComponentRegistering($"{type.Name} should have {targetArgsCount} arguments, but it has {args.Length}");
+                    finalMType = null;
+                    return false;
+                }
+                try
+                {
+                    targetType = targetType.MakeGenericType(args);
+                }
+                catch (ArgumentException)
+                {
+                    Logger.LogMComponentRegistering($"{type.Name}'s arguments aren't valid for {mtype.Name}");
+                    finalMType = null;
+                    return false;
+                }
+            }
+
+            if (!targetType.IsAssignableFrom(type))
+            {
+                Logger.LogMComponentRegistering($"{type.Name} isn't assignable to leaf type {targetType.Name}");
+                finalMType = null;
+                return false;
+            }
+
+            if (mtype.IsGenericTypeDefinition)
+            {
+                var targetMargsCount0 = mtype.GetGenericArguments().Length;
+                Type[] partialMargs0 = new Type[targetMargsCount0]; // this is dumb
+                Array.Copy(margs, 1, partialMargs0, 0, targetMargsCount0);
+                try
+                {
+                    finalMType = mtype.MakeGenericType(partialMargs0);
+                }
+                catch (ArgumentException)
+                {
+                    Logger.LogMComponentRegistering($"{type.Name} isn't valid for {mtype.Name}");
+                    finalMType = null;
+                    return false;
+                }
+            }
+            else
+            {
+                finalMType = mtype;
+            }
+
+            Logger.LogMComponentRegistering($"{type.Name} is leaf node for {finalMType.Name}");
+            return true;
+        }
+
+        var targetMargsCount = mtype.GetGenericArguments().Length;
+        Type[] partialMargs = margs;
+        if (margs.Length < targetMargsCount)
+        {
+            Logger.LogMComponentRegistering($"{type.Name} should have at least {(targetMargsCount - 1) / 2} arguments, but it has {(margs.Length - 1) / 2}");
+            finalMType = null;
+            return false;
+        }
+        else if (margs.Length > targetMargsCount)
+        {
+            partialMargs = new Type[targetMargsCount]; // still dumb
+            Array.Copy(margs, 0, partialMargs, 0, targetMargsCount);
+        }
+
+        try
+        {
+            finalMType = mtype.MakeGenericType(partialMargs);
+        }
+        catch (ArgumentException)
+        {
+            Logger.LogMComponentRegistering($"{type.Name} isn't valid for {mtype.Name}");
+            finalMType = null;
+            return false;
+        }
+
+        Logger.LogMComponentRegistering($"{type.Name} is valid for {finalMType.Name}");
+        return true;
     }
 
     public bool TryParseJson(CustomJsonInitializer ctx, Type type, JToken val, out IMBase mval)
@@ -587,64 +658,4 @@ public class MComponentParserRegistry(ILogger logger)
             yield return parent;
         }
     }
-
-    private static bool IsMatch(Type typeIn, Type typeOut)
-    {
-        //BopCustomTexturesPlugin.LogWarning("");
-        //BopCustomTexturesPlugin.LogWarning($"{typeIn} == {typeOut}?");
-
-        if (typeOut.IsGenericTypeDefinition)
-        {
-            var argCount = typeOut.GetGenericArguments().Length;
-            if (argCount % 2 == 0)
-            {
-                if (!typeIn.IsGenericType
-                    || typeOut.BaseType == null
-                    || !typeOut.BaseType.IsGenericType)
-                {
-                    return false;
-                }
-                var typeOutXXX = typeOut.BaseType.GetGenericArguments()[0];
-
-                //BopCustomTexturesPlugin.LogWarning("case 1");
-
-                return typeOutXXX.IsGenericType
-                    && typeOutXXX.GetGenericTypeDefinition() == typeIn.GetGenericTypeDefinition();
-            }
-            else
-            {
-                //BopCustomTexturesPlugin.LogWarning("case 2");
-
-                Type[] testArgs = new Type[argCount];
-                testArgs[0] = typeIn;
-                for (var i = 1; i < testArgs.Length; i += 2)
-                {
-                    testArgs[i] = typeof(MFloat);
-                    testArgs[i + 1] = typeof(float);
-                }
-                try
-                {
-                    typeOut.MakeGenericType(testArgs);
-                    return true;
-                }
-                catch (ArgumentException)
-                {
-                    return false;
-                }
-            }
-        }
-
-        //BopCustomTexturesPlugin.LogWarning("case 3");
-        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType);
-        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType);
-        //BopCustomTexturesPlugin.LogWarning(typeOut.BaseType != null && typeOut.BaseType.IsGenericType ? typeOut.BaseType.GetGenericArguments()[0] : "invalid");
-
-        return typeOut.BaseType != null
-            && typeOut.BaseType.IsGenericType
-            && typeOut.BaseType.GetGenericArguments()[0] == typeIn;
-    }
-
-    private static bool IsValidOutput(Type typeOut) => !typeOut.IsAbstract;
-
-    private bool TryFind(Type typeIn, out Type typeOut) => MTypeTreeBase.TryFind(typeIn, out typeOut, IsMatch, IsValidOutput);
 }

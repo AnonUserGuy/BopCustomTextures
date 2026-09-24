@@ -15,7 +15,7 @@ public interface IMRenderable
 }
 
 /// <summary>
-/// Static class providing JSON parsing method for <see cref="IMComponent"/>s implementing <see cref="IMRenderable"/>.
+/// Static class providing JSON parsing method for <see cref="IMComponent"/>s implementing <see cref="MRenderable"/>.
 /// </summary>
 public static class MRenderable
 {

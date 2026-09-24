@@ -1,8 +1,8 @@
 ﻿using BopCustomTextures.Json;
 using BopCustomTextures.SceneMods.System;
 using BopCustomTextures.SceneMods.Unity.Structs;
-using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Components;
 
@@ -26,12 +26,12 @@ public class MCamera : MComponent<Camera>
         else base.JsonParsePair(ctx, key, val);
     }
 
-    public override Camera Apply(Camera component)
+    public override Camera ApplyInternal(Camera component)
     {
         if (orthographic != null) component.orthographic = (bool)orthographic;
         if (orthographicSize != null) component.orthographicSize = (float)orthographicSize;
         if (aspect != null) component.aspect = (float)aspect;
         if (backgroundColor != null) component.backgroundColor = MColor.Apply(backgroundColor, component.backgroundColor);
-        return base.Apply(component);
+        return base.ApplyInternal(component);
     }
 }

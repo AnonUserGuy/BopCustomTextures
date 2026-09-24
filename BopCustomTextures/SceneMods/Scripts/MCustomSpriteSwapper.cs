@@ -13,24 +13,24 @@ namespace BopCustomTextures.SceneMods.Scripts;
 [MComponent("CustomSpriteSwapper")]
 public class MCustomSpriteSwapper : MBehaviour<CustomSpriteSwapper>
 {
-    public MIList<MVariant, int> variants;
+    public MIList<List<int>, MVariant, int> variants;
 
     public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken jvariants)
     {
         if (KeyMatch(key, "Variants"))
         {
-            if (TryJsonParse<MIList<MVariant, int>, IList<int>>(ctx, jvariants, out var mvariants)) variants = mvariants;
+            if (TryJsonParse<MIList<List<int>, MVariant, int>, List<int>>(ctx, jvariants, out var mvariants)) variants = mvariants;
         }
         else base.JsonParsePair(ctx, key, jvariants);
     }
 
-    public override CustomSpriteSwapper Apply(CustomSpriteSwapper component)
+    public override CustomSpriteSwapper ApplyInternal(CustomSpriteSwapper component)
     {
         if (variants != null)
         {
             variants.Apply(component.variants);
             component.Replace();
         }
-        return base.Apply(component);
+        return base.ApplyInternal(component);
     }
 }

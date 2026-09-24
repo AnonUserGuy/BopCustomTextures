@@ -2,14 +2,18 @@
 using BopCustomTextures.SceneMods.System;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
-using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
-public class MColor : MBaseVector<Color>
+public class MColor : MBaseVector<Color>, IMKey<Color>
 {
+    public static readonly Regex ColorRegex = new Regex(@"^(?:#|0x)?([\da-f]{2})([\da-f]{2})?([\da-f]{2})?([\da-f]{2})?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    protected override string LogInvalidTypeMsg => "not string, object, or array";
+
     private const int width = 4;
-    public override int Width { get => width; }
+    public override int Width => width;
 
     public override float this[int i]
     {
@@ -17,14 +21,31 @@ public class MColor : MBaseVector<Color>
         set => Value[i] = value;
     }
 
-    public override bool JsonParse(CustomJsonInitializer ctx, JToken val)
+    public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)
     {
-        if (val.Type == JTokenType.String)
+        if (jtoken.Type == JTokenType.String)
         {
-            InitValue();
-            return JsonParse(ctx, val, (string)val);
+            return JsonParseKey(ctx, (string)jtoken);
         }
-        return base.JsonParse(ctx, val);
+        return base.JsonParse(ctx, jtoken);
+    }
+
+    public bool JsonParseKey(CustomJsonInitializer ctx, string str)
+    {
+        Match match = ColorRegex.Match(str);
+        if (!match.Success)
+        {
+            ctx.Logger.LogJsonParseError(str, "color", "not parseable as color string");
+            return false;
+        }
+        InitValue();
+
+        int i = 1;
+        for (Group group = match.Groups[i]; group.Success && i < match.Groups.Count; group = match.Groups[i++])
+        {
+            if (MColorChannel.TryJsonParseKey(ctx, group.Value, out var res)) this[i - 1] = res;
+        }
+        return true;
     }
 
     new public static bool TryJsonParse(CustomJsonInitializer ctx, JToken val, out Color vector)
@@ -39,34 +60,36 @@ public class MColor : MBaseVector<Color>
         return false;
     }
 
-    public bool JsonParse(CustomJsonInitializer ctx, JToken val, string str)
+    public static bool TryJsonParseKey(CustomJsonInitializer ctx, string key, out Color vector)
     {
-        str = str.TrimStart('#');
-        if (str.Length > 8)
+        var mvector = new MColor();
+        if (mvector.JsonParseKey(ctx, key))
         {
-            str = str.Substring(0, 8);
+            vector = mvector.Value;
+            return true;
         }
-        if (!int.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
-        {
-            ctx.Logger.LogJsonParseError(val.Path, "Color", $"couldn't parse string as color \"{str}\"");
-            return false;
-        }
-        for (int i = str.Length / 2 - 1; i >= 0; i--)
-        {
-            this[i] = (rgb & 0xFF) / 255.0f;
-            rgb >>= 8;
-        }
-        return true;
+        vector = default;
+        return false;
     }
 
     public override bool JsonParse(CustomJsonInitializer ctx, JObject jobj)
     {
         JToken jfloat;
         float mfloat;
-        if (jobj.TryGetValue("r", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[0] = mfloat;
-        if (jobj.TryGetValue("g", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[1] = mfloat;
-        if (jobj.TryGetValue("b", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[2] = mfloat;
-        if (jobj.TryGetValue("a", out jfloat) && MFloat.TryJsonParse(ctx, jfloat, out mfloat)) this[3] = mfloat;
+        if (jobj.TryGetValue("r", out jfloat) && MColorChannel.TryJsonParse(ctx, jfloat, out mfloat)) this[0] = mfloat;
+        if (jobj.TryGetValue("g", out jfloat) && MColorChannel.TryJsonParse(ctx, jfloat, out mfloat)) this[1] = mfloat;
+        if (jobj.TryGetValue("b", out jfloat) && MColorChannel.TryJsonParse(ctx, jfloat, out mfloat)) this[2] = mfloat;
+        if (jobj.TryGetValue("a", out jfloat) && MColorChannel.TryJsonParse(ctx, jfloat, out mfloat)) this[3] = mfloat;
+        return true;
+    }
+
+    public override bool JsonParse(CustomJsonInitializer ctx, JArray jvector)
+    {
+        float mfloat;
+        if (MColorChannel.TryJsonParse(ctx, jvector[0], out mfloat)) this[0] = mfloat;
+        if (MColorChannel.TryJsonParse(ctx, jvector[1], out mfloat)) this[1] = mfloat;
+        if (MColorChannel.TryJsonParse(ctx, jvector[2], out mfloat)) this[2] = mfloat;
+        if (MColorChannel.TryJsonParse(ctx, jvector[3], out mfloat)) this[3] = mfloat;
         return true;
     }
 

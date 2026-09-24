@@ -7,15 +7,19 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 
 public class MEulerAngles : MVector3
 {
+    protected override string LogInvalidTypeMsg => "not float, int, object, or array"; 
+    // "Infinity" or "-Infinity" too, but why would you ever set that in practice?
+
     public override bool JsonParse(CustomJsonInitializer ctx, JToken val)
     {
-        if (val.Type == JTokenType.Float || val.Type == JTokenType.Integer)
+        if (val.Type == JTokenType.Float || val.Type == JTokenType.Integer || val.Type == JTokenType.String)
         {
-            InitValue();
             if (!MFloat.TryJsonParse(ctx, val, out float mfloat))
             {
+                ctx.Logger.LogJsonParseError(val.Path, "euler angles", "single channel wasn't parseable as float");
                 return false;
             }
+            InitValue();
             this[2] = mfloat;
             return true;
         }

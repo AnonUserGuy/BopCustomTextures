@@ -32,13 +32,13 @@ public class MSpriteRenderer : MComponent<SpriteRenderer>, IMRenderable
         }
     }
 
-    public override SpriteRenderer Apply(SpriteRenderer component)
+    public override SpriteRenderer ApplyInternal(SpriteRenderer component)
     {
         if (color != null) component.color = MColor.Apply(color, component.color);
         if (size != null) component.size = MVector2.Apply(size, component.size);
         if (flipX != null) component.flipX = (bool)flipX;
         if (flipY != null) component.flipY = (bool)flipY;
         if (mmaterial != null) component.material = mmaterial.Apply(component.material);
-        return base.Apply(component);
+        return base.ApplyInternal(component);
     }
 }

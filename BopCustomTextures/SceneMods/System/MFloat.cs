@@ -13,7 +13,7 @@ public class MFloat : MValue<float>, IMKey<float>
         return TryJsonParse(ctx, jtoken, out Value);
     }
 
-    public bool JsonParseKey(CustomJsonInitializer ctx, string key)
+    public virtual bool JsonParseKey(CustomJsonInitializer ctx, string key)
     {
         return TryJsonParseKey(ctx, key, out Value);
     }

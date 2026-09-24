@@ -18,9 +18,9 @@ public class MBehaviour<T> : MComponent<T> where T : Behaviour
         else base.JsonParsePair(ctx, key, val);
     }
 
-    public override T Apply(T component)
+    public override T ApplyInternal(T component)
     {
         if (enabled != null) component.enabled = (bool)enabled;
-        return base.Apply(component);
+        return base.ApplyInternal(component);
     }
 }

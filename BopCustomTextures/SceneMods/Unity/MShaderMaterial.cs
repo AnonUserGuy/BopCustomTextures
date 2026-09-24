@@ -12,7 +12,8 @@ public class MShaderMaterial: MMaterial
         {
             if (ctx.TryGetShaderMaterial((string)val, out var mshaderMaterial))
             {
-                material = mshaderMaterial;
+                Ref = mshaderMaterial;
+                HasRef = true;
                 return true;
             }
             ctx.Logger.LogJsonParseError(val.Path, "Shader", $"Couldn't find shader named \"{val}\"");

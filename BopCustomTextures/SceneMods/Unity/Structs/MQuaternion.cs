@@ -8,7 +8,7 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 public class MQuaternion : MBaseVector<Quaternion>
 {
     private const int width = 4;
-    public override int Width { get => width; }
+    public override int Width => width;
 
     public override float this[int i]
     {

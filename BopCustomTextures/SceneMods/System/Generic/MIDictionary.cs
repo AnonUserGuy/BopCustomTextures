@@ -1,11 +1,11 @@
 ﻿using BopCustomTextures.Json;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
-public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey, TValue>> 
+public class MIDictionary<G, MKey, TKey, MValue, TValue> : MObject<G>
+    where G : class, IDictionary<TKey, TValue>, new()
     where MKey : IMBase<TKey>, new() // also optionally IMKey<TKey>
     where MValue : IMBase<TValue>, new()
 {
@@ -26,7 +26,7 @@ public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey
             case JObject jobj:
                 if (!IsKeyParseableFromString())
                 {
-                    ctx.Logger.LogJsonParseError(val.Path, $"dictionary<{typeof(TKey).Name}, {typeof(TValue).Name}>", $"{typeof(TKey).Name} isn't parseable from string");
+                    ctx.Logger.LogJsonParseError(val.Path, $"{typeof(G).Name}<{typeof(TKey).Name}, {typeof(TValue).Name}>", $"{typeof(TKey).Name} isn't parseable from string");
                     return false;
                 }
 
@@ -46,7 +46,7 @@ public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey
                 }
                 return true;
         }
-        ctx.Logger.LogJsonParseError(val.Path, $"dictionary<{typeof(TKey).Name}, {typeof(TValue).Name}>", "not an object or array");
+        ctx.Logger.LogJsonParseError(val.Path, $"{typeof(G).Name}<{typeof(TKey).Name}, {typeof(TValue).Name}>", "not an object or array");
         return false;
     }
 
@@ -97,36 +97,37 @@ public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey
         return true;
     }
 
-    public override IDictionary<TKey, TValue> Apply(IDictionary<TKey, TValue> list)
+    public override G Apply(G list)
     {
         if (Values != null)
         {
             foreach (var pair in Values)
             {
-                list[pair.Key] = pair.Value.Apply(list[pair.Key]);
+                if (list.TryGetValue(pair.Key, out var val))
+                {
+                    list[pair.Key] = pair.Value.Apply(val);
+                }
+                else
+                {
+                    list[pair.Key] = pair.Value.Apply();
+                }
             }
         }
         return list;
     }
 
-    public override bool IsAssignable(Type type)
+    public override G Apply()
     {
-        if (!(type.IsGenericType && typeof(IDictionary<,>).IsAssignableFrom(type.GetGenericTypeDefinition()))) return false;
-        var args = type.GetGenericArguments();
-        return IsKeyAssignable(args[0])
-            && IsValueAssignable(args[1]);
-    }
-
-    public bool IsKeyAssignable(Type innerType)
-    {
-        MKey dummy = new();
-        return dummy.IsAssignable(innerType);
-    }
-
-    public bool IsValueAssignable(Type innerType)
-    {
-        MValue dummy = new();
-        return dummy.IsAssignable(innerType);
+        if (Values != null)
+        {
+            G list = [];
+            foreach (var pair in Values)
+            {
+                list[pair.Key] = pair.Value.Apply();
+            }
+            return list;
+        }
+        return null;
     }
 
     public bool IsKeyParseableFromString()
@@ -139,7 +140,7 @@ public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey
         MKey dummy = new();
         if (dummy.JsonParse(ctx, jtoken))
         {
-            val = dummy.Apply(default);
+            val = dummy.Apply();
             return true;
         }
         val = default;
@@ -151,7 +152,7 @@ public class MIDictionary<MKey, TKey, MValue, TValue> : MObject<IDictionary<TKey
         MKey dummy = new();
         if (((IMKey<TKey>)dummy).JsonParseKey(ctx, key)) 
         {
-            val = dummy.Apply(default);
+            val = dummy.Apply();
             return true;
         }
         val = default;

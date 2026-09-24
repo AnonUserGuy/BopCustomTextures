@@ -28,4 +28,9 @@ public class MValue<T> : MBase<T> where T : struct
     {
         return Value;
     }
+
+    public override T Apply()
+    {
+        return Value;
+    }
 }

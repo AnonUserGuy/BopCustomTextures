@@ -3,6 +3,7 @@ using System;
 using System.Reflection;
 
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
+
 public class TypedPropertyInfo<O, T> : TypedMemberInfo<O, T>
 {
     public PropertyInfo Property;

@@ -4,8 +4,6 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
-public interface IMIndexable : IMIndexable<IMBase>;
-
 public interface IMIndexable<M> where M : IMBase
 {
     public List<M> Values { get; set; }

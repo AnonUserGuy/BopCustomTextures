@@ -10,6 +10,8 @@ public interface IMBase
 
     public object Apply(object obj);
 
+    public object ApplyNone();
+
     public void ApplyReadOnly(object obj);
 
     public bool IsAssignable(Type type);
@@ -20,6 +22,8 @@ public interface IMBase<T> : IMBase
     public bool JsonParse(CustomJsonInitializer ctx, JToken val);
 
     public T Apply(T obj);
+
+    public T Apply();
 
     public void ApplyReadOnly(T obj);
 }
@@ -64,6 +68,8 @@ public abstract class MBase : IMBase
     }
 
     public abstract bool IsAssignable(Type type);
+
+    public abstract object ApplyNone();
 }
 
 public abstract class MBase<T> : MBase, IMBase<T>
@@ -109,4 +115,11 @@ public abstract class MBase<T> : MBase, IMBase<T>
     {
         return typeof(T).IsAssignableFrom(type);
     }
+
+    public override object ApplyNone()
+    {
+        return Apply();
+    }
+
+    public abstract T Apply();
 }

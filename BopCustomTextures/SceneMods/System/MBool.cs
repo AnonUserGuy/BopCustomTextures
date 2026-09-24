@@ -1,5 +1,4 @@
 ﻿using BopCustomTextures.Json;
-using System;
 
 namespace BopCustomTextures.SceneMods.System;
 

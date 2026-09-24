@@ -11,7 +11,6 @@ namespace BopCustomTextures.SceneMods.Unity;
 /// </summary>
 public class MMaterial : MUnityObject<Material>
 {
-    public Material material;
     public bool needsNew;
     public MShader shader;
     public Color? color;
@@ -27,7 +26,8 @@ public class MMaterial : MUnityObject<Material>
             needsNew = false;
             if (ctx.TryGetMaterial((string)val, out var mmaterial))
             {
-                material = mmaterial;
+                Ref = mmaterial;
+                HasRef = true;
                 return true;
             }
             return false;
@@ -41,10 +41,13 @@ public class MMaterial : MUnityObject<Material>
 
     public override void JsonParsePair(CustomJsonInitializer ctx, string key, JToken val)
     {
-        Material mat;
         if (val.Type == JTokenType.String 
             && (KeyMatch(key, "Name") || KeyMatch(key, "Material")) 
-            && ctx.TryGetMaterial((string)val, out mat)) material = mat;
+            && ctx.TryGetMaterial((string)val, out Material mat))
+        {
+            Ref = mat;
+            HasRef = true;
+        }
         else if (KeyMatch(key, "Color") && MColor.TryJsonParse(ctx, val, out var mcolor)) color = mcolor;
         else if (KeyMatch(key, "Shader") && TryJsonParse<MShader, Shader>(ctx, val, out var mshader)) shader = mshader;
         else if (key.StartsWith("m_"))
@@ -65,9 +68,8 @@ public class MMaterial : MUnityObject<Material>
         else base.JsonParsePair(ctx, key, val);
     }
 
-    public override Material Apply(Material mat)
+    public override Material ApplyInternal(Material mat)
     {
-        if (material != null) mat = material;
         if (needsNew)
         {
             mat = new Material(mat); // TODO: this certainly isn't performant but whatever
