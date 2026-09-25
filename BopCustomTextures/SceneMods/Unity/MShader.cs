@@ -3,6 +3,10 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace BopCustomTextures.SceneMods.Unity;
+
+/// <summary>
+/// Scene mod <see cref="Shader"/> definition.
+/// </summary>
 public class MShader : MUnityObject<Shader>
 {
     public override bool JsonParse(CustomJsonInitializer ctx, JToken val)

@@ -4,6 +4,9 @@ using System;
 
 namespace BopCustomTextures.SceneMods.System;
 
+/// <summary>
+/// Scene mod interface without specific target type.
+/// </summary>
 public interface IMBase
 {
     public bool JsonParse(CustomJsonInitializer ctx, Type type, JToken val);
@@ -17,6 +20,13 @@ public interface IMBase
     public bool IsAssignable(Type type);
 }
 
+/// <summary>
+/// <para>Scene mod interface with specific target type.</para> 
+/// 
+/// <para>Instead of implementing this, instead classes should descend from <see cref="MBase{T}"/> so automatic
+/// type registration for scene mod definition resolution can occur.</para> 
+/// </summary>
+/// <typeparam name="T">Type that scene mod modifies the members of.</typeparam>
 public interface IMBase<T> : IMBase
 {
     public bool JsonParse(CustomJsonInitializer ctx, JToken val);
@@ -28,11 +38,19 @@ public interface IMBase<T> : IMBase
     public void ApplyReadOnly(T obj);
 }
 
+/// <summary>
+/// Scene mod interface for types that can be parsed from a JSON string key. Used by 
+/// <see cref="Generic.MIDictionary{G, MKey, TKey, MValue, TValue}"/>.
+/// </summary>
+/// <typeparam name="T">Class that can be parsed from a string.</typeparam>
 public interface IMKey<T>
 {
     public bool JsonParseKey(CustomJsonInitializer ctx, string key);
 }
 
+/// <summary>
+/// Base class of all scene mods, including those that don't target a specific type.
+/// </summary>
 public abstract class MBase : IMBase
 {
     public abstract bool JsonParse(CustomJsonInitializer ctx, Type type, JToken val);
@@ -72,6 +90,11 @@ public abstract class MBase : IMBase
     public abstract object ApplyNone();
 }
 
+/// <summary>
+/// Root scene mod definition which targets a specific type, <see cref="T"/>. Descendents are automatically registered for
+/// scene mod definition resolution if <see cref="MComponentParserRegistry.RegisterAssembly"/> is called on the containing assembly.
+/// </summary>
+/// <typeparam name="T">Type that scene mod modifies the members of.</typeparam>
 public abstract class MBase<T> : MBase, IMBase<T>
 {
     public override bool JsonParse(CustomJsonInitializer ctx, Type type, JToken val)

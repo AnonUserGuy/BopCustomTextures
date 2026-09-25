@@ -6,7 +6,7 @@ namespace BopCustomTextures.Json;
 /// Attribute specifying a class is a <see cref="SceneMods.IMComponent"/>. 
 /// 
 /// Will automatically be registered if <see cref="MComponentParserRegistry.RegisterAssembly(System.Reflection.Assembly)"/>
-/// is invoked the assembly containing it.
+/// is invoked on the assembly containing it.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class MComponentAttribute(string[] types, float priority = 0) : Attribute

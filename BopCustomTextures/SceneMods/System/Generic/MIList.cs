@@ -4,6 +4,12 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
+/// <summary>
+/// Scene mod <see cref="IList{T}"/> definition.
+/// </summary>
+/// <typeparam name="G">Target <see cref="IList{T}"/> type.</typeparam>
+/// <typeparam name="M">Scene mod definition for element type.</typeparam>
+/// <typeparam name="T">Element type.</typeparam>
 public class MIList<G, M, T> : MObject<G>, IMIndexable<M> 
     where G : class, IList<T>, new()
     where M : IMBase<T>, new()

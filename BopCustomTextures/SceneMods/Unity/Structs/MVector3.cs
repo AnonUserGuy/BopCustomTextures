@@ -5,6 +5,9 @@ using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod <see cref="Vector3"/> definition.
+/// </summary>
 public class MVector3 : MBaseVector<Vector3>
 {
     private const int width = 3;

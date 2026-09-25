@@ -6,7 +6,11 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System;
 
-public class MObject<T>: MBase<T> where T: class
+/// <summary>
+/// Scene mod definition for class/reference types.
+/// </summary>
+/// <typeparam name="T">Target class/reference type</typeparam>
+public class MObject<T> : MBase<T> where T : class
 {
     public T Ref;
     public bool HasRef = false;
@@ -99,6 +103,11 @@ public class MObject<T>: MBase<T> where T: class
         }
 
         ctx.Logger.LogJsonParseError(jtoken.Path, typeof(T).Name, $"key \"{key}\" couldn't be found in class {typeof(T).Name}");
+    }
+
+    new public virtual bool TryJsonParse(CustomJsonInitializer ctx, Type type, JToken jtoken, out IMBase res)
+    {
+        return MBase.TryJsonParse(ctx, type, jtoken, out res);
     }
 
     public override T Apply(T obj)

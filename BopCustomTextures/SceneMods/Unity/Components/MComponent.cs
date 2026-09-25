@@ -5,7 +5,8 @@ using Newtonsoft.Json.Linq;
 namespace BopCustomTextures.SceneMods.Unity.Components;
 
 /// <summary>
-/// Scene Mod generic <see cref="Component"/> interface. Can be parsed from JSON and applied to a <see cref="GameObject"/>.
+/// <para>Scene Mod <see cref="Component"/> definition. Can be parsed from JSON and applied to a <see cref="GameObject"/>.</para>
+/// <para>Doesn't necessarily apply to a <see cref="Component"/>. (see <see cref="MActive"/> or <see cref="Scripts.MDebugSelectedScript"/>.)</para>
 /// </summary>
 public interface IMComponent
 {
@@ -25,8 +26,9 @@ public interface IMComponent
 }
 
 /// <summary>
-/// Scene Mod generic <see cref="Component"/> definition. Can be applied to a component of type T.
+/// Scene Mod <see cref="Component"/> definition.
 /// </summary>
+/// <typeparam name="T">Target <see cref="Component"/> type.</typeparam>
 public class MComponent<T> : MUnityObject<T>, IMComponent where T : Component
 {
     public void Apply(GameObject obj)

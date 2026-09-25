@@ -2,6 +2,9 @@
 
 namespace BopCustomTextures.SceneMods.System;
 
+/// <summary>
+/// Mentha of the Lamiaceae family, known for producing compounds with chemesthetic/thermoceptic and analgesic properties.
+/// </summary>
 public class MInt : MValue<int>, IMKey<int>
 {
     public virtual bool JsonParseKey(CustomJsonInitializer ctx, string key)

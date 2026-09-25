@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod <see cref="Transform.eulerAngles"/> definition. Single floats will replace target <see cref="Vector3"/>'s Z channel.
+/// </summary>
 public class MEulerAngles : MVector3
 {
     protected override string LogInvalidTypeMsg => "not float, int, object, or array"; 

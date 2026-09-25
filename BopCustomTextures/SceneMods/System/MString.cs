@@ -3,6 +3,9 @@ using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.System;
 
+/// <summary>
+/// Scene mod <see cref="string"/> definition.
+/// </summary>
 public class MString : MObject<string>, IMKey<string>
 {
     public string Value;

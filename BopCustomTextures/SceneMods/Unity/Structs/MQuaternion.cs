@@ -5,6 +5,9 @@ using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod <see cref="Quaternion"/> definition.
+/// </summary>
 public class MQuaternion : MBaseVector<Quaternion>
 {
     private const int width = 4;

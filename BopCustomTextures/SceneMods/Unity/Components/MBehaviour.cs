@@ -8,6 +8,7 @@ namespace BopCustomTextures.SceneMods.Unity.Components;
 /// <summary>
 /// Scene mod <see cref="MonoBehaviour"/> definition.
 /// </summary>
+/// <typeparam name="T">Target <see cref="MonoBehaviour"/> type.</typeparam>
 public class MBehaviour<T> : MComponent<T> where T : Behaviour
 {
     public bool? enabled;

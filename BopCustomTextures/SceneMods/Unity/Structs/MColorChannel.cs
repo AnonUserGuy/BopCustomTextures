@@ -5,6 +5,9 @@ using System.Globalization;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod <see cref="float"/> definition for floats that represent color values. Used by <see cref="MColor"/>.
+/// </summary>
 public class MColorChannel : MFloat
 {
     public override bool JsonParse(CustomJsonInitializer ctx, JToken jtoken)

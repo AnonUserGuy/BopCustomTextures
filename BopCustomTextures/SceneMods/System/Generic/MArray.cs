@@ -4,6 +4,11 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
+/// <summary>
+/// Scene mod <see cref="global::System.Array"/> definition.
+/// </summary>
+/// <typeparam name="M">Scene mod definition for element type.</typeparam>
+/// <typeparam name="T">Element type.</typeparam>
 [NotMType] // Too weird to be registered, registry uses class directly
 public class MArray<M, T> : MBase<T[]>, IMIndexable<M> where M : IMBase<T>, new()
 {

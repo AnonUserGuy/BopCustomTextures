@@ -2,6 +2,9 @@
 
 namespace BopCustomTextures.SceneMods.System;
 
+/// <summary>
+/// Scene mod <see cref="bool"/> definition.
+/// </summary>
 public class MBool : MValue<bool>, IMKey<bool>
 {
     public bool JsonParseKey(CustomJsonInitializer ctx, string key)

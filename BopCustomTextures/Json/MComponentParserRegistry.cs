@@ -10,17 +10,22 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using UnityEngine.Bindings;
 
 namespace BopCustomTextures.Json;
 
 /// <summary>
-/// Manages deserializing of scene mod component definitions through registered deserializer functions.
+/// Manages deserializing of scene mod definitions through registered deserializer classes, 
+/// including <see cref="IMComponent"/> and <see cref="MBase{T}"/>.
 /// </summary>
 public class MComponentParserRegistry(ILogger logger)
 {
     private const string GenericConstraint = "Generic MTypes must be of format " +
         "<Target generic class, IMBase<T1>, T1, IMBase<T2>, T2, etc.> or <IMBase<T1>, T1, IMBase<T2>, T2, etc.>";
+
+    private static readonly Assembly BopAssembly = typeof(FlowWormsScript).Assembly;
+    private static readonly Assembly TempoStudioAssembly = typeof(TempoSound).Assembly;
+    private static readonly Assembly UnityEngineUIAssembly = typeof(UnityEngine.UI.Image).Assembly;
+    private static readonly Assembly UnityEngineAssembly = typeof(Animator).Assembly;
 
     /// <summary>
     /// A function to use to deserialize a scene mod component.
@@ -37,11 +42,11 @@ public class MComponentParserRegistry(ILogger logger)
         public float Priority = priority;
     }
 
-    private class MTypeRegister(Type type, float priority = 0)
+    /*private class MTypeRegister(Type type, float priority = 0)
     {
         public Type Type = type;
         public float Priority = priority;
-    }
+    }*/
 
     private class Tree<T> : IEnumerable<KeyValuePair<T, Tree<T>>>
     {
@@ -73,7 +78,8 @@ public class MComponentParserRegistry(ILogger logger)
     private readonly ILogger Logger = logger;
 
     private readonly Dictionary<string, MComponentRegister> MComponentRegistry = [];
-    private readonly Dictionary<Type, MTypeRegister> MTypeRegistry = [];
+    private readonly HashSet<string> MComponentPending = [];
+    //private readonly Dictionary<Type, MTypeRegister> MTypeRegistry = [];
     private readonly Tree<Type> MTypeTreeBase = new();
     private readonly Dictionary<Type, Type> TypeToMType = [];
 
@@ -198,7 +204,7 @@ public class MComponentParserRegistry(ILogger logger)
         return changed;
     }
 
-    private bool RegisterType(Type type, MTypeRegister register)
+    /*private bool RegisterType(Type type, MTypeRegister register)
     {
         if (MTypeRegistry.TryGetValue(type, out var register0))
         {
@@ -215,7 +221,7 @@ public class MComponentParserRegistry(ILogger logger)
         MTypeRegistry[type] = register;
         Logger.LogMComponentRegistering($"Successfully registered MType: {type}");
         return true;
-    }
+    }*/
 
     public bool RegisterType(Type type)
     {
@@ -324,7 +330,18 @@ public class MComponentParserRegistry(ILogger logger)
 
     public bool HasComponentRegistered(string name)
     {
-        return MComponentRegistry.ContainsKey(name);
+        if (MComponentRegistry.ContainsKey(name)) return true;
+        if (MComponentPending.Contains(name)) return false;
+
+        var type = BopAssembly.GetType(name)
+            ?? TempoStudioAssembly.GetType(name)
+            ?? UnityEngineUIAssembly.GetType($"UnityEngine.UI.{name}")
+            ?? UnityEngineAssembly.GetType($"UnityEngine.{name}");
+        
+        if (type != null) return TryLateRegisterComponent(name, type);
+
+        MComponentPending.Add(name);
+        return false;
     }
 
     public bool TryParseComponent(CustomJsonInitializer ctx, string name, JToken jcomponent, out IMComponent mcomponent)
@@ -340,28 +357,44 @@ public class MComponentParserRegistry(ILogger logger)
 
     public bool TryLateParseComponent(CustomJsonInitializer ctx, string name, JToken jcomponent, GameObject obj, out IMComponent mcomponent)
     {
-        if (!TryParseComponent(ctx, name, jcomponent, out mcomponent))
+        if (!MComponentRegistry.ContainsKey(name))
         {
             Component component = obj.GetComponent(name);
             if (component == null)
             {
                 Logger.LogWarning($"Failed to late register MComponent \"{name}\": Did not exist on specified object. Will try on other objects");
+                mcomponent = null;
                 return false;
             }
 
-            if (!TryGetType(component.GetType(), out var mtype))
+            var type = component.GetType();
+            Logger.LogMComponentRegistering($"MComponent \"{name}\" corresponds to {type.FullName}");
+
+            if (!TryLateRegisterComponent(name, type))
             {
-                Logger.LogError($"Failed to late register MComponent \"{name}\": No suitable MType found");
-                MComponentRegistry[name] = null;
+                mcomponent = null;
                 return false;
             }
-            
-            if (!Register(name, mtype, float.NegativeInfinity) || !TryParseComponent(ctx, name, jcomponent, out mcomponent))
-            {
-                Logger.LogError($"Failed to late register MComponent \"{name}\": Weird error, contact developer");
-                MComponentRegistry[name] = null;
-                return false;
-            }
+        }
+        return TryParseComponent(ctx, name, jcomponent, out mcomponent);
+    }
+
+    private bool TryLateRegisterComponent(string name, Type type)
+    {
+        MComponentPending.Remove(name);
+
+        if (!TryGetType(type, out var mtype))
+        {
+            Logger.LogError($"Failed to late register MComponent \"{name}\": No suitable MType found");
+            MComponentRegistry[name] = null;
+            return false;
+        }
+
+        if (!Register(name, mtype, float.NegativeInfinity))
+        {
+            Logger.LogError($"Failed to late register MComponent \"{name}\": Weird error, contact developer");
+            MComponentRegistry[name] = null;
+            return false;
         }
         return true;
     }

@@ -4,6 +4,10 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
+/// <summary>
+/// Scene mod interface for array-like types, like <see cref="global::System.Array"/> or <see cref="IList{T}"/>.
+/// </summary>
+/// <typeparam name="M">Scene mod type for array element type.</typeparam>
 public interface IMIndexable<M> where M : IMBase
 {
     public List<M> Values { get; set; }

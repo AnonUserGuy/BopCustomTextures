@@ -6,6 +6,9 @@ using System.Text.RegularExpressions;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod <see cref="Color"/> definition.
+/// </summary>
 public class MColor : MBaseVector<Color>, IMKey<Color>
 {
     public static readonly Regex ColorRegex = new Regex(@"^(?:#|0x)?([\da-f]{2})([\da-f]{2})?([\da-f]{2})?([\da-f]{2})?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -41,7 +44,7 @@ public class MColor : MBaseVector<Color>, IMKey<Color>
         InitValue();
 
         int i = 1;
-        for (Group group = match.Groups[i]; group.Success && i < match.Groups.Count; group = match.Groups[i++])
+        for (Group group = match.Groups[i]; group.Success && i < match.Groups.Count; group = match.Groups[++i])
         {
             if (MColorChannel.TryJsonParseKey(ctx, group.Value, out var res)) this[i - 1] = res;
         }

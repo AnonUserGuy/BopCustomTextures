@@ -4,6 +4,10 @@ using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Structs;
 
+/// <summary>
+/// Scene mod definition for any of Unity's numerous Vector types.
+/// </summary>
+/// <typeparam name="T">Target type that is a Unity vector.</typeparam>
 public abstract class MBaseVector<T> : MValue<T> where T: struct
 {
     protected virtual string LogInvalidTypeMsg => "not object or array";

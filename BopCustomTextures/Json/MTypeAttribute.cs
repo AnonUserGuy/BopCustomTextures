@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if false
+// not done
+using System;
 
 namespace BopCustomTextures.Json;
 
@@ -10,3 +12,4 @@ public class MTypeAttribute(Type[] types, float priority = 0) : Attribute
 
     public MTypeAttribute(Type type, float priority = 0) : this([type], priority) { }
 }
+#endif

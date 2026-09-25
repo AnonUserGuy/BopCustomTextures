@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 namespace BopCustomTextures.SceneMods.Scripts;
 
 /// <summary>
-/// Scene mod <see cref="ParallaxObjectScript"/> definition
+/// Scene mod <see cref="ParallaxObjectScript"/> definition.
 /// </summary>
 [MComponent("ParallaxObjectScript")]
 public class MParallaxObjectScript : MBehaviour<ParallaxObjectScript>

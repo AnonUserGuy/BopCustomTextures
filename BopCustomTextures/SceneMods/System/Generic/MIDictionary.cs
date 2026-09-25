@@ -4,6 +4,16 @@ using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.System.Generic;
 
+/// <summary>
+/// Scene mod <see cref="IDictionary{TKey, TValue}"/> definition.
+/// </summary>
+/// <typeparam name="G">Target <see cref="IDictionary{TKey, TValue}"/> type.</typeparam>
+/// <typeparam name="MKey"><para>Scene mod definition for key type. 
+/// Only used for parsing, not applying. As such, should have a well defined <see cref="IMBase{TKey}.Apply()"/> method.</para>
+/// <para>If implements <see cref="IMKey{TKey}"/>, then keys can be parsed from JSON object keys.</para></typeparam>
+/// <typeparam name="TKey">Key type.</typeparam>
+/// <typeparam name="MValue">Scene mod defintion for value type.</typeparam>
+/// <typeparam name="TValue">Value type.</typeparam>
 public class MIDictionary<G, MKey, TKey, MValue, TValue> : MObject<G>
     where G : class, IDictionary<TKey, TValue>, new()
     where MKey : IMBase<TKey>, new() // also optionally IMKey<TKey>

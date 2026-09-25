@@ -7,7 +7,7 @@ using BopCustomTextures.SceneMods.System;
 namespace BopCustomTextures.SceneMods.Unity.Components;
 
 /// <summary>
-/// Scene mod component definition for a "renderable" component, I.E. has a <see cref="UnityEngine.Material"/> attached to it.
+/// Scene mod component definition for a "renderable" component, I.E. has a <see cref="Material"/> attached to it.
 /// </summary>
 public interface IMRenderable
 {
