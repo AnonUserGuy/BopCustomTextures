@@ -9,7 +9,7 @@ namespace BopCustomTextures.SceneMods.Unity.Structs;
 /// <summary>
 /// Scene mod <see cref="Color"/> definition.
 /// </summary>
-public class MColor : MBaseVector<Color>, IMKey<Color>
+public class MColor : MBaseVector<Color>, IMKey
 {
     public static readonly Regex ColorRegex = new Regex(@"^(?:#|0x)?([\da-f]{2})([\da-f]{2})?([\da-f]{2})?([\da-f]{2})?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 

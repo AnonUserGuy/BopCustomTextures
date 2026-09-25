@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 
 namespace BopCustomTextures.EventTemplates;
-public class DefaultEventCategories
+public static class DefaultEventCategories
 {
     // There's a bepinex way to get these from the game directly, but it requires a preloader .dll file (ew)
     public static readonly HashSet<string> DefaultCategories = [
@@ -44,8 +44,5 @@ public class DefaultEventCategories
         "globeTrottersFire",
     ];
 
-    public static List<string> ModdedCategories
-    {
-        get => MixtapeEventTemplates.Categories.FindAll(category => !DefaultCategories.Contains(category));
-    }
+    public static List<string> ModdedCategories => MixtapeEventTemplates.Categories.FindAll(category => !DefaultCategories.Contains(category));
 }

@@ -1,5 +1,4 @@
-﻿using HarmonyLib;
-using System;
+﻿using System;
 using System.Reflection;
 
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
@@ -21,7 +20,7 @@ public class TypedFieldInfo<O, T> : TypedMemberInfo<O, T>
 
     public override bool Find(string name)
     {
-        Field = AccessTools.Field(typeof(O), name);
+        Field = GetFieldInfo(name);
         if (Field == null)
         {
             BopCustomTexturesPlugin.LogWarning($"Unable to find field \"{name}\" in class {typeof(O).Name} of type {typeof(T).Name}");

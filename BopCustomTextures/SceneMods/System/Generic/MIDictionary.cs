@@ -16,7 +16,7 @@ namespace BopCustomTextures.SceneMods.System.Generic;
 /// <typeparam name="TValue">Value type.</typeparam>
 public class MIDictionary<G, MKey, TKey, MValue, TValue> : MObject<G>
     where G : class, IDictionary<TKey, TValue>, new()
-    where MKey : IMBase<TKey>, new() // also optionally IMKey<TKey>
+    where MKey : IMBase<TKey>, new() // also optionally IMKey
     where MValue : IMBase<TValue>, new()
 {
     public Dictionary<TKey, MValue> Values;
@@ -142,7 +142,7 @@ public class MIDictionary<G, MKey, TKey, MValue, TValue> : MObject<G>
 
     public bool IsKeyParseableFromString()
     {
-        return typeof(IMKey<TKey>).IsAssignableFrom(typeof(MKey));
+        return typeof(IMKey).IsAssignableFrom(typeof(MKey));
     }
 
     public bool TryParseKey(CustomJsonInitializer ctx, JToken jtoken, out TKey val)
@@ -160,7 +160,7 @@ public class MIDictionary<G, MKey, TKey, MValue, TValue> : MObject<G>
     public bool TryParseKey(CustomJsonInitializer ctx, string key, out TKey val)
     {
         MKey dummy = new();
-        if (((IMKey<TKey>)dummy).JsonParseKey(ctx, key)) 
+        if (((IMKey)dummy).JsonParseKey(ctx, key)) 
         {
             val = dummy.Apply();
             return true;

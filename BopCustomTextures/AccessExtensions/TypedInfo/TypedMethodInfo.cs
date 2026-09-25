@@ -1,6 +1,4 @@
-﻿using HarmonyLib;
-using System;
-using System.Linq;
+﻿using System;
 using System.Reflection;
 
 namespace BopCustomTextures.AccessExtensions.TypedInfo;
@@ -18,27 +16,9 @@ public class TypedMethodInfo<O> : TypedInfo<O>
         Find(name, parameters, generics);
     }
 
-    public static TypedMethodInfo<O> CreateWithArgumentPredicate(string name, Func<Type[], bool> predicate)
-    {
-        var methodInfos = typeof(O).GetMember(name, MemberTypes.Method, BindingFlagsAny).Cast<MethodInfo>();
-
-        if (!methodInfos.Any())
-        {
-            return null;
-        }
-        foreach (var methodInfo in methodInfos)
-        {
-            if (predicate(methodInfo.GetParameters().Types()))
-            {
-                return new TypedMethodInfo<O> { Method = methodInfo };
-            }
-        }
-        return null;
-    }
-
     public virtual bool Find(string name, Type[] parameters = null, Type[] generics = null)
     {
-        Method = AccessTools.Method(typeof(O), name, parameters, generics);
+        Method = GetMethodInfo(name, parameters, generics);
         if (Method == null)
         {
             BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name} with return type {typeof(void).Name}");
@@ -58,11 +38,7 @@ public class TypedMethodInfo<O> : TypedInfo<O>
         return Method != null;
     }
 
-    public void Invoke(O obj)
-    {
-        Invoke(obj, []);
-    }
-    public void Invoke(O obj, object[] parameters)
+    public void Invoke(O obj, object[] parameters = null)
     {
         if (!Exists())
         {
@@ -83,7 +59,7 @@ public class TypedMethodInfo<O, T> : TypedMethodInfo<O>
 
     public override bool Find(string name, Type[] parameters = null, Type[] generics = null)
     {
-        Method = AccessTools.Method(typeof(O), name, parameters, generics);
+        Method = GetMethodInfo(name, parameters, generics);
         if (Method == null)
         {
             BopCustomTexturesPlugin.LogWarning($"Unable to find method \"{name}\" in class {typeof(O).Name} with return type {typeof(T).Name}");
@@ -98,11 +74,7 @@ public class TypedMethodInfo<O, T> : TypedMethodInfo<O>
         return true;
     }
 
-    new public T Invoke(O obj)
-    {
-        return Invoke(obj, []);
-    }
-    new public T Invoke(O obj, object[] parameters)
+    new public T Invoke(O obj, object[] parameters = null)
     {
         if (!Exists())
         {

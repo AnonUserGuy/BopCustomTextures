@@ -15,6 +15,8 @@ namespace BopCustomTextures.Json;
 /// <param name="variantManager">Used for mapping custom texture variant external names to internal indices. Shared with CustomTextureManager.</param>
 public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager variantManager) : BaseCustomManager(logger)
 {
+    public MixtapeInfo Mixtape;
+
     private SceneKey LastScene = default;
     private readonly Dictionary<string, Material> Materials = [];
     private readonly Dictionary<string, Shader> Shaders = [];

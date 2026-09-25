@@ -5,7 +5,7 @@ namespace BopCustomTextures.EventTemplates;
 /// <summary>
 /// Static class of BopCustomTexture mixtape event templates.
 /// </summary>
-public class BopCustomTexturesEventTemplates
+public static class BopCustomTexturesEventTemplates
 {
     public static readonly string[] PropertyCopyOptions = [
         "copy from file",
@@ -34,7 +34,8 @@ public class BopCustomTexturesEventTemplates
         properties = new Dictionary<string, object>
         {
             ["version"] = "",
-            ["release"] = 0
+            ["release"] = 0,
+            ["unsafe"] = false
         }
     };
 

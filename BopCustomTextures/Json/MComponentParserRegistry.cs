@@ -36,10 +36,10 @@ public class MComponentParserRegistry(ILogger logger)
     /// <returns><see langword="true"/> if parse successful, <see langword="false"/> otherwise.</returns>
     public delegate bool MComponentJsonParser(CustomJsonInitializer ctx, JToken jcomponent, out IMComponent mcomponent);
 
-    private class MComponentRegister(MComponentJsonParser parser, float priority = 0)
+    private readonly struct MComponentRegister(MComponentJsonParser parser = null, float priority = 0)
     {
-        public MComponentJsonParser Parser = parser;
-        public float Priority = priority;
+        public readonly MComponentJsonParser Parser = parser;
+        public readonly float Priority = priority;
     }
 
     /*private class MTypeRegister(Type type, float priority = 0)
@@ -48,9 +48,19 @@ public class MComponentParserRegistry(ILogger logger)
         public float Priority = priority;
     }*/
 
-    private class Tree<T> : IEnumerable<KeyValuePair<T, Tree<T>>>
+    private readonly struct Tree<T> : IEnumerable<KeyValuePair<T, Tree<T>>>
     {
-        public Dictionary<T, Tree<T>> Descendents = [];
+        public Tree() 
+        {
+            Descendents = [];
+        }
+
+        public Tree(Dictionary<T, Tree<T>> descendents)
+        {
+            Descendents = descendents;
+        }
+
+        public readonly Dictionary<T, Tree<T>> Descendents;
         public int Count => Descendents.Count;
         public Tree<T> this[T i] { get => Descendents[i]; set => Descendents[i] = value; }
         public IEnumerator<KeyValuePair<T, Tree<T>>> GetEnumerator() => Descendents.GetEnumerator();
@@ -64,7 +74,6 @@ public class MComponentParserRegistry(ILogger logger)
             {
                 if (!node.TryGetValue(tin, out var node0))
                 {
-                    //BopCustomTexturesPlugin.LogWarning($"{tin} created");
                     node0 = new();
                     node[tin] = node0;
                 }
@@ -97,29 +106,6 @@ public class MComponentParserRegistry(ILogger logger)
         logger.LogMComponentRegistering("MComponent registry successfully initialized");
     }
 
-    private bool Register(string name, MComponentRegister register)
-    {
-        if (name.StartsWith("!"))
-        {
-            name = name.Substring(1);
-        }
-        if (MComponentRegistry.TryGetValue(name, out var register0))
-        {
-            if (register.Priority < register0.Priority)
-            {
-                Logger.LogMComponentRegistering($"MComponent \"{name}\" was already registered, but not overriden ({register.Priority} < {register0.Priority})");
-                return false;
-            }
-            else
-            {
-                Logger.LogMComponentRegistering($"MComponent \"{name}\" is already registered, and will be overriden ({register.Priority} >= {register0.Priority})");
-            }
-        }
-        MComponentRegistry[name] = register;
-        Logger.LogMComponentRegistering($"Successfully registered MComponent: {name}");
-        return true;
-    }
-
     /// <summary>
     /// Register an arbitrary parsing method for an <see cref="IMComponent"/>.
     /// </summary>
@@ -129,7 +115,25 @@ public class MComponentParserRegistry(ILogger logger)
     ///  and returns <see langword="true"/>/<see langword="false"/> indicating parsing success.</param>
     public bool Register(string name, MComponentJsonParser parser, float priority = 0)
     {
-        return Register(name, new(parser, priority));
+        if (name.StartsWith("!"))
+        {
+            name = name.Substring(1);
+        }
+        if (MComponentRegistry.TryGetValue(name, out var register0))
+        {
+            if (priority < register0.Priority)
+            {
+                Logger.LogMComponentRegistering($"MComponent \"{name}\" was already registered, but not overriden ({priority} < {register0.Priority})");
+                return false;
+            }
+            else
+            {
+                Logger.LogMComponentRegistering($"MComponent \"{name}\" is already registered, and will be overriden ({priority} >= {register0.Priority})");
+            }
+        }
+        MComponentRegistry[name] = new(parser, priority);
+        Logger.LogMComponentRegistering($"Successfully registered MComponent: {name}");
+        return true;
     }
 
     /// <summary>
@@ -194,11 +198,9 @@ public class MComponentParserRegistry(ILogger logger)
         bool changed = false;
         foreach (var attr in attrs)
         {
-            MComponentRegister register = new(parser, attr.Priority);
-
             foreach (var name in attr.Names)
             {
-                if (Register(name, register)) changed = true;
+                if (Register(name, parser, attr.Priority)) changed = true;
             }
         }
         return changed;
@@ -346,7 +348,7 @@ public class MComponentParserRegistry(ILogger logger)
 
     public bool TryParseComponent(CustomJsonInitializer ctx, string name, JToken jcomponent, out IMComponent mcomponent)
     {
-        if (MComponentRegistry.TryGetValue(name, out var register) && register != null)
+        if (MComponentRegistry.TryGetValue(name, out var register) && register.Parser != null)
         {
             return register.Parser(ctx, jcomponent, out mcomponent);
         }
@@ -386,14 +388,14 @@ public class MComponentParserRegistry(ILogger logger)
         if (!TryGetType(type, out var mtype))
         {
             Logger.LogError($"Failed to late register MComponent \"{name}\": No suitable MType found");
-            MComponentRegistry[name] = null;
+            MComponentRegistry[name] = new MComponentRegister(null);
             return false;
         }
 
         if (!Register(name, mtype, float.NegativeInfinity))
         {
             Logger.LogError($"Failed to late register MComponent \"{name}\": Weird error, contact developer");
-            MComponentRegistry[name] = null;
+            MComponentRegistry[name] = new MComponentRegister(null);
             return false;
         }
         return true;
@@ -616,18 +618,6 @@ public class MComponentParserRegistry(ILogger logger)
         return true;
     }
 
-    public bool TryParseJson(CustomJsonInitializer ctx, Type type, JToken val, out IMBase mval)
-    {
-        if (!TryGetType(type, out var mtype))
-        {
-            mval = default;
-            return false;
-        }
-
-        mval = (IMBase)Activator.CreateInstance(mtype);
-        return mval.JsonParse(ctx, type, val);
-    }
-
     private static Func<T> CreateFactory<T>(Type type)
     {
         var newExpr = Expression.New(type);
@@ -635,7 +625,7 @@ public class MComponentParserRegistry(ILogger logger)
         return Expression.Lambda<Func<T>>(castExpr).Compile();
     }
 
-    private static IEnumerable<Type> GetDescendenceChain(Type openGenericType, Type type)
+    private static Stack<Type> GetDescendenceChain(Type openGenericType, Type type)
     {
         if (type == null)
         {

@@ -14,12 +14,27 @@ namespace BopCustomTextures.SceneMods.Unity;
 /// </summary>
 public class MGameObject : MUnityObject<GameObject>
 {
+    /// <summary>
+    /// Temporary container of <see cref="MComponent{T}"/> definition that's still serialized. 
+    /// Once the target <see cref="GameObject"/> is loaded and target <see cref="Component"/> 
+    /// can be determined, will be replaced with <see cref="MComponent{T}"/>.
+    /// </summary>
+    /// <param name="ctx">Deserialization context.</param>
+    /// <param name="name"><see cref="Component"/> name.</param>
+    /// <param name="jcomponent">Serialized <see cref="MComponent{T}"/> definition.</param>
+    public readonly struct UnkownMComponent(CustomJsonInitializer ctx, string name, JToken jcomponent)
+    {
+        public readonly CustomJsonInitializer Ctx = ctx;
+        public readonly string Name = name;
+        public readonly JToken JToken = jcomponent;
+    }
+
     public string name;
     public bool isDeferred;
-    public List<MGameObject> childObjs = [];
-    public List<MGameObject> childObjsDeferred = [];
-    public List<IMComponent> components = [];
-    public List<MUnknownComponent> unknownComponents = [];
+    public readonly List<MGameObject> childObjs = [];
+    public readonly List<MGameObject> childObjsDeferred = [];
+    public readonly List<UnkownMComponent> unknownComponents = [];
+    public readonly List<IMComponent> components = [];
 
     private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
 
@@ -110,7 +125,7 @@ public class MGameObject : MUnityObject<GameObject>
 
     public bool AddComponent(CustomJsonInitializer ctx, JToken jtoken, string componentName, JToken jcomponent)
     {
-        if (!MComponentParserRegistry.Instance.HasComponentRegistered(componentName))
+        if (ctx.Mixtape.Unsafe && !MComponentParserRegistry.Instance.HasComponentRegistered(componentName))
         {
             unknownComponents.Add(new(ctx, componentName, jcomponent));
         }

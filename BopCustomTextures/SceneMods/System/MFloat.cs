@@ -7,7 +7,7 @@ namespace BopCustomTextures.SceneMods.System;
 /// <summary>
 /// Scene mod <see cref="float"/> definition.
 /// </summary>
-public class MFloat : MValue<float>, IMKey<float>
+public class MFloat : MValue<float>, IMKey
 {
     private static readonly Regex InfinityRegex = new Regex(@"^\s*(\+|-)?\s*inf(?:inity)?\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 

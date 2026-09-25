@@ -1,11 +1,13 @@
-﻿using BopCustomTextures.Config;
+﻿using BopCustomTextures.Json;
+using BopCustomTextures.Config;
 using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
 using BopCustomTextures.AccessExtensions;
 using SFB;
+using TMPro;
+using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 using System;
 using System.IO;
 using System.Linq;
@@ -14,7 +16,6 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Display = BopCustomTextures.Config.Display;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using TMPro;
 
 namespace BopCustomTextures.Customs;
 
@@ -95,6 +96,32 @@ public class CustomManager : BaseCustomManager
             }
         }
     }
+
+    private bool _unsafe;
+    public bool Unsafe
+    {
+        get
+        {
+            if (MixtapePropertiesEvent != null)
+            {
+                var unsafe0 = MixtapePropertiesEvent.Entity.GetBool("unsafe");
+                if (unsafe0 != _unsafe)
+                {
+                    _unsafe = unsafe0;
+                }
+            }
+            return _unsafe;
+        }
+        set
+        {
+            _unsafe = value;
+            if (MixtapePropertiesEvent != null)
+            {
+                MixtapePropertiesEvent.Entity.SetBool("unsafe", _unsafe);
+            }
+        }
+    }
+
     public bool HasCustomAssets = false;
 
     private string _lastPath;
@@ -121,6 +148,7 @@ public class CustomManager : BaseCustomManager
         }
     }
     public DateTime LastModified;
+    public bool LastUnsafe;
     public bool ReadNecessary = true;
     public bool InterruptLoad = false;
 
@@ -292,11 +320,11 @@ public class CustomManager : BaseCustomManager
             {
                 if (backup)
                 {
-                    filesLoaded += FileManager.BackupFiles(SceneManager.LocateCustomScenes(subpath, index, Release), parentPath);
+                    filesLoaded += FileManager.BackupFiles(SceneManager.LocateCustomScenes(subpath, index, GetMixtapeInfo()), parentPath);
                 }
                 else
                 {
-                    filesLoaded += SceneManager.LocateCustomScenes(subpath, index, Release).Count();
+                    filesLoaded += SceneManager.LocateCustomScenes(subpath, index, GetMixtapeInfo()).Count();
                 }
             }
         }
@@ -402,6 +430,7 @@ public class CustomManager : BaseCustomManager
         Unload();
         LastPath = null;
         LastModified = default;
+        LastUnsafe = GetUnsafe();
         HasCustomAssets = false;
         ReadNecessary = true;
         UpdateEventTemplates();
@@ -414,7 +443,8 @@ public class CustomManager : BaseCustomManager
     public void ResetIfNecessary(string path, Display displayEventTemplates, int eventTemplatesIndex)
     {
         var modified = File.Exists(path) ? File.GetLastWriteTime(path) : default;
-        if (LastPath != path || LastModified != modified)
+        var unsafeMode = GetUnsafe();
+        if (LastPath != path || LastModified != modified || LastUnsafe != unsafeMode)
         {
             ResetAll(displayEventTemplates, eventTemplatesIndex);
         }
@@ -425,6 +455,7 @@ public class CustomManager : BaseCustomManager
         }
         LastPath = path;
         LastModified = modified;
+        LastUnsafe = unsafeMode;
     }
 
 
@@ -441,8 +472,10 @@ public class CustomManager : BaseCustomManager
     }
     public void ResetAndReload(string path, bool backup, Display displayEventTemplates, int eventTemplatesIndex)
     {
-        var modified = File.Exists(path) ? File.GetLastWriteTime(path) : default;
-        if (LastPath != path || modified != LastModified || Directory.Exists(path))
+        var isFile = File.Exists(path);
+        var modified = isFile ? File.GetLastWriteTime(path) : default;
+        var unsafeMode = GetUnsafe();
+        if (!isFile || LastPath != path || modified != LastModified || LastUnsafe != unsafeMode)
         {
             Unload();
             ReadPath(path, backup);
@@ -454,6 +487,7 @@ public class CustomManager : BaseCustomManager
         }
         LastPath = path;
         LastModified = modified;
+        LastUnsafe = unsafeMode;
     }
 
     public void DeleteTempDirectory()
@@ -953,6 +987,7 @@ public class CustomManager : BaseCustomManager
         {
             Version = BopCustomTexturesPlugin.LowestVersion;
             Release = BopCustomTexturesPlugin.LowestRelease;
+            Unsafe = false;
             return false;
         }
 
@@ -981,6 +1016,7 @@ public class CustomManager : BaseCustomManager
                 Logger.LogWarning("Version data missing release, will treat as latest.");
                 Release = BopCustomTexturesPlugin.LowestRelease;
             }
+
             if (jobj.TryGetValue("version", out var jversion))
             {
                 if (jversion.Type == JTokenType.String)
@@ -999,12 +1035,31 @@ public class CustomManager : BaseCustomManager
                 Version = BopCustomTexturesPlugin.LowestVersion;
             }
 
+            if (jobj.TryGetValue("unsafe", out var junsafe))
+            {
+                if (junsafe.Type == JTokenType.Boolean)
+                {
+                    Unsafe = (bool)junsafe;
+                }
+                else
+                {
+                    Logger.LogWarning($"Unsafe is a {junsafe.Type} when it should be a boolean, will treat as false.");
+                    Unsafe = false;
+                }
+            }
+            else
+            {
+                Logger.LogWarning("Version data missing unsafe, will treat as false.");
+                Unsafe = false;
+            }
+
         }
         catch (JsonReaderException e)
         {
             Logger.LogError($"Error reading verison data, will treat as latest: {e}");
             Version = BopCustomTexturesPlugin.LowestVersion;
             Release = BopCustomTexturesPlugin.LowestRelease;
+            Unsafe = false;
         }
         
         return true;
@@ -1020,7 +1075,8 @@ public class CustomManager : BaseCustomManager
         var jobj = new JObject
         {
             ["version"] = new JValue(Version),
-            ["release"] = new JValue(Release)
+            ["release"] = new JValue(Release),
+            ["unsafe"] = new JValue(Unsafe),
         };
 
         try
@@ -1092,6 +1148,10 @@ public class CustomManager : BaseCustomManager
             return description;
         }
     }
+
+    public bool GetUnsafe() => Unsafe && ConfigManager.UnsafeMode.Value;
+
+    public MixtapeInfo GetMixtapeInfo() => new(Release, GetUnsafe());
 
     public static bool DisplayActive(Display display, bool active)
     {

@@ -8,20 +8,28 @@ using LogLevel = BopCustomTextures.Logging.LogLevel;
 namespace BopCustomTextures.Config;
 public class ConfigManager
 {
+    // General
     public ConfigEntry<bool> LoadCustomAssets;
+    public ConfigEntry<bool> UnsafeMode;
 
+    // Player
     public ConfigEntry<OutdatedPluginHandling> LoadOutdatedPluginPlayer;
+    //public ConfigEntry<OutdatedPluginHandling> UnsafeModePlayer;
 
+    // Editor
     public ConfigEntry<bool> SaveCustomFiles;
     public ConfigEntry<bool> UpgradeOldMixtapes;
     public ConfigEntry<bool> UploadAppendDescription;
     public ConfigEntry<bool> LoadOutdatedPluginEditor;
+    //public ConfigEntry<bool> UnsafeModeEditor;
 
+    // Editor.Keybinds
     public ConfigEntry<KeyCode> CopyCustomsFromFileKeybind;
     public ConfigEntry<KeyCode> CopyCustomsFromFolderKeybind;
     public ConfigEntry<KeyCode> ReloadCustomAssetsKeybind;
     public ConfigEntry<KeyCode> SelectEventCatagoryKeybind;
 
+    // Editor.Display
     public ConfigEntry<string> HijackEventCategory;
     public ConfigEntry<Display> DisplayCopyOptions;
     public ConfigEntry<Display> DisplayReloadOptions;
@@ -30,15 +38,18 @@ public class ConfigManager
     public ConfigEntry<string> EventTemplatesBefore;
     public ConfigEntry<int> EventTemplatesIndex;
 
+    // Logging
     public ConfigEntry<LogLevel> LogOutdatedPlugin;
     public ConfigEntry<LogLevel> LogUpgradeMixtape;
 
+    // Logging.Debugging
     public ConfigEntry<LogLevel> LogFileLoading;
     public ConfigEntry<LogLevel> LogUnloading;
     public ConfigEntry<LogLevel> LogSeperateTextureSprites;
     public ConfigEntry<LogLevel> LogAtlasTextureSprites;
     public ConfigEntry<LogLevel> LogMComponentRegistering;
 
+    // Logging.Modding
     public ConfigEntry<LogLevel> LogSceneIndices;
 
     public static readonly Regex StringsRegex = new Regex(@"\s*([^,]*[^ ,]+?)\s*(?:,|$)", RegexOptions.Compiled);
@@ -50,19 +61,32 @@ public class ConfigManager
 
     public void LoadConfigs(ConfigFile config)
     {
+        // General
         LoadCustomAssets = config.Bind("General",
             "LoadCustomAssets",
             true,
             "When opening a modded mixtape, load the custom assets stored in it.\n" +
             "(Note: modded mixtapes won't maintain their custom files if saved while this is disabled.)");
 
+        UnsafeMode = config.Bind("General",
+            "UnsafeMode",
+            false,
+            "Allow modded mixtapes to make potentially unsafe changes.");
 
+
+        // Player
         LoadOutdatedPluginPlayer = config.Bind("Player",
             "LoadOutdatedPluginPlayer",
             OutdatedPluginHandling.ShowDisclaimer,
             "How to handle opening a modded mixtape in the Mixtape Player that was made for a newer version of BopCustomTextures.");
 
+/*        UnsafeModePlayer = config.Bind("Player",
+            "UnsafeModePlayer",
+            OutdatedPluginHandling.ShowDisclaimer,
+            "How to handle opening a modded mixtape in the Mixtape Player that requires UnsafeMode. Ignored if General.UnsafeMode is disabled.");
+*/
 
+        // Editor
         SaveCustomFiles = config.Bind("Editor",
             "SaveCustomFiles",
             true,
@@ -84,7 +108,13 @@ public class ConfigManager
             true,
             "When opening a modded mixtape in the editor made for a newer version of BopCustomTextures, attempt to load custom assets.");
 
+/*        UnsafeModeEditor = config.Bind("Editor",
+            "UnsafeModeEditor",
+            true,
+            "When opening a modded mixtape in the editor that requires UnsafeMode, allow it. Ignored if General.UnsafeMode is disabled.");
+*/
 
+        // Editor.Keybinds
         CopyCustomsFromFileKeybind = UpgradeOrBind(config, "Editor", "Editor.Keybinds",
             "CopyCustomsFromFileKeybind",
             KeyCode.F3,
@@ -106,6 +136,7 @@ public class ConfigManager
             "Keybind used to switch to \"Bop Custom Textures\" catagory.");
 
 
+        // Editor.Display
         HijackEventCategory = config.Bind("Editor.Display",
             "HijackEventCategory",
             "BopCustomTextures",
@@ -151,6 +182,7 @@ public class ConfigManager
             "Values lower than 0 will put category at end of list.");
 
 
+        // Logging
         LogOutdatedPlugin = config.Bind("Logging",
             "logOutdatedPlugin",
             LogLevel.Error | LogLevel.MixtapeEditor,
@@ -162,6 +194,7 @@ public class ConfigManager
             "Log level for messaage reminding user to save a mixtape to add/upgrade its BopCustomTextures.json file.");
 
 
+        // Logging.Debugging
         LogFileLoading = UpgradeOrBind(config, "Logging", "Logging.Debugging",
             "LogFileLoading",
             LogLevel.Debug,
@@ -188,6 +221,7 @@ public class ConfigManager
             "Log level for registering of MComponents.");
 
 
+        // Logging.Modding
         LogSceneIndices = UpgradeOrBind(config, "Logging", "Logging.Modding",
             "LogSceneIndices",
             LogLevel.None,

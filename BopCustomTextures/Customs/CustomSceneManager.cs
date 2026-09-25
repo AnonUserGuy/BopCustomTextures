@@ -1,4 +1,5 @@
 using BopCustomTextures.Json;
+using BopCustomTextures.SceneMods.Unity;
 using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -7,7 +8,6 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
-using BopCustomTextures.SceneMods.Unity;
 
 namespace BopCustomTextures.Customs;
 
@@ -32,12 +32,12 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         return PathRegex.IsMatch(path);
     }
 
-    public IEnumerable<string> LocateCustomScenes(string path, int index, uint release)
+    public IEnumerable<string> LocateCustomScenes(string path, int index, MixtapeInfo info)
     {
         var filepaths = Directory.EnumerateFiles(path);
         foreach (var filepath in filepaths)
         {
-            if (CheckIsCustomScene(filepath, release))
+            if (CheckIsCustomScene(filepath, info))
             {
                 string localPath = filepath.Substring(index);
                 yield return localPath;
@@ -45,7 +45,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         }
     }
 
-    public bool CheckIsCustomScene(string path, uint release)
+    public bool CheckIsCustomScene(string path, MixtapeInfo info)
     {
         Match match = FileRegex.Match(path);
         if (match.Success)
@@ -55,14 +55,14 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             {
                 Logger.LogFileLoading($"Found custom scene: {scene}");
 
-                LoadCustomScene(path, scene, release);
+                LoadCustomScene(path, scene, info);
                 return true;
             } 
         }
         return false;
     }
 
-    public void LoadCustomScene(string path, SceneKey scene, uint release)
+    public void LoadCustomScene(string path, SceneKey scene, MixtapeInfo info)
     {
         JObject jobj;
         try
@@ -79,13 +79,16 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             Logger.LogError(e);
             return;
         }
+
+        JsonInitializer.Mixtape = info;
+
         if (CustomScenes.ContainsKey(scene))
         {
             Logger.LogWarning($"Duplicate custom scene definition for scene {scene}");
         }
         CustomScenes[scene] = [];
         bool isSimple = true;
-        if (release >= 2)
+        if (JsonInitializer.Mixtape.Release >= 2)
         {
             if (JsonInitializer.TryGetJObject(jobj, "init", out var jinit))
             {

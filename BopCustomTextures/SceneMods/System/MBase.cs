@@ -42,8 +42,7 @@ public interface IMBase<T> : IMBase
 /// Scene mod interface for types that can be parsed from a JSON string key. Used by 
 /// <see cref="Generic.MIDictionary{G, MKey, TKey, MValue, TValue}"/>.
 /// </summary>
-/// <typeparam name="T">Class that can be parsed from a string.</typeparam>
-public interface IMKey<T>
+public interface IMKey
 {
     public bool JsonParseKey(CustomJsonInitializer ctx, string key);
 }
@@ -55,23 +54,49 @@ public abstract class MBase : IMBase
 {
     public abstract bool JsonParse(CustomJsonInitializer ctx, Type type, JToken val);
 
+    public static bool TryGetType(Type type, out Type mtype)
+    {
+        return MComponentParserRegistry.Instance.TryGetType(type, out mtype);
+    }
+
     public static bool TryJsonParse(CustomJsonInitializer ctx, Type type, JToken val, out IMBase res)
     {
-        return MComponentParserRegistry.Instance.TryParseJson(ctx, type, val, out res);
+        if (!TryGetType(type, out var mtype))
+        {
+            res = default;
+            return false;
+        }
+
+        res = (IMBase)Activator.CreateInstance(mtype);
+        return res.JsonParse(ctx, type, val);
     }
-    public static bool TryJsonParse<T>(CustomJsonInitializer ctx, Type type, JToken val, out T res) where T : IMBase, new()
+
+    public static bool TryJsonParseKey(CustomJsonInitializer ctx, Type type, string key, out IMBase res)
+    {
+        if (!TryGetType(type, out var mtype) || !typeof(IMKey).IsAssignableFrom(mtype))
+        {
+            res = default;
+            return false;
+        }
+
+        res = (IMBase)Activator.CreateInstance(mtype);
+        return ((IMKey)res).JsonParseKey(ctx, key);
+    }
+
+    public static bool TryJsonParse<T, O>(CustomJsonInitializer ctx, JToken val, out T res) where T : IMBase<O>, new()
     {
         res = new();
-        if (res.JsonParse(ctx, type, val))
+        if (res.JsonParse(ctx, val))
         {
             return true;
         }
         return false;
     }
-    public static bool TryJsonParse<T, O>(CustomJsonInitializer ctx, JToken val, out T res) where T : IMBase<O>, new()
+
+    public static bool TryJsonParseKey<T>(CustomJsonInitializer ctx, string key, out T res) where T : IMBase, IMKey, new()
     {
         res = new();
-        if (res.JsonParse(ctx, val))
+        if (res.JsonParseKey(ctx, key))
         {
             return true;
         }
@@ -123,6 +148,13 @@ public abstract class MBase<T> : MBase, IMBase<T>
         Apply(obj);
     }
 
+    public override object ApplyNone()
+    {
+        return Apply();
+    }
+
+    public abstract T Apply();
+
     public bool TryGetAssigned(object obj, out T obj2)
     {
         if (!IsAssignable(obj.GetType()))
@@ -138,11 +170,4 @@ public abstract class MBase<T> : MBase, IMBase<T>
     {
         return typeof(T).IsAssignableFrom(type);
     }
-
-    public override object ApplyNone()
-    {
-        return Apply();
-    }
-
-    public abstract T Apply();
 }
