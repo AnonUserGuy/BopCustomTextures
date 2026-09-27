@@ -18,7 +18,7 @@ public static class MixtapeEditorScriptExtensions
     public static void ResetAllAndReformat(this MixtapeEditorScript obj) => ResetAllAndReformatMethod.Invoke(obj);
 
 
-    // These only exist pre editor UI update, last: -app 1929290 -depot 1929291 -manifest 2700963706022908388 -beta beta
+    // For versions pre-editor UI update, last: -app 1929290 -depot 1929291 -manifest 2700963706022908388 -beta beta
     public static readonly TypedFieldInfo<MixtapeEditorScript, SpriteRenderer> MenuField = new();
     public static SpriteRenderer GetMenu(this MixtapeEditorScript instance) =>
         MenuField.GetValue(instance);
@@ -28,7 +28,7 @@ public static class MixtapeEditorScriptExtensions
         MenuTextField.GetValue(instance);
 
 
-    // These only exist post editor UI update, first: -app 1929290 -depot 1929291 -manifest 2259048567631053773 -beta beta
+    // For versions post-editor UI update, first: -app 1929290 -depot 1929291 -manifest 2259048567631053773 -beta beta
     public static readonly TypedMethodInfo<MixtapeEditorScript> OnSelectCategoryMethod = new("OnSelectCategory", [typeof(string)]);
     public static void OnSelectCategory_safe(this MixtapeEditorScript obj, string category) => OnSelectCategoryMethod.Invoke(obj, [category]);
 
@@ -40,7 +40,7 @@ public static class MixtapeEditorScriptExtensions
         LevelIndexField.SetValue(instance, value);
 
 
-    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    // For versions without MixtapeEditorScript.singletonEvents
     public static readonly TypedPropertyInfo<MixtapeEditorScript, int> EventIndexField = new();
     public static int GetEventIndex(this MixtapeEditorScript instance) =>
         EventIndexField.GetValue(instance);
@@ -56,7 +56,7 @@ public static class MixtapeEditorScriptExtensions
 
 
     public static readonly TypedFieldInfo<MixtapeEditorScript, HashList<MixtapeEventScript>> SelectedEventsField = new("selectedEvents");
-    // TODO: this can be removed after release is updated to have HashList<T> class
+    // For versions without HashList<T>
     public static readonly TypedFieldInfo<MixtapeEditorScript, List<MixtapeEventScript>> SelectedEventsFieldList = new();
     public static int GetSelectedEventsCount(this MixtapeEditorScript instance) =>
         SelectedEventsField.Exists() ? SelectedEventsField.GetValue(instance).Count : SelectedEventsFieldList.GetValue(instance).Count;
@@ -66,7 +66,7 @@ public static class MixtapeEditorScriptExtensions
         SelectedEventsField.GetValue(instance)[index]; // has to be wrapped because nonexistent this[] functions aren't handled well by .net
 
 
-    // TODO: these can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+    // For versions without MixtapeEditorScript.singletonEvents
     public static readonly TypedMethodInfo<MixtapeEditorScript> SetSelectedEventMethod = new();
     public static void SetSelectedEvent(this MixtapeEditorScript obj, MixtapeEventScript event0, bool forceUpdate = false, bool forceClear = false) => 
         SetSelectedEventMethod.Invoke(obj, [event0, forceUpdate, forceClear]);
@@ -85,14 +85,14 @@ public static class MixtapeEditorScriptExtensions
 
     static MixtapeEditorScriptExtensions()
     {
-        // TODO: this can be removed after release is updated to have HashList<T> class
+        // For versions without HashList<T>
         if (!SelectedEventsField.Exists())
         {
             BopCustomTexturesPlugin.LogWarning("SelectedEvents don't exist as HashList, trying List instead");
             SelectedEventsFieldList.Find("selectedEvents");
         }
 
-        // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
+        // For versions without MixtapeEditorScript.singletonEvents
         if (!SingletonEventsField.Exists())
         {
             EventIndexField.Find("eventIndex");
@@ -104,6 +104,7 @@ public static class MixtapeEditorScriptExtensions
             FormatValuesMethod.Find("FormatValues", []);
         }
 
+        // For versions pre-editor UI update
         if (!OnSelectCategoryMethod.Exists())
         {
             MenuField.Find("menu");

@@ -1,20 +1,20 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.U2D;
+using UnityEngine.Events;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using Unity.Collections;
 using System.IO;
 using System.Reflection;
-using UnityEngine.Events;
 
 namespace BopCustomTextures.Scripts;
+
 public class BopCustomTexturesButton : MonoBehaviour
 {
     public const string metaButtonsPath = "Canvas/MinigamesMeta/Buttons";
     public const string iconPath = "BopCustomTextures.Resources.icon_bct.png";
     public const string bopVisualEffectsButtonName = $"BopVisualEffects_MetaCategory_{MyPluginInfo.PLUGIN_GUID}";
-
 
     public static Texture2D icon = null;
     private static bool triedLoadIcon = false;

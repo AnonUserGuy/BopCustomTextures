@@ -230,19 +230,18 @@ public class ConfigManager
 
     private ConfigEntry<T> UpgradeOrBind<T>(ConfigFile config, string oldSection, string newSection, string key, T defaultValue, string description)
     {
-        var oldEntry = config.Bind(
-            oldSection,
+        var newEntry = config.Bind(
+            newSection,
             key,
             defaultValue,
             description
         );
-        config.Remove(new ConfigDefinition(oldSection, key));
-        return config.Bind(
-            newSection,
-            key,
-            oldEntry.Value,
-            description
-        );
+        if (config.TryGetEntry<T>(oldSection, key, out var oldEntry))
+        {
+            newEntry.Value = oldEntry.Value;
+            config.Remove(oldEntry.Definition);
+        }
+        return newEntry;
     }
 
     public OutdatedPluginHandling GetOutdatedPluginHandling()

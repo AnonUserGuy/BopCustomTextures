@@ -2,19 +2,13 @@
 using BopCustomTextures.Config;
 using BopCustomTextures.Customs;
 using BopCustomTextures.Logging;
-using BopCustomTextures.Scripts;
 using BopCustomTextures.EventTemplates;
-using BopCustomTextures.AccessExtensions;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine.SceneManagement;
 using System;
 using System.IO;
-using System.Reflection;
 using System.Diagnostics;
-using System.Collections;
-using System.Collections.Generic;
-using System.Reflection.Emit;
 using LogLevel = BopCustomTextures.Logging.LogLevel;
 
 namespace BopCustomTextures;
@@ -42,16 +36,29 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// </summary>
     public const string PluginRepoUrl = "https://github.com/AnonUserGuy/BopCustomTextures";
 
-    public static new ManualLogSourceCustom Logger;
+    public static BopCustomTexturesPlugin Instance;
+
+    public new ManualLogSourceCustom Logger;
     public Harmony Harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
-    public static CustomManager Manager;
-    public static ConfigManager ConfigManager;
+    public ConfigManager ConfigManager;
+    public CustomMenuManager MenuManager;
+    public CustomManager Manager;
 
     private void Awake()
     {
         // Plugin startup logic
+
+        if (Instance != null)
+        {
+            Instance.Logger.LogWarning("Tried to initialize BopCustomTextures twice in one session!");
+            return;
+        }
+        Instance = this;
+
         ConfigManager = new ConfigManager(Config);
-        InitLogger();
+        BepInEx.Logging.Logger.Sources.Remove(base.Logger);
+        var vanillaLogger = BepInEx.Logging.Logger.CreateLogSource(LoggerName);
+        Logger = new ManualLogSourceCustom(vanillaLogger, ConfigManager);
 
         try
         {
@@ -65,13 +72,14 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         
         MComponentParserRegistry.Initialize(Logger);
 
-        Manager = new CustomManager(Logger, ConfigManager, GetTempPath(),
+        Manager = new(Logger, ConfigManager, GetTempPath(),
             BopCustomTexturesEventTemplates.SceneModTemplate,
-            BopCustomTexturesEventTemplates.TextureVariantTemplates,
+            BopCustomTexturesEventTemplates.TextureVariantTemplates);
+
+        MenuManager = new(Logger, ConfigManager, Manager,
             BopCustomTexturesEventTemplates.EditorPropertiesTemplate,
             BopCustomTexturesEventTemplates.MixtapePropertiesTemplate,
             MixtapeEventTemplates.entities);
-        Manager.UpdateEventCategoryPosition();
 
         // Apply hooks to make sure temp files are deleted on program exit
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -92,16 +100,13 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
-    private void InitLogger()
+    public void Update()
     {
-        if (Logger != null)
+        if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.E))
         {
-            Logger.LogWarning("Tried to initialize logger twice in one session!");
-            return;
+            Logger.LogWarning(Manager.LastPath);
+            Logger.LogWarning(Manager.LastModified);
         }
-        BepInEx.Logging.Logger.Sources.Remove(base.Logger);
-        var vanillaLogger = BepInEx.Logging.Logger.CreateLogSource(LoggerName);
-        Logger = new ManualLogSourceCustom(vanillaLogger, ConfigManager);
     }
 
     /// <summary>
@@ -112,9 +117,9 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// <returns><see langword="true"/> if logger exists, <see langword="false"/> otherwise.</returns>
     public static bool Log(LogLevel level, object data)
     {
-        if (Logger != null)
+        if (Instance?.Logger != null)
         {
-            Logger.Log(level, data);
+            Instance.Logger.Log(level, data);
             return true;
         }
         return false;
@@ -125,347 +130,39 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
     /// </summary>
     /// <param name="data">Message to be logged.</param>
     /// <returns><see langword="true"/> if logger exists, <see langword="false"/> otherwise.</returns>
-    public static bool LogWarning(object data)
-    {
-        if (Logger != null)
-        {
-            Logger.LogWarning(data);
-            return true;
-        }
-        return false;
-    }
-
-    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "ReadDirectory")]
-    private static class BopMixtapeSerializerReadDirectoryPatch
-    {
-        static void Postfix(string path)
-        {
-            if (ConfigManager.LoadCustomAssets.Value)
-            {
-                Manager.CheckVersionThenReadDirectory(path);
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(RiqLoader), "StartMixtape")]
-    private static class RiqLoaderStartMixtapePatch
-    {
-        static bool Prefix(RiqLoader __instance)
-        {
-            if (Manager.InterruptLoad)
-            {
-                VersionDisclaimerScript.Create(Manager, __instance);
-                return false; // skip original
-            }
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(BopMixtapeSerializerV0), "WriteDirectory")]
-    private static class BopMixtapeSerializerWriteDirectoryPatch
-    {
-        static void Postfix(string path)
-        {
-            Manager.WriteDirectory(path);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "ResetAllAndReformat")]
-    private static class MixtapeEditorScriptResetAllAndReformatPatch
-    {
-        static void Postfix(MixtapeEditorScript __instance)
-        {
-            try
-            {
-                if (MixtapeEditorScriptExtensions.ResetAllAndReformatMethod.Exists() && Manager.UpdateMixtapeCategoryButton(__instance))
-                {
-                    // BopVisualEffects compatibility thing
-                    __instance.ResetAllAndReformat();
-                    Manager.UpdateMixtapeCategoryButton(__instance);
-                    return;
-                }
-                Manager.ResetAll();
-                Manager.UpdateSingletonEvents(__instance);
-            }
-            catch (Exception e)
-            {
-                Logger.LogError($"An unexpected exception occured on ResetAllAndReformat, likely from starting the mixtape editor. You should probably update your game or remove {MyPluginInfo.PLUGIN_GUID}.");
-                Logger.LogError(e);
-            }
-        }
-    }
-    [HarmonyPatch(typeof(MixtapeLoaderCustom), "Awake")]
-    private static class MixtapeLoaderCustomAwakePatch
-    {
-        static void Prefix()
-        {
-            if (!ConfigManager.LoadCustomAssets.Value || !IsProbablyCustom())
-            {
-                Manager.ResetAll();
-            }
-        }
-    }
-    [HarmonyPatch]
-    private static class MixtapeCustomLoadPatch
-    {
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return AccessTools.Method(typeof(RiqLoader), "Load");
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "Open", [typeof(string)]);
-        }
-        static void Prefix(string path)
-        {
-            if (ConfigManager.LoadCustomAssets.Value)
-            {
-                Manager.ResetIfNecessary(path);
-            }
-        }
-    }
-
-    [HarmonyPatch]
-    private static class MixtapeCustomLoadRiqArchivePatch
-    {
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return AccessTools.Method(typeof(RiqLoader), "LoadRiqArchive");
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "LoadRiqArchive");
-        }
-        static void Postfix(string path)
-        {
-            Manager.CheckVersionThenReadRiqArchive(path);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "SaveAsRiq")]
-    private static class MixtapeEditorScriptSaveAsRiqPatch
-    {
-        static void Postfix(string path)
-        {
-            Manager.SaveAsRiq(path);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeLoaderCustom), "InitScene")]
-    private static class MixtapeLoaderCustomGetOrLoadScenePatch
-    {
-        static void Postfix(MixtapeLoaderCustom __instance, SceneKey sceneKey)
-        {
-            Manager.InitScene(__instance, sceneKey);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeLoaderCustom), "Start")]
-    private static class MixtapeLoaderCustomStartPatch
-    {
-        static void Prefix(MixtapeLoaderCustom __instance, out MixtapeLoaderCustom __state)
-        {
-            __state = __instance;
-        }
-        static IEnumerator Postfix(IEnumerator __result, MixtapeLoaderCustom __state)
-        {
-            bool hasInited = false;
-            __state.SetTotal(0);
-
-            while (__result.MoveNext())
-            {
-                if (__state.GetTotal() > 0 && !hasInited)
-                {
-                    // after BeginInternal for all games, before jukebox is ready
-                    Manager.Prepare(__state);
-                    hasInited = true;
-                }
-                yield return __result.Current;
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "GameNameToDisplay")]
-    private static class MixtapeEditorScriptGameNameToDisplayPatch
-    {
-        static bool Prefix(string name, ref string __result)
-        {
-            if (name == MyPluginInfo.PLUGIN_GUID)
-            {
-                __result = MyPluginInfo.PLUGIN_NAME;
-                return false; // skip original
-            }
-            return true; // don't skip original
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "UpdateInternal")]
-    private static class MixtapeEditorScriptUpdateInternalPatch
-    {
-        // this method can't be patched with a transpiler
-        // https://github.com/AnonUserGuy/BopCustomTextures/issues/9
-
-        static void Postfix(MixtapeEditorScript __instance)
-        {
-            Manager.HandleOldMenu(__instance);
-            Manager.HandleKeybind(__instance);
-        }
-    }
-
-    [HarmonyPatch]
-    private static class MixtapeEditorScriptFormatMenuPatch
-    {
-        private static readonly MethodInfo TargetMethod = AccessTools.Method(typeof(MixtapeEditorScript), "FormatMenu");
-        static bool Prepare() => TargetMethod != null;
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return TargetMethod;
-        }
-        static void Postfix(MixtapeEditorScript __instance)
-        {
-            Manager.FormatOldMenu(__instance);
-        }
-    }
-
-
-    [HarmonyPatch]
-    private static class MixtapeEditorScriptUpdateSingletonEventsPatch
-    {
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectMinigame");
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectEvent");
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectPropertyOrValue");
-        }
-
-        static void Prefix(MixtapeEditorScript __instance)
-        {
-            Manager.UpdateSingletonEvents(__instance);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "OnSelectCategory")]
-    private static class MixtapeEditorScriptOnSelectMinigamePatch
-    {
-        static void Prefix(MixtapeEditorScript __instance, ref string category)
-        {
-            Manager.CycleModdedCategory(__instance, ref category);
-        }
-    }
-
-    [HarmonyPatch(typeof(MixtapeEditorScript), "CycleProperty")]
-    private static class MixtapeEditorScriptCyclePropertyPatch
-    {
-        static void Postfix(MixtapeEditorScript __instance, int option)
-        {
-            Manager.CycleProperty(__instance, option);
-        }
-    }
-
-    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
-    [HarmonyPatch]
-    private static class MixtapeEditorScriptFormatIfSingletonSelectedPatch
-    {
-        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectMinigame");
-            yield return AccessTools.Method(typeof(MixtapeEditorScript), "OnSelectEvent");
-        }
-        static void Postfix(MixtapeEditorScript __instance)
-        {
-            Manager.FormatIfSingletonSelected(__instance);
-        }
-    }
-
-    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
-    [HarmonyPatch(typeof(MixtapeEditorScript), "SpawnEventFromTemplate")]
-    private static class MixtapeEditorScriptSpawnEventFromTemplatePatch
-    {
-        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
-        static bool Prefix(MixtapeEditorScript __instance, MixtapeEventTemplate templateEvent)
-        {
-            if (Manager.CheckSingletonEventSpawning(__instance, templateEvent))
-            {
-                return false; // skip original
-            }
-            return true; // don't skip original
-        }
-    }
-
-    // TODO: this can be removed after release is updated to have MixtapeEditorScript.singletonEvents
-    [HarmonyPatch(typeof(MixtapeEditorScript), "SelectedEventIsSingleton")]
-    private static class MixtapeEditorScriptSelectedEventIsSingletonPatch
-    {
-        static bool Prepare() => !MixtapeEditorScriptExtensions.SingletonEventsField.Exists();
-        static bool Prefix(MixtapeEditorScript __instance, ref bool __result)
-        {
-            if (Manager.SelectedEventIsSingleton(__instance))
-            {
-                __result = true;
-                return false; // skip original
-            }
-            return true; // don't skip original
-        }
-    }
-
-    [HarmonyPatch(typeof(SteamUploadManager), "UploadCoroutine", MethodType.Enumerator)]
-    private static class SteamUploadManagerUploadCoroutinePatch
-    {
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
-        {
-            if (!ConfigManager.UploadAppendDescription.Value)
-            {
-                return instructions;
-            }
-
-            var codeMatcher = new CodeMatcher(instructions, il);
-            codeMatcher.MatchForward(false, [
-                new CodeMatch(OpCodes.Ldfld, AccessTools.Field(typeof(BopMixtapeV0), "description"))
-            ]);
-            if (!codeMatcher.IsValid)
-            {
-                Logger.LogError("Could not find upload description instruction, so mixtape will not be uploaded with an appended description.");
-                return instructions;
-            }
-
-            codeMatcher.Set(OpCodes.Call, AccessTools.Method(typeof(SteamUploadManagerUploadCoroutinePatch), "Internal"));
-
-            return codeMatcher.InstructionEnumeration();
-        }
-
-        private static string Internal(BopMixtapeV0 mixtape)
-        {
-            if (ConfigManager.UploadAppendDescription.Value)
-            {
-                return Manager.GetDescriptionAppended(mixtape.description);
-            } 
-            else
-            {
-                return mixtape.description;
-            }
-        }
-    }
+    public static bool LogWarning(object data) => Log(LogLevel.Warning, data);
 
     private void OnProcessExit(object sender, EventArgs e)
     {
-        Manager.DeleteTempDirectory();
-    }
-    private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
-    {
-        Manager.DeleteTempDirectory();
-    }
-    private void OnApplicationQuit()
-    {
-        Manager.DeleteTempDirectory();
+        if (Manager != null)
+        {
+            Manager.DeleteTempDirectory();
+        }
     }
 
-    public static string GetTempParentPath()
+    private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        return Path.Combine(Path.GetTempPath(), "BepInEx", MyPluginInfo.PLUGIN_GUID);
+        if (Manager != null)
+        {
+            Manager.DeleteTempDirectory();
+        }
     }
-    public static string GetTempPath()
+
+    private void OnApplicationQuit()
     {
-        return Path.Combine(Path.GetTempPath(), "BepInEx", MyPluginInfo.PLUGIN_GUID, $"{Process.GetCurrentProcess().Id}");
+        if (Manager != null)
+        {
+            Manager.DeleteTempDirectory();
+        }
     }
+
+    public static string GetTempParentPath() => Path.Combine(Path.GetTempPath(), "BepInEx", MyPluginInfo.PLUGIN_GUID);
+
+    public static string GetTempPath() => Path.Combine(GetTempParentPath(), $"{Process.GetCurrentProcess().Id}");
+
     public static bool IsProbablyCustom()
     {
         SceneKey activeSceneKey = TempoSceneManager.GetActiveSceneKey();
         return activeSceneKey == SceneKey.MixtapeEditor || activeSceneKey == SceneKey.MixtapeCustom;
     }
-
 }

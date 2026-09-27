@@ -14,19 +14,18 @@ namespace BopCustomTextures.Customs;
 public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomManager(logger)
 {
     public string TempPath = tempPath;
-    public static FileStream TempLock = null;
+    public TempDirectory TempDirectory = null;
 
     public bool WriteDirectory(string path)
     {
-        if (TempLock != null)
+        if (TempDirectory != null)
         {
             var subpaths = Directory.EnumerateDirectories(TempPath);
             foreach (var subpath in subpaths)
             {
-                if (CustomManager.IsCustomResourceDirectory(subpath) ||
-                    CustomSceneManager.IsCustomSceneDirectory(subpath) ||
-                    CustomTextureManager.IsCustomTextureDirectory(subpath)
-                    )
+                if (CustomManager.IsCustomResourceDirectory(subpath)
+                    || CustomSceneManager.IsCustomSceneDirectory(subpath)
+                    || CustomTextureManager.IsCustomTextureDirectory(subpath))
                 {
                     CopyDirectory(subpath, Path.Combine(path, subpath.Substring(TempPath.Length + 1)));
                 }
@@ -77,41 +76,30 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
 
     private void CheckLock()
     {
-        if (TempLock == null)
-        {
-            Directory.CreateDirectory(TempPath);
-            TempLock = new FileStream(Path.Combine(TempPath, ".tmp"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-        }
+        TempDirectory ??= new(TempPath);
     }
 
     public void DeleteTempDirectory()
     {
-        if (TempLock != null)
+        if (TempDirectory != null)
         {
-            TempLock.Close();
-            TempLock = null;
-            Directory.Delete(TempPath, true);
+            TempDirectory.Dispose();
+            TempDirectory = null;
         }
     }
 
-    public string CreateUniqueTempDirectory(string prefix)
+    private TempDirectory CreateUniqueTempDirectory()
     {
-        Directory.CreateDirectory(TempPath);
-        string tempDirectoryPath = Path.Combine(TempPath, $"{prefix}_{Guid.NewGuid():N}");
-        if (Directory.Exists(tempDirectoryPath))
-        {
-            Directory.Delete(tempDirectoryPath, true);
-        }
-
-        Directory.CreateDirectory(tempDirectoryPath);
-        return tempDirectoryPath;
+        string tempDirectoryPath = $"{TempPath}_{Guid.NewGuid():N}";
+        TempDirectory tempDirectory = new(tempDirectoryPath);
+        return tempDirectory;
     }
 
-    public string ExtractArchiveToTempDirectory(string archivePath, string prefix)
+    public TempDirectory ExtractArchiveToTempDirectory(string archivePath)
     {
-        string workingPath = CreateUniqueTempDirectory(prefix);
-        ZipFile.ExtractToDirectory(archivePath, workingPath);
-        return workingPath;
+        TempDirectory tempDirectory = CreateUniqueTempDirectory();
+        ZipFile.ExtractToDirectory(archivePath, tempDirectory);
+        return tempDirectory;
     }
 
     public void PackDirectoryToArchive(string sourceDirectory, string archivePath)
@@ -160,17 +148,12 @@ public class CustomFileManager(ILogger logger, string tempPath) : BaseCustomMana
             try
             {
                 // check temp directory isn't being used by other Bits & Bops instance.
-                LockFileLocked(Path.Combine(otherTempPath, ".tmp"));
+                FileStream otherTempLock = TempDirectory.Lock(otherTempPath);
+                otherTempLock.Dispose();
                 Directory.Delete(otherTempPath, true);
             }
             catch { }
         }
-    }
-
-    public static void LockFileLocked(string path)
-    {
-        // attempt to create a file to see if a temp directory is being used by another Bits & Bops instance. 
-        using var _ = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     }
 
     public static bool ShouldBackupDirectory()

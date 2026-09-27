@@ -97,7 +97,7 @@ public class VersionDisclaimerScript : MonoBehaviour
         if (performLoad)
         {
             TempoInput.SetActionMap(SettingsScript.gameActionMap);
-            manager.ReadLastPath();
+            manager.ReadPath();
             manager.InterruptLoad = false;
             loader.StartMixtape();
             Destroy(gameObject);
