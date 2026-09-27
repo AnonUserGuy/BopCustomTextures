@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.SceneMods.Unity.Components;
+using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.Unity;
 
@@ -33,5 +36,19 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj)
     public void Apply()
     {
         Apply(obj);
+    }
+
+    public void ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject rootObj)
+    {
+        mobj.ApplyLoader(ctxs, loader, entity, beat, obj, rootObj);
+        foreach (var childObj in childObjs)
+        {
+            childObj.ApplyLoader(ctxs, loader, entity, beat, rootObj);
+        }
+    }
+
+    public void ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat)
+    {
+        ApplyLoader(ctxs, loader, entity, beat, obj);
     }
 }

@@ -73,7 +73,7 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         MComponentParserRegistry.Initialize(Logger);
 
         Manager = new(Logger, ConfigManager, GetTempPath(),
-            BopCustomTexturesEventTemplates.SceneModTemplate,
+            BopCustomTexturesEventTemplates.SceneModTemplates,
             BopCustomTexturesEventTemplates.TextureVariantTemplates);
 
         MenuManager = new(Logger, ConfigManager, Manager,

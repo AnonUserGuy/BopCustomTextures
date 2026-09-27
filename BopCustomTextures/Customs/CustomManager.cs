@@ -149,12 +149,12 @@ public class CustomManager : BaseCustomManager
     /// <param name="entities">List of all mixtape event categories and events.</param>
     public CustomManager(ILogger logger, ConfigManager configManager,
         string tempPath, 
-        MixtapeEventTemplate sceneModTemplate, 
+        MixtapeEventTemplate[] sceneModTemplates, 
         MixtapeEventTemplate[] textureTemplates) : base(logger)
     {
         ConfigManager = configManager;
         VariantManager = new CustomVariantNameManager(logger);
-        SceneManager = new CustomSceneManager(logger, VariantManager, sceneModTemplate);
+        SceneManager = new CustomSceneManager(logger, VariantManager, sceneModTemplates);
         TextureManager = new CustomTextureManager(logger, VariantManager, textureTemplates);
         FileManager = new CustomFileManager(logger, tempPath);
     }

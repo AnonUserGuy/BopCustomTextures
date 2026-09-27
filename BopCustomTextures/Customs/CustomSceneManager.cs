@@ -1,8 +1,10 @@
 using BopCustomTextures.Json;
 using BopCustomTextures.SceneMods.Unity;
+using BopCustomTextures.SceneMods.Unity.Components;
 using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -17,15 +19,19 @@ namespace BopCustomTextures.Customs;
 /// <param name="logger">Plugin-specific logger</param>
 /// <param name="variantManager">Used for mapping custom texture variant external names to internal indices. Passed to CustomJsonInitializer.</param>
 /// <param name="mixtapeEventTemplate">Mixtape event template for applying scene mods.</param>
-public class CustomSceneManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate mixtapeEventTemplate) : BaseCustomManager(logger)
+public class CustomSceneManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate[] mixtapeEventTemplates) : BaseCustomManager(logger)
 {
-    public MixtapeEventTemplate MixtapeEventTemplate = mixtapeEventTemplate;
+    public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex FileRegex = new Regex(@"(\w+).jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    public static readonly Regex MixtapeEventRegex = new Regex(@"^" + MyPluginInfo.PLUGIN_GUID + @"/apply (\w*) ?scene mod$", RegexOptions.Compiled);
+
+    public MixtapeEventTemplate[] MixtapeEventTemplates = mixtapeEventTemplates;
     public CustomJsonInitializer JsonInitializer = new CustomJsonInitializer(logger, variantManager);
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObject>> CustomScenes = [];
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>> CustomScenesResolved = [];
     private MixtapeLoaderCustom LastMixtapeLoader = null;
-    public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    public static readonly Regex FileRegex = new Regex(@"(\w+).jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public Dictionary<Type, MLoaderComponentContext> LoaderComponentContexts = [];
 
     public static bool IsCustomSceneDirectory(string path)
     {
@@ -210,11 +216,19 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         {
             PrepareEvent(__instance, entity);
         }
+        foreach (var pair in LoaderComponentContexts)
+        {
+            if (pair.Value.Component is IMLoaderComponentFinal mcomponentFinal)
+            {
+                mcomponentFinal.ApplyLoaderFinalize(pair.Value.Context);
+            }
+        }
+        LoaderComponentContexts.Clear();
     }
 
     public void PrepareEvent(MixtapeLoaderCustom __instance, Entity entity)
     {
-        if (entity.dataModel != $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod")
+        if (!TryGetBeat(entity, __instance.jukebox, out float beat))
         {
             return;
         }
@@ -237,25 +251,100 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
             return;
         }
-        if (TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
+        if (!TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
         {
-            __instance.scheduler.Schedule(entity.beat, mobjResolved.Apply);
+            return;
         }
+
+        mobjResolved.ApplyLoader(LoaderComponentContexts, __instance, entity, beat);
+        __instance.scheduler.Schedule(beat, mobjResolved.Apply);
+    }
+
+    private static bool TryGetBeat(Entity entity, JukeboxScript jukebox, out float beat)
+    {
+        var match = MixtapeEventRegex.Match(entity.dataModel);
+        if (!match.Success)
+        {
+            beat = 0;
+            return false;
+        }
+        //BopCustomTexturesPlugin.LogWarning(match.Groups[1].Value);
+        if (match.Groups[1].Value != "offset")
+        {
+            beat = entity.beat;
+            return true;
+        }
+        var offsetSeconds = entity.GetFloat("offset");
+        if (offsetSeconds == 0f)
+        {
+            //BopCustomTexturesPlugin.LogWarning("B");
+            beat = entity.beat;
+            return true;
+        }
+
+        if (entity.GetBool("useLength"))
+        {
+            //BopCustomTexturesPlugin.LogWarning("C");
+            var max = entity.beat + entity.length;
+            if (offsetSeconds > 0f)
+            {
+                
+                beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(entity.beat) + offsetSeconds);
+                //BopCustomTexturesPlugin.LogWarning("D " + beat);
+                if (beat > max)
+                {
+                    //BopCustomTexturesPlugin.LogWarning("E");
+                    if (!entity.GetBool("applyByEnd"))
+                    {
+                        //BopCustomTexturesPlugin.LogWarning("F");
+                        return false;
+                    }
+                    beat = max;
+                }
+            }
+            else
+            {
+                beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(max) + offsetSeconds);
+                //BopCustomTexturesPlugin.LogWarning("G " + beat);
+                if (beat < entity.beat)
+                {
+                    //BopCustomTexturesPlugin.LogWarning("H");
+                    if (!entity.GetBool("applyByEnd"))
+                    {
+                        //BopCustomTexturesPlugin.LogWarning("I");
+                        return false;
+                    }
+                    beat = entity.beat;
+                }
+            }
+            return true;
+        }
+
+        beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(entity.beat) + offsetSeconds);
+        //BopCustomTexturesPlugin.LogWarning("J " + beat);
+        return true;
     }
 
     public bool UpdateEventTemplates()
     {
+        object scenes;
+        bool result;
         if (CustomScenes.Count < 1)
         {
-            MixtapeEventTemplate.properties["scene"] = "";
-            return false;
+            scenes = "";
+            result = false;
         }
         else
         {
-            MixtapeEventTemplate.properties["scene"] = new MixtapeEventTemplates.ChoiceField<string>(
+            scenes = new MixtapeEventTemplates.ChoiceField<string>(
                 CustomScenes.Keys.Select(FromSceneKeyOrInvalid).ToArray());
-            return true;
+            result = true;
         }
+        foreach (var mixtapeEventTemplate in MixtapeEventTemplates)
+        {
+            mixtapeEventTemplate.properties["scene"] = scenes;
+        }
+        return result;
     }
 
 

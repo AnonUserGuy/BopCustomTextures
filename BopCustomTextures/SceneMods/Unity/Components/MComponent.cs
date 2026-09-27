@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using BopCustomTextures.Json;
+﻿using BopCustomTextures.Json;
+using UnityEngine;
 using Newtonsoft.Json.Linq;
 
 namespace BopCustomTextures.SceneMods.Unity.Components;
@@ -22,7 +22,23 @@ public interface IMComponent
     /// Apply scene mod component to <see cref="GameObject"/>.
     /// </summary>
     /// <param name="obj"><see cref="GameObject"/> to apply to.</param>
-    public abstract void Apply(GameObject obj);
+    public abstract void Apply(GameObject gameObj);
+}
+
+public interface IMLoaderComponent
+{
+    public abstract object ApplyLoader(object ctx, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject gameObj);
+}
+
+public interface IMLoaderComponentFinal : IMLoaderComponent
+{
+    public abstract void ApplyLoaderFinalize(object ctx);
+}
+
+public readonly struct MLoaderComponentContext(IMLoaderComponent component, object context)
+{
+    public readonly IMLoaderComponent Component = component;
+    public readonly object Context = context;
 }
 
 /// <summary>

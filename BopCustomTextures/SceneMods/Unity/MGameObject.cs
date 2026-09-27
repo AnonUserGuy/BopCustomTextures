@@ -5,6 +5,8 @@ using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using BopCustomTextures.SceneMods.Scripts;
+using System;
 
 namespace BopCustomTextures.SceneMods.Unity;
 
@@ -175,6 +177,26 @@ public class MGameObject : MUnityObject<GameObject>
             foreach (var childObj in CustomSceneManager.FindGameObjectsInChildren(rootObj, obj, mchildObj.name))
             {
                 mchildObj.Apply(childObj, rootObj);
+            }
+        }
+        return obj;
+    }
+
+    public GameObject ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject obj, GameObject rootObj)
+    {
+        foreach (var mcomponent in components)
+        {
+            if (mcomponent is IMLoaderComponent mloaderComponent)
+            {
+                Type type = mcomponent.GetType();
+                if (ctxs.TryGetValue(type, out var pair))
+                {
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(pair.Context, loader, entity, beat, obj));
+                }
+                else
+                {
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(null, loader, entity, beat, obj));
+                }
             }
         }
         return obj;

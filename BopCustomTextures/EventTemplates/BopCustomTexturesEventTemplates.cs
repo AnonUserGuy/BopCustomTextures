@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using static MixtapeEventTemplates;
 
 namespace BopCustomTextures.EventTemplates;
 
@@ -46,7 +47,22 @@ public static class BopCustomTexturesEventTemplates
         properties = new Dictionary<string, object>
         {
             ["scene"] = "",
-            ["key"] = ""
+            ["key"] = "",
+        }
+    };
+
+    public static readonly MixtapeEventTemplate OffsetSceneModTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/apply offset scene mod",
+        length = 0.5f,
+        resizable = true,
+        properties = new Dictionary<string, object>
+        {
+            ["scene"] = "",
+            ["key"] = "",
+            ["offset"] = 0.0,
+            ["useLength"] = false,
+            ["applyByEnd"] = false,
         }
     };
 
@@ -102,6 +118,12 @@ public static class BopCustomTexturesEventTemplates
         RemoveTextureVariantTemplate
     ];
 
+    public static readonly MixtapeEventTemplate[] SceneModTemplates =
+    [
+        SceneModTemplate,
+        OffsetSceneModTemplate,
+    ];
+
     public static readonly MixtapeEventTemplate[] Templates =
     [
         EditorPropertiesTemplate,
@@ -110,6 +132,7 @@ public static class BopCustomTexturesEventTemplates
         SetTextureVariantTemplate,
         AddTextureVariantTemplate,
         RemoveTextureVariantTemplate,
-        SceneModTemplate
+        SceneModTemplate,
+        OffsetSceneModTemplate
     ];
 }
