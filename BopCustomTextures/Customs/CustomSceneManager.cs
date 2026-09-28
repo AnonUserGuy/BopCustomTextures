@@ -11,6 +11,9 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using ILogger = BopCustomTextures.Logging.ILogger;
 
+using BopCustomTextures.AccessExtensions;
+using System.Collections;
+
 namespace BopCustomTextures.Customs;
 
 /// <summary>
@@ -228,6 +231,11 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
 
     public void PrepareEvent(MixtapeLoaderCustom __instance, Entity entity)
     {
+        if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/test event")
+        {
+            PrepareTestEvent(__instance, entity);
+            return;
+        }
         if (!TryGetBeat(entity, __instance.jukebox, out float beat))
         {
             return;
@@ -258,6 +266,57 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
 
         mobjResolved.ApplyLoader(LoaderComponentContexts, __instance, entity, beat);
         __instance.scheduler.Schedule(beat, mobjResolved.Apply);
+    }
+
+    public void PrepareTestEvent(MixtapeLoaderCustom __instance, Entity entity)
+    {
+        if (!InputManagerExtensions.OnActionDownCallbacksField.Exists())
+        {
+            Logger.LogError("OnActionDownCallbacks field doesn't exist");
+            return;
+        }
+
+        var sceneStr = entity.GetString("scene");
+        var scene = ToSceneKeyOrInvalid(sceneStr);
+        if (scene == SceneKey.Invalid)
+        {
+            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+            return;
+        }
+        if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
+        {
+            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+            return;
+        }
+
+        var callbacks = rootObj.GetComponentInChildren<GameplayScript>()?.inputManager.GetOnActionDownCallbacks();
+        if (callbacks == null)
+        {
+            Logger.LogError("couldn't find GameplayScript");
+            return;
+        }
+        var hasCallback = callbacks.TryGetValue(Action.Primary, out var callback);
+
+        IEnumerator newCallback(float target, Judgement judgement, bool early, bool taken, uint vkey)
+        {
+            BopCustomTexturesPlugin.LogWarning($"You just hit a {Enum.GetName(typeof(Judgement), judgement)}!");
+
+            // set back to old callback
+            callbacks[Action.Primary] = callback;
+
+            // iterate old callback
+            var enumerator = callback(target, judgement, early, taken, vkey);
+            while (enumerator.MoveNext())
+            {
+                yield return enumerator.Current;
+            }
+        };
+
+        __instance.scheduler.Schedule(entity.beat, () =>
+        {
+            callbacks[Action.Primary] = newCallback;
+            Logger.LogInfo("confirmation");
+        });
     }
 
     private static bool TryGetBeat(Entity entity, JukeboxScript jukebox, out float beat)

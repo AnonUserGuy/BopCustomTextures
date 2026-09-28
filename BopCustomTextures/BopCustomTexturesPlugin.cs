@@ -100,15 +100,6 @@ public class BopCustomTexturesPlugin : BaseUnityPlugin
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
-    public void Update()
-    {
-        if (UnityEngine.Input.GetKeyDown(UnityEngine.KeyCode.E))
-        {
-            Logger.LogWarning(Manager.LastPath);
-            Logger.LogWarning(Manager.LastModified);
-        }
-    }
-
     /// <summary>
     /// Logging for static BopCustomTextures classes.
     /// </summary>

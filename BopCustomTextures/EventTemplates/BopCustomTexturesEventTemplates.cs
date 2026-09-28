@@ -66,6 +66,16 @@ public static class BopCustomTexturesEventTemplates
         }
     };
 
+    public static readonly MixtapeEventTemplate TestEventTemplate = new()
+    {
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/test event",
+        length = 0.5f,
+        properties = new Dictionary<string, object>
+        {
+            ["scene"] = ""
+        }
+    };
+
     public static readonly MixtapeEventTemplate AddTextureVariantTemplate = new()
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/add texture variant",
@@ -122,6 +132,7 @@ public static class BopCustomTexturesEventTemplates
     [
         SceneModTemplate,
         OffsetSceneModTemplate,
+        TestEventTemplate
     ];
 
     public static readonly MixtapeEventTemplate[] Templates =
@@ -133,6 +144,9 @@ public static class BopCustomTexturesEventTemplates
         AddTextureVariantTemplate,
         RemoveTextureVariantTemplate,
         SceneModTemplate,
-        OffsetSceneModTemplate
+        OffsetSceneModTemplate,
+#if DEBUG
+        TestEventTemplate
+#endif
     ];
 }
