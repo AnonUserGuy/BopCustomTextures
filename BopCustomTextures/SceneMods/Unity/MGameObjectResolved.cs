@@ -51,4 +51,22 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj)
     {
         ApplyLoader(ctxs, loader, entity, beat, obj);
     }
+
+    public void ApplyLoader(MixtapeLoaderCustom loader, Entity entity, float beat)
+    {
+        Dictionary<Type, MLoaderComponentContext> ctxs = [];
+        ApplyLoader(ctxs, loader, entity, beat, obj);
+        ApplyLoaderFinalize(ctxs);
+    }
+
+    public static void ApplyLoaderFinalize(IDictionary<Type, MLoaderComponentContext> ctxs)
+    {
+        foreach (var pair in ctxs)
+        {
+            if (pair.Value.Component is IMLoaderComponentFinal mcomponentFinal)
+            {
+                mcomponentFinal.ApplyLoaderFinalize(pair.Value.Context);
+            }
+        }
+    }
 }

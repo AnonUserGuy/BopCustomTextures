@@ -1,20 +1,24 @@
 using BopCustomTextures.Json;
 using BopCustomTextures.SceneMods.Unity;
 using BopCustomTextures.SceneMods.Unity.Components;
+using BopCustomTextures.AccessExtensions;
 using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using static InputManager;
 using ILogger = BopCustomTextures.Logging.ILogger;
 
-using BopCustomTextures.AccessExtensions;
-using System.Collections;
-
 namespace BopCustomTextures.Customs;
+
+using LoaderComponentContexts = Dictionary<Type, MLoaderComponentContext>;
+using OnActionCallbacks = Dictionary<SceneKey, Dictionary<bool, Dictionary<Action, CustomSceneManager.OnActionCallback>>>;
+using OnActionMissCallbacks = Dictionary<SceneKey, Dictionary<bool, Dictionary<Action, CustomSceneManager.OnActionMissCallback>>>;
 
 /// <summary>
 /// Manages scene mods, including loading them from the source file and applying them when the mixtape is played.
@@ -24,17 +28,204 @@ namespace BopCustomTextures.Customs;
 /// <param name="mixtapeEventTemplate">Mixtape event template for applying scene mods.</param>
 public class CustomSceneManager(ILogger logger, CustomVariantNameManager variantManager, MixtapeEventTemplate[] mixtapeEventTemplates) : BaseCustomManager(logger)
 {
+    // the only reason these are public is because they have to be for the type aliases above to work
+    public class InputSyncedCustomScene(MGameObjectResolved mobj, Entity entity)
+    {
+        private int Count = entity.GetInt("count");
+
+        private readonly MGameObjectResolved Mobj = mobj;
+
+        private readonly Entity Entity = entity;
+        private readonly Judgement MinJudgement = JudgementFromString(entity.GetString("minJudgement"));
+        private readonly Judgement MaxJudgement = JudgementFromString(entity.GetString("maxJudgement"));
+        private readonly bool Early = entity.GetBool("early");
+        private readonly bool Late = entity.GetBool("late");
+        private readonly float BeatOffset = entity.GetFloat("beatOffset");
+        private readonly float Offset = entity.GetFloat("offset");
+
+        private static Judgement JudgementFromString(string str) => str switch
+        {
+            "miss"   => Judgement.Miss,
+            "bad"    => Judgement.Bad,
+            "almost" => Judgement.Almost,
+            "hit"    => Judgement.Hit,
+            _        => Judgement.Perfect,
+        };
+
+        private bool SufficientJudgement(Judgement judgement, bool early)
+            => judgement >= MinJudgement && judgement <= MaxJudgement && (judgement != Judgement.Almost || early ? Early : Late);
+
+        private void ApplyInternal(MixtapeLoaderCustom __instance)
+        {
+            var jukebox = __instance.jukebox;
+            if (BeatOffset == 0f && Offset == 0f)
+            {
+                Mobj.ApplyLoader(__instance, Entity, jukebox.CurrentBeat);
+                Mobj.Apply();
+            }
+            else
+            {
+                float beat;
+                if (Offset == 0f)
+                {
+                    beat = jukebox.CurrentBeat + BeatOffset;
+                } 
+                else
+                {
+                    beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(jukebox.CurrentBeat + BeatOffset) + Offset);
+                }
+                Mobj.ApplyLoader(__instance, Entity, beat);
+                __instance.scheduler.Schedule(beat, Mobj.Apply);
+            }
+        }
+
+        public bool Apply(MixtapeLoaderCustom __instance)
+        {
+            if (Count == 0)
+            {
+                return true;
+            }
+            ApplyInternal(__instance);
+            return --Count == 0;
+        }
+
+        public bool Apply(MixtapeLoaderCustom __instance, Judgement judgement, bool early)
+        {
+            if (Count == 0) 
+            {
+                return true;
+            }
+
+            if (!SufficientJudgement(judgement, early))
+            {
+                return false;
+            }
+            ApplyInternal(__instance);
+            return --Count == 0;
+        }
+
+        public void Remove() => Count = 0;
+    }
+
+    public abstract class OnActionCallbackEither(MixtapeLoaderCustom __instance)
+    {
+        protected readonly MixtapeLoaderCustom Loader = __instance;
+        protected readonly List<InputSyncedCustomScene> Mobjs = [];
+
+        public void Add(InputSyncedCustomScene mobj)
+        {
+            Mobjs.Add(mobj);
+        }
+
+        protected void Apply()
+        {
+            for (var i = 0; i < Mobjs.Count;)
+            {
+                if (Mobjs[i].Apply(Loader))
+                {
+                    Mobjs.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+
+        protected void Apply(Judgement judgement, bool early)
+        {
+            for (var i = 0; i < Mobjs.Count;)
+            {
+                if (Mobjs[i].Apply(Loader, judgement, early))
+                {
+                    Mobjs.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+    }
+
+    public class OnActionCallback : OnActionCallbackEither
+    {
+        private readonly Func<float, Judgement, bool, bool, uint, IEnumerator> Original;
+
+        public OnActionCallback(MixtapeLoaderCustom __instance, OnActionDownCallback original) : base(__instance)
+        {
+            Original = original != null ? new Func<float, Judgement, bool, bool, uint, IEnumerator>(original) : null;
+        }
+
+        public OnActionCallback(MixtapeLoaderCustom __instance, OnActionUpCallback original) : base(__instance)
+        {
+            Original = original != null ? new Func<float, Judgement, bool, bool, uint, IEnumerator>(original) : null;
+        }
+
+        public IEnumerator GetEnumerator(float target, Judgement judgement, bool early, bool taken, uint vkey)
+        {
+            if (Original != null)
+            {
+                var enumerator = Original(target, judgement, early, taken, vkey);
+                while (enumerator.MoveNext())
+                {
+                    yield return enumerator.Current;
+                }
+            }
+            else
+            {
+                yield return null;
+            }
+
+            Apply(judgement, early);
+        }
+    }
+
+    public class OnActionMissCallback : OnActionCallbackEither
+    {
+        private readonly Func<float, IEnumerator> Original;
+
+        public OnActionMissCallback(MixtapeLoaderCustom __instance, OnActionDownMissCallback original) : base(__instance)
+        {
+            Original = original != null ? new Func<float, IEnumerator>(original) : null;
+        }
+
+        public OnActionMissCallback(MixtapeLoaderCustom __instance, OnActionUpMissCallback original) : base(__instance)
+        {
+            Original = original != null ? new Func<float, IEnumerator>(original) : null;
+        }
+
+        public IEnumerator GetEnumerator(float target)
+        {
+            if (Original != null)
+            {
+                var enumerator = Original(target);
+                while (enumerator.MoveNext())
+                {
+                    yield return enumerator.Current;
+                }
+            } 
+            else
+            {
+                yield return null;
+            }
+
+            Apply();
+        }
+    }
+
+
     public static readonly Regex PathRegex = new Regex(@"[\\/](?:level|scene)s?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     public static readonly Regex FileRegex = new Regex(@"(\w+).jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    public static readonly Regex MixtapeEventRegex = new Regex(@"^" + MyPluginInfo.PLUGIN_GUID + @"/apply (\w*) ?scene mod$", RegexOptions.Compiled);
+    public static readonly Regex MixtapeEventRegex = new Regex(@"^" + MyPluginInfo.PLUGIN_GUID + @"/apply (offset )?scene mod( on input)?$", RegexOptions.Compiled);
 
     public MixtapeEventTemplate[] MixtapeEventTemplates = mixtapeEventTemplates;
     public CustomJsonInitializer JsonInitializer = new CustomJsonInitializer(logger, variantManager);
+
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObject>> CustomScenes = [];
     public readonly Dictionary<SceneKey, Dictionary<string, MGameObjectResolved>> CustomScenesResolved = [];
-    private MixtapeLoaderCustom LastMixtapeLoader = null;
 
-    public Dictionary<Type, MLoaderComponentContext> LoaderComponentContexts = [];
+    private MixtapeLoaderCustom LastMixtapeLoader = null;
 
     public static bool IsCustomSceneDirectory(string path)
     {
@@ -215,147 +406,233 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
     {
+        LoaderComponentContexts ctxs = [];
+        OnActionCallbacks callbacks = [];
+        OnActionMissCallbacks missCallbacks = [];
         foreach (Entity entity in entities)
         {
-            PrepareEvent(__instance, entity);
+            PrepareEvent(__instance, ctxs, callbacks, missCallbacks, entity);
         }
-        foreach (var pair in LoaderComponentContexts)
-        {
-            if (pair.Value.Component is IMLoaderComponentFinal mcomponentFinal)
-            {
-                mcomponentFinal.ApplyLoaderFinalize(pair.Value.Context);
-            }
-        }
-        LoaderComponentContexts.Clear();
+        MGameObjectResolved.ApplyLoaderFinalize(ctxs);
     }
 
-    public void PrepareEvent(MixtapeLoaderCustom __instance, Entity entity)
-    {
-        if (entity.dataModel == $"{MyPluginInfo.PLUGIN_GUID}/test event")
-        {
-            PrepareTestEvent(__instance, entity);
-            return;
-        }
-        if (!TryGetBeat(entity, __instance.jukebox, out float beat))
-        {
-            return;
-        }
-
-        var key = entity.GetString("key");
-        var sceneStr = entity.GetString("scene");
-        var scene = ToSceneKeyOrInvalid(sceneStr);
-        if (scene == SceneKey.Invalid)
-        {
-            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
-            return;
-        }
-        if (!CustomScenes.ContainsKey(scene))
-        {
-            Logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
-            return;
-        }
-        if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
-        {
-            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
-            return;
-        }
-        if (!TryGetCustomSceneResolved(__instance, scene, key, out var mobjResolved))
-        {
-            return;
-        }
-
-        mobjResolved.ApplyLoader(LoaderComponentContexts, __instance, entity, beat);
-        __instance.scheduler.Schedule(beat, mobjResolved.Apply);
-    }
-
-    public void PrepareTestEvent(MixtapeLoaderCustom __instance, Entity entity)
-    {
-        if (!InputManagerExtensions.OnActionDownCallbacksField.Exists())
-        {
-            Logger.LogError("OnActionDownCallbacks field doesn't exist");
-            return;
-        }
-
-        var sceneStr = entity.GetString("scene");
-        var scene = ToSceneKeyOrInvalid(sceneStr);
-        if (scene == SceneKey.Invalid)
-        {
-            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
-            return;
-        }
-        if (!__instance.RootObjects.TryGetValue(scene, out var rootObj))
-        {
-            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
-            return;
-        }
-
-        var callbacks = rootObj.GetComponentInChildren<GameplayScript>()?.inputManager.GetOnActionDownCallbacks();
-        if (callbacks == null)
-        {
-            Logger.LogError("couldn't find GameplayScript");
-            return;
-        }
-        var hasCallback = callbacks.TryGetValue(Action.Primary, out var callback);
-
-        IEnumerator newCallback(float target, Judgement judgement, bool early, bool taken, uint vkey)
-        {
-            BopCustomTexturesPlugin.LogWarning($"You just hit a {Enum.GetName(typeof(Judgement), judgement)}!");
-
-            // set back to old callback
-            callbacks[Action.Primary] = callback;
-
-            // iterate old callback
-            var enumerator = callback(target, judgement, early, taken, vkey);
-            while (enumerator.MoveNext())
-            {
-                yield return enumerator.Current;
-            }
-        };
-
-        __instance.scheduler.Schedule(entity.beat, () =>
-        {
-            callbacks[Action.Primary] = newCallback;
-            Logger.LogInfo("confirmation");
-        });
-    }
-
-    private static bool TryGetBeat(Entity entity, JukeboxScript jukebox, out float beat)
+    public void PrepareEvent(MixtapeLoaderCustom __instance, 
+        LoaderComponentContexts ctxs,
+        OnActionCallbacks callbacks,
+        OnActionMissCallbacks missCallbacks, Entity entity)
     {
         var match = MixtapeEventRegex.Match(entity.dataModel);
         if (!match.Success)
         {
-            beat = 0;
-            return false;
+            return;
         }
-        //BopCustomTexturesPlugin.LogWarning(match.Groups[1].Value);
-        if (match.Groups[1].Value != "offset")
+        if (match.Groups[2].Success)
+        {
+            PrepareInputSyncedEvent(__instance, callbacks, missCallbacks, entity);
+            return;
+        }
+
+        float beat;
+        if (!match.Groups[1].Success)
         {
             beat = entity.beat;
-            return true;
         }
+        else if (!TryGetOffsetBeat(entity,  __instance.jukebox, out beat))
+        {
+            return;
+        }
+
+        if (!TryGetEventMObj(__instance, entity, out _, out _, out var mobjResolved))
+        {
+            return;
+        }
+
+        mobjResolved.ApplyLoader(ctxs, __instance, entity, beat);
+        __instance.scheduler.Schedule(beat, mobjResolved.Apply);
+    }
+
+    public void PrepareInputSyncedEvent(MixtapeLoaderCustom __instance, 
+        OnActionCallbacks callbacks,
+        OnActionMissCallbacks missCallbacks, Entity entity)
+    {
+        if (!TryGetEventMObj(__instance, entity, out var scene, out var rootObj, out var mobjResolved))
+        {
+            return;
+        }
+
+        var inputManager = rootObj.GetComponentInChildren<GameplayScript>()?.inputManager;
+        if (inputManager == null)
+        {
+            Logger.LogError("couldn't find InputManager");
+            return;
+        }
+
+        var mobj = new InputSyncedCustomScene(mobjResolved, entity);
+
+        Action action = entity.GetString("action") == "primary" ? Action.Primary : Action.Secondary;
+        bool onUp = entity.GetBool("onUp");
+        bool applyByMiss = entity.GetBool("applyByMiss");
+
+        AddOnActionCallback(__instance, inputManager, callbacks, scene, onUp, action, entity.beat, mobj);
+        if (applyByMiss)
+        {
+            AddOnActionMissCallback(__instance, inputManager, missCallbacks, scene, onUp, action, entity.beat, mobj);
+        }
+
+        bool useLength = entity.GetBool("useLength");
+        bool applyByEnd = entity.GetBool("applyByEnd");
+
+        if (useLength)
+        {
+            if (applyByEnd)
+            {
+                __instance.scheduler.Schedule(entity.beat + entity.length, () => mobj.Apply(__instance));
+            }
+            else
+            {
+                __instance.scheduler.Schedule(entity.beat + entity.length, mobj.Remove);
+            }
+        }
+    }
+
+    private void AddOnActionCallback(MixtapeLoaderCustom __instance, InputManager inputManager,
+        OnActionCallbacks callbacks, SceneKey scene, bool onUp, Action action, float beat, InputSyncedCustomScene mobj)
+    {
+        if (!callbacks.TryGetValue(scene, out var callbacksUpDown))
+        {
+            callbacksUpDown = [];
+            callbacks[scene] = callbacksUpDown;
+        }
+        if (!callbacksUpDown.TryGetValue(onUp, out var callbacksAction))
+        {
+            callbacksAction = [];
+            callbacksUpDown[onUp] = callbacksAction;
+        }
+        if (!callbacksAction.TryGetValue(action, out var callback))
+        {
+            if (!onUp)
+            {
+                if (!InputManagerExtensions.OnActionDownCallbacksField.Exists())
+                {
+                    Logger.LogError("InputManager.onActionDownCallbacks doesn't exist");
+                    return;
+                }
+                var originalCallbacks = inputManager.GetOnActionDownCallbacks();
+                var originalCallback = originalCallbacks.TryGetValue(action, out var _original) ? _original : null;
+
+                callback = new OnActionCallback(__instance, originalCallback);
+                originalCallbacks[action] = callback.GetEnumerator;
+            }
+            else
+            {
+                if (!InputManagerExtensions.OnActionUpCallbacksField.Exists())
+                {
+                    Logger.LogError("InputManager.onActionUpCallbacks doesn't exist");
+                    return;
+                }
+                var originalCallbacks = inputManager.GetOnActionUpCallbacks();
+                var originalCallback = originalCallbacks.TryGetValue(action, out var _original) ? _original : null;
+
+                callback = new OnActionCallback(__instance, originalCallback);
+                originalCallbacks[action] = callback.GetEnumerator;
+            }
+        }
+        __instance.scheduler.Schedule(beat, () => callback.Add(mobj));
+    }
+
+    private void AddOnActionMissCallback(MixtapeLoaderCustom __instance, InputManager inputManager,
+        OnActionMissCallbacks missCallbacks, SceneKey scene, bool onUp, Action action, float beat, InputSyncedCustomScene mobj)
+    {
+        if (!missCallbacks.TryGetValue(scene, out var callbacksUpDown))
+        {
+            callbacksUpDown = [];
+            missCallbacks[scene] = callbacksUpDown;
+        }
+        if (!callbacksUpDown.TryGetValue(onUp, out var callbacksAction))
+        {
+            callbacksAction = [];
+            callbacksUpDown[onUp] = callbacksAction;
+        }
+        if (!callbacksAction.TryGetValue(action, out var callback))
+        {
+            if (!onUp)
+            {
+                if (!InputManagerExtensions.OnActionDownMissCallbacksField.Exists())
+                {
+                    Logger.LogError("InputManager.onActionDownMissCallbacks doesn't exist");
+                    return;
+                }
+                var originalCallbacks = inputManager.GetOnActionDownMissCallbacks();
+                var originalCallback = originalCallbacks.TryGetValue(action, out var _original) ? _original : null;
+
+                callback = new OnActionMissCallback(__instance, originalCallback);
+                originalCallbacks[action] = callback.GetEnumerator;
+            }
+            else
+            {
+                if (!InputManagerExtensions.OnActionUpMissCallbacksField.Exists())
+                {
+                    Logger.LogError("InputManager.onActionUpMissCallbacks doesn't exist");
+                    return;
+                }
+                var originalCallbacks = inputManager.GetOnActionUpMissCallbacks();
+                var originalCallback = originalCallbacks.TryGetValue(action, out var _original) ? _original : null;
+
+                callback = new OnActionMissCallback(__instance, originalCallback);
+                originalCallbacks[action] = callback.GetEnumerator;
+            }
+        }
+        __instance.scheduler.Schedule(beat, () => callback.Add(mobj));
+    }
+
+    private bool TryGetEventMObj(MixtapeLoaderCustom __instance, Entity entity, out SceneKey scene, out GameObject rootObj, out MGameObjectResolved mobjResolved)
+    {
+        var key = entity.GetString("key");
+        var sceneStr = entity.GetString("scene");
+        scene = ToSceneKeyOrInvalid(sceneStr);
+        if (scene == SceneKey.Invalid)
+        {
+            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+            rootObj = null;
+            mobjResolved = null;
+            return false;
+        }
+        if (!CustomScenes.ContainsKey(scene))
+        {
+            Logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
+            rootObj = null;
+            mobjResolved = null;
+            return false;
+        }
+        if (!__instance.RootObjects.TryGetValue(scene, out rootObj))
+        {
+            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+            mobjResolved = null;
+            return false;
+        }
+        return TryGetCustomSceneResolved(__instance, scene, key, out mobjResolved);
+    }
+
+    private static bool TryGetOffsetBeat(Entity entity, JukeboxScript jukebox, out float beat)
+    {
         var offsetSeconds = entity.GetFloat("offset");
         if (offsetSeconds == 0f)
         {
-            //BopCustomTexturesPlugin.LogWarning("B");
             beat = entity.beat;
             return true;
         }
 
         if (entity.GetBool("useLength"))
         {
-            //BopCustomTexturesPlugin.LogWarning("C");
             var max = entity.beat + entity.length;
             if (offsetSeconds > 0f)
             {
                 
                 beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(entity.beat) + offsetSeconds);
-                //BopCustomTexturesPlugin.LogWarning("D " + beat);
                 if (beat > max)
                 {
-                    //BopCustomTexturesPlugin.LogWarning("E");
                     if (!entity.GetBool("applyByEnd"))
                     {
-                        //BopCustomTexturesPlugin.LogWarning("F");
                         return false;
                     }
                     beat = max;
@@ -364,13 +641,10 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             else
             {
                 beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(max) + offsetSeconds);
-                //BopCustomTexturesPlugin.LogWarning("G " + beat);
                 if (beat < entity.beat)
                 {
-                    //BopCustomTexturesPlugin.LogWarning("H");
                     if (!entity.GetBool("applyByEnd"))
                     {
-                        //BopCustomTexturesPlugin.LogWarning("I");
                         return false;
                     }
                     beat = entity.beat;
@@ -380,7 +654,6 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         }
 
         beat = jukebox.SecondsToBeats(jukebox.BeatsToSeconds(entity.beat) + offsetSeconds);
-        //BopCustomTexturesPlugin.LogWarning("J " + beat);
         return true;
     }
 

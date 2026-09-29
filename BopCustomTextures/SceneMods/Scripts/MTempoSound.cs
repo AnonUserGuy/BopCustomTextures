@@ -2,7 +2,6 @@
 using BopCustomTextures.SceneMods.Unity.Components;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Collections.Generic;
 
 namespace BopCustomTextures.SceneMods.Scripts;

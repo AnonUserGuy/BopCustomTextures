@@ -66,13 +66,27 @@ public static class BopCustomTexturesEventTemplates
         }
     };
 
-    public static readonly MixtapeEventTemplate TestEventTemplate = new()
+    public static readonly MixtapeEventTemplate InputSyncedSceneModTemplate = new()
     {
-        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/test event",
+        dataModel = $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod on input",
         length = 0.5f,
+        resizable = true,
         properties = new Dictionary<string, object>
         {
-            ["scene"] = ""
+            ["scene"] = "",
+            ["key"] = "",
+            ["beatOffset"] = 0.0,
+            ["offset"] = 0.0,
+            ["count"] = 1,
+            ["action"] = new ChoiceField<string>(["primary", "secondary"]),
+            ["onUp"] = false,
+            ["minJudgement"] = new ChoiceField<string>(["miss", "bad", "almost", "hit", "perfect"]),
+            ["maxJudgement"] = new ChoiceField<string>(["perfect", "miss", "bad", "almost", "hit"]),
+            ["early"] = true,
+            ["late"] = true,
+            ["applyByMiss"] = false,
+            ["useLength"] = false,
+            ["applyByEnd"] = false,
         }
     };
 
@@ -132,7 +146,7 @@ public static class BopCustomTexturesEventTemplates
     [
         SceneModTemplate,
         OffsetSceneModTemplate,
-        TestEventTemplate
+        InputSyncedSceneModTemplate
     ];
 
     public static readonly MixtapeEventTemplate[] Templates =
@@ -145,8 +159,6 @@ public static class BopCustomTexturesEventTemplates
         RemoveTextureVariantTemplate,
         SceneModTemplate,
         OffsetSceneModTemplate,
-#if DEBUG
-        TestEventTemplate
-#endif
+        InputSyncedSceneModTemplate
     ];
 }
