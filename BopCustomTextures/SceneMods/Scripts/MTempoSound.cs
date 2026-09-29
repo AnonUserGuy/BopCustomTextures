@@ -19,49 +19,87 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
         else base.JsonParsePair(ctx, key, jtoken);
     }
 
-    public object ApplyLoader(object ctx, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject gameObj)
+    public object ApplyLoader(MixtapeLoaderCustom loader, object ctx, Entity entity, float beat, GameObject gameObj)
     {
         if (!gameObj.TryGetComponent<TempoSound>(out var sound))
         {
             return ctx;
         }
-        return ApplyLoader((Dictionary<TempoSound, double>)ctx, loader, beat, sound);
+        return ApplyLoader(loader, (Dictionary<TempoSound, float>)ctx, beat, sound);
     }
 
-    public Dictionary<TempoSound, double> ApplyLoader(Dictionary<TempoSound, double> ctx, MixtapeLoaderCustom loader, float beat, TempoSound sound)
+    public Dictionary<TempoSound, float> ApplyLoader(MixtapeLoaderCustom loader, Dictionary<TempoSound, float> ctx, float beat, TempoSound sound)
     {
         ctx ??= [];
-        double seconds = loader.jukebox.BeatsToSecondsDouble(beat);
+
+        var jukebox = loader.jukebox;
+        var currentBeat = jukebox.CurrentBeat;
 
         if (Stop)
         {
-            if (ctx.TryGetValue(sound, out var lastSeconds))
+            if (ctx.TryGetValue(sound, out var lastBeat))
             {
-                sound.Schedule(lastSeconds, seconds);
+                if (currentBeat != lastBeat)
+                {
+                    double lastSeconds = jukebox.BeatsToSecondsDouble(lastBeat);
+                    double seconds = jukebox.BeatsToSecondsDouble(beat);
+                    sound.Schedule(lastSeconds, seconds);
+                }
+                else if (currentBeat != beat)
+                {
+                    Context.Play(sound);
+                    loader.scheduler.Schedule(beat, () => Context.Stop(sound));
+                }
                 ctx.Remove(sound);
             }
+            else if (currentBeat != beat)
+            {
+                loader.scheduler.Schedule(beat, () => Context.Stop(sound));
+            }
+            else
+            {
+                Context.Stop(sound);
+            }
         }
+
         if (Play)
         {
-            if (ctx.TryGetValue(sound, out var lastSeconds))
+            if (ctx.TryGetValue(sound, out var lastBeat))
             {
-                sound.Schedule(lastSeconds);
+                if (currentBeat != lastBeat)
+                {
+                    double lastSeconds = jukebox.BeatsToSecondsDouble(lastBeat);
+                    sound.Schedule(lastSeconds);
+                }
+                else
+                {
+                    Context.Play(sound);
+                }
             }
-            ctx[sound] = seconds;
+            ctx[sound] = beat;
         }
+
         return ctx;
     }
 
-    public void ApplyLoaderFinalize(object ctx)
+    public void ApplyLoaderFinalize(MixtapeLoaderCustom loader, object ctx)
     {
-        ApplyLoaderFinalize((Dictionary<TempoSound, double>)ctx);
+        ApplyLoaderFinalize(loader, (Dictionary<TempoSound, float>)ctx);
     }
 
-    public void ApplyLoaderFinalize(Dictionary<TempoSound, double> ctx)
+    public void ApplyLoaderFinalize(MixtapeLoaderCustom loader, Dictionary<TempoSound, float> ctx)
     {
         foreach (var pair in ctx)
         {
-            pair.Key.Schedule(pair.Value);
+            if (loader.jukebox.CurrentBeat == pair.Value)
+            {
+                Context.Play(pair.Key);
+            }
+            else
+            {
+                double lastSeconds = loader.jukebox.BeatsToSecondsDouble(pair.Value);
+                pair.Key.Schedule(lastSeconds);
+            }
         }
     }
 }

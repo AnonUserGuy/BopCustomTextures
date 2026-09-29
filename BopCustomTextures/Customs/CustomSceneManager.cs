@@ -413,7 +413,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         {
             PrepareEvent(__instance, ctxs, callbacks, missCallbacks, entity);
         }
-        MGameObjectResolved.ApplyLoaderFinalize(ctxs);
+        MGameObjectResolved.ApplyLoaderFinalize(__instance, ctxs);
     }
 
     public void PrepareEvent(MixtapeLoaderCustom __instance, 
@@ -447,7 +447,7 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
             return;
         }
 
-        mobjResolved.ApplyLoader(ctxs, __instance, entity, beat);
+        mobjResolved.ApplyLoader(__instance, ctxs, entity, beat);
         __instance.scheduler.Schedule(beat, mobjResolved.Apply);
     }
 

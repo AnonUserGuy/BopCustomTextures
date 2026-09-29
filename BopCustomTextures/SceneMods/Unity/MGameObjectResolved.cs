@@ -38,34 +38,34 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj)
         Apply(obj);
     }
 
-    public void ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject rootObj)
+    public void ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat, GameObject rootObj)
     {
-        mobj.ApplyLoader(ctxs, loader, entity, beat, obj, rootObj);
+        mobj.ApplyLoader(loader, ctxs, entity, beat, obj, rootObj);
         foreach (var childObj in childObjs)
         {
-            childObj.ApplyLoader(ctxs, loader, entity, beat, rootObj);
+            childObj.ApplyLoader(loader, ctxs, entity, beat, rootObj);
         }
     }
 
-    public void ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat)
+    public void ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat)
     {
-        ApplyLoader(ctxs, loader, entity, beat, obj);
+        ApplyLoader(loader, ctxs, entity, beat, obj);
     }
 
     public void ApplyLoader(MixtapeLoaderCustom loader, Entity entity, float beat)
     {
         Dictionary<Type, MLoaderComponentContext> ctxs = [];
-        ApplyLoader(ctxs, loader, entity, beat, obj);
-        ApplyLoaderFinalize(ctxs);
+        ApplyLoader(loader, ctxs, entity, beat, obj);
+        ApplyLoaderFinalize(loader, ctxs);
     }
 
-    public static void ApplyLoaderFinalize(IDictionary<Type, MLoaderComponentContext> ctxs)
+    public static void ApplyLoaderFinalize(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs)
     {
         foreach (var pair in ctxs)
         {
             if (pair.Value.Component is IMLoaderComponentFinal mcomponentFinal)
             {
-                mcomponentFinal.ApplyLoaderFinalize(pair.Value.Context);
+                mcomponentFinal.ApplyLoaderFinalize(loader, pair.Value.Context);
             }
         }
     }

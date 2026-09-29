@@ -182,7 +182,7 @@ public class MGameObject : MUnityObject<GameObject>
         return obj;
     }
 
-    public GameObject ApplyLoader(IDictionary<Type, MLoaderComponentContext> ctxs, MixtapeLoaderCustom loader, Entity entity, float beat, GameObject obj, GameObject rootObj)
+    public GameObject ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat, GameObject obj, GameObject rootObj)
     {
         foreach (var mcomponent in components)
         {
@@ -191,11 +191,11 @@ public class MGameObject : MUnityObject<GameObject>
                 Type type = mcomponent.GetType();
                 if (ctxs.TryGetValue(type, out var pair))
                 {
-                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(pair.Context, loader, entity, beat, obj));
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, pair.Context, entity, beat, obj));
                 }
                 else
                 {
-                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(null, loader, entity, beat, obj));
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, null, entity, beat, obj));
                 }
             }
         }
