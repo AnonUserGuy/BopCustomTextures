@@ -43,7 +43,7 @@ public interface IMLoaderComponent
     /// <param name="gameObj"><para>Target <see cref="GameObject"/>.</para> 
     /// <para><see cref="Component"/> will have to be resolved by method itself for <see cref="MComponent{T}"/>'s.</para></param>
     /// <returns>"Context" object to give to next instance of the same type implementing <see cref="IMLoaderComponent"/>.</returns>
-    public abstract object ApplyLoader(MixtapeLoaderCustom loader, object ctx, Entity entity, float beat, GameObject gameObj);
+    public abstract object ApplyLoader(MixtapeLoaderCustom loader, object ctx, float beat, GameObject gameObj);
 }
 
 /// <summary>
@@ -70,6 +70,11 @@ public readonly struct MLoaderComponentContext(IMLoaderComponent component, obje
 {
     public readonly IMLoaderComponent Component = component;
     public readonly object Context = context;
+}
+
+public interface IMInstantComponent
+{
+    public void ApplyInstant(GameObject gameObj);
 }
 
 /// <summary>

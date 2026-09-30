@@ -2,15 +2,18 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using BopCustomTextures.SceneMods.Unity;
 
-namespace BopCustomTextures.SceneMods.Unity;
+namespace BopCustomTextures.Customs.Scenes;
+
+using LoaderComponentContexts = IDictionary<Type, MLoaderComponentContext>;
 
 /// <summary>
 /// Wrapper for <see cref="MGameObject"/> with reference to actual <see cref="GameObject"/>.
 /// </summary>
 /// <param name="mobj"><see cref="MGameObject"/> describing modifications to make to the <see cref="GameObject"/>.</param>
 /// <param name="obj"><see cref="GameObject"/> to modify.</param>
-public class MGameObjectResolved(MGameObject mobj, GameObject obj)
+public class MGameObjectResolved(MGameObject mobj, GameObject obj) : ISceneResolved
 {
     public MGameObject mobj = mobj;
     public GameObject obj = obj;
@@ -38,28 +41,43 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj)
         Apply(obj);
     }
 
-    public void ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat, GameObject rootObj)
+    public bool HasApplyInstant() => mobj.HasApplyInstant();
+
+    public void ApplyInstant()
     {
-        mobj.ApplyLoader(loader, ctxs, entity, beat, obj, rootObj);
+        ApplyInstant(obj);
+    }
+
+    public void ApplyInstant(GameObject rootObj)
+    {
+        mobj.ApplyInstant(obj, rootObj);
         foreach (var childObj in childObjs)
         {
-            childObj.ApplyLoader(loader, ctxs, entity, beat, rootObj);
+            childObj.ApplyInstant(rootObj);
         }
     }
 
-    public void ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat)
+    public void Apply(MixtapeLoaderCustom __instance, LoaderComponentContexts ctxs, float beat, float length = 0)
     {
-        ApplyLoader(loader, ctxs, entity, beat, obj);
+        Apply(__instance, beat, ctxs, obj);
     }
 
-    public void ApplyLoader(MixtapeLoaderCustom loader, Entity entity, float beat)
+    public void Apply(MixtapeLoaderCustom loader, float beat, LoaderComponentContexts ctxs, GameObject rootObj)
     {
-        Dictionary<Type, MLoaderComponentContext> ctxs = [];
-        ApplyLoader(loader, ctxs, entity, beat, obj);
-        ApplyLoaderFinalize(loader, ctxs);
+        ApplyLoader(loader, ctxs, beat, rootObj);
+        loader.scheduler.Schedule(beat, Apply);
     }
 
-    public static void ApplyLoaderFinalize(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs)
+    public void ApplyLoader(MixtapeLoaderCustom loader, LoaderComponentContexts ctxs, float beat, GameObject rootObj)
+    {
+        mobj.ApplyLoader(loader, ctxs, beat, obj, rootObj);
+        foreach (var childObj in childObjs)
+        {
+            childObj.ApplyLoader(loader, ctxs, beat, rootObj);
+        }
+    }
+
+    public static void ApplyLoaderFinalize(MixtapeLoaderCustom loader, LoaderComponentContexts ctxs)
     {
         foreach (var pair in ctxs)
         {

@@ -40,7 +40,7 @@ public class BaseCustomManager(ILogger logger)
 
     protected static string FromSceneKeyOrInvalid(SceneKey scene)
     {
-        var sceneStr = scene.ToString();
+        var sceneStr = FirstCharToLowerCase(scene.ToString());
         var match = SceneKeyRegex.Match(sceneStr);
         if (match.Success)
         {
@@ -50,5 +50,13 @@ public class BaseCustomManager(ILogger logger)
         {
             return sceneStr;
         }
+    }
+
+    private static string FirstCharToLowerCase(string str)
+    {
+        if (!string.IsNullOrEmpty(str) && char.IsUpper(str[0]))
+            return str.Length == 1 ? char.ToLower(str[0]).ToString() : char.ToLower(str[0]) + str.Substring(1);
+
+        return str;
     }
 }

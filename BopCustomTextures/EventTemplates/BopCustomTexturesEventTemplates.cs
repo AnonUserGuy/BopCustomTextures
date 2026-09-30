@@ -44,6 +44,7 @@ public static class BopCustomTexturesEventTemplates
     {
         dataModel = $"{MyPluginInfo.PLUGIN_GUID}/apply scene mod",
         length = 0.5f,
+        resizable = true,
         properties = new Dictionary<string, object>
         {
             ["scene"] = "",

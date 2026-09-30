@@ -1,20 +1,22 @@
 ﻿using BopCustomTextures.Json;
 using BopCustomTextures.Customs;
+using BopCustomTextures.Customs.Scenes;
 using BopCustomTextures.SceneMods.Unity.Components;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using BopCustomTextures.SceneMods.Scripts;
 using System;
 
 namespace BopCustomTextures.SceneMods.Unity;
+
+using LoaderComponentContexts = IDictionary<Type, MLoaderComponentContext>;
 
 /// <summary>
 /// Scene mod <see cref="GameObject"/> definition. 
 /// Includes no reference to the <see cref="GameObject"/> to modify, only a path to it.
 /// </summary>
-public class MGameObject : MUnityObject<GameObject>
+public class MGameObject : MUnityObject<GameObject>, IScene
 {
     /// <summary>
     /// Temporary container of <see cref="MComponent{T}"/> definition that's still serialized. 
@@ -37,6 +39,7 @@ public class MGameObject : MUnityObject<GameObject>
     public readonly List<MGameObject> childObjsDeferred = [];
     public readonly List<UnkownMComponent> unknownComponents = [];
     public readonly List<IMComponent> components = [];
+    public readonly List<IMInstantComponent> instantComponents = [];
 
     private static readonly Regex TerminalComponentRegex = new Regex(@"^(.*)[\\/]!([^\\/]*)$", RegexOptions.Compiled);
 
@@ -133,7 +136,7 @@ public class MGameObject : MUnityObject<GameObject>
         }
         else if (MComponentParserRegistry.Instance.TryParseComponent(ctx, componentName, jcomponent, out var mcomponent))
         {
-            components.Add(mcomponent);
+            AddComponent(mcomponent);
         }
         else
         {
@@ -141,6 +144,15 @@ public class MGameObject : MUnityObject<GameObject>
             return false;
         }
         return true;
+    }
+
+    public void AddComponent(IMComponent mcomponent)
+    {
+        components.Add(mcomponent);
+        if (mcomponent is IMInstantComponent minstantComponent)
+        {
+            instantComponents.Add(minstantComponent);
+        }
     }
 
     public override GameObject Apply(GameObject obj)
@@ -164,7 +176,7 @@ public class MGameObject : MUnityObject<GameObject>
             if (MComponentParserRegistry.Instance.TryLateParseComponent(munknown.Ctx, munknown.Name, munknown.JToken, obj, out var mcomponent))
             {
                 unknownComponents.RemoveAt(i--);
-                components.Add(mcomponent);
+                AddComponent(mcomponent);
             }
         }
         foreach (var mcomponent in components)
@@ -182,7 +194,38 @@ public class MGameObject : MUnityObject<GameObject>
         return obj;
     }
 
-    public GameObject ApplyLoader(MixtapeLoaderCustom loader, IDictionary<Type, MLoaderComponentContext> ctxs, Entity entity, float beat, GameObject obj, GameObject rootObj)
+    public bool HasApplyInstant()
+    {
+        if (instantComponents.Count > 0) return true;
+        foreach (var childObj in childObjs)
+        {
+            if (childObj.HasApplyInstant()) return true;
+        }
+        foreach (var childObjDeferred in childObjsDeferred)
+        {
+            if (childObjDeferred.HasApplyInstant()) return true;
+        }
+        return false;
+    }
+
+    public GameObject ApplyInstant(GameObject obj, GameObject rootObj)
+    {
+        foreach (var minstantComponent in instantComponents)
+        {
+            minstantComponent.ApplyInstant(obj);
+        }
+        foreach (var mchildObj in childObjsDeferred)
+        {
+            foreach (var childObj in CustomSceneManager.FindGameObjectsInChildren(rootObj, obj, mchildObj.name))
+            {
+                mchildObj.ApplyInstant(childObj, rootObj);
+            }
+        }
+
+        return obj;
+    }
+
+    public GameObject ApplyLoader(MixtapeLoaderCustom loader, LoaderComponentContexts ctxs, float beat, GameObject obj, GameObject rootObj)
     {
         foreach (var mcomponent in components)
         {
@@ -191,14 +234,20 @@ public class MGameObject : MUnityObject<GameObject>
                 Type type = mcomponent.GetType();
                 if (ctxs.TryGetValue(type, out var pair))
                 {
-                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, pair.Context, entity, beat, obj));
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, pair.Context, beat, obj));
                 }
                 else
                 {
-                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, null, entity, beat, obj));
+                    ctxs[type] = new(mloaderComponent, mloaderComponent.ApplyLoader(loader, null, beat, obj));
                 }
             }
         }
         return obj;
+    }
+
+    public bool TryResolve(CustomSceneManager sceneManager, GameObject rootObj, SceneKey scene, string key, out ISceneResolved res)
+    {
+        res = sceneManager.ResolveGameObject(rootObj, rootObj, this);
+        return true;
     }
 }

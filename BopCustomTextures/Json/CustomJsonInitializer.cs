@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using System.Linq;
 using System.Collections.Generic;
 using ILogger = BopCustomTextures.Logging.ILogger;
+using BopCustomTextures.SceneMods.System;
 
 namespace BopCustomTextures.Json;
 
@@ -28,16 +29,11 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return VariantManager.TryGetVariant(LastScene, name, out variant);
     }
 
-    public MGameObject InitGameObject(JToken jtoken, SceneKey scene, string name = "", bool isDeferred = false)
+    public bool TryGetMGameObject(JToken jtoken, SceneKey scene, out MGameObject mobj)
     {
         LastScene = scene;
-        return InitGameObject(jtoken, name, isDeferred);
-    }
-
-    public MGameObject InitGameObject(JToken jtoken, string name = "", bool isDeferred = false)
-    {
-        var mobj = new MGameObject { name = name, isDeferred = isDeferred };
-        return mobj.JsonParse(this, jtoken) ? mobj : null;
+        mobj = new MGameObject { name = "", isDeferred = false };
+        return mobj.JsonParse(this, jtoken);
     }
 
     public bool TryGetMaterial(string name, out Material material)
@@ -119,7 +115,7 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         }
         if (jtoken2.Type != type)
         {
-            Logger.LogWarning($"JSON key \"{key}\" is a {jtoken2.Type} when it should be a {type}");
+            Logger.LogJsonParseError(jtoken2.Path, type, $"must be {type}");
             jtoken = null;
             return false;
         }
@@ -127,8 +123,57 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
         return true;
     }
 
-    public bool TryGetJObject(JObject jobj, string key, out JObject jvalue)
+    public bool TryGetJObject(JObject jobj, string key, out JObject jvalue) => TryGetJToken(jobj, key, JTokenType.Object, out jvalue);
+
+    public bool TryGetJFloat(JObject jobj, string key, out float jfloat)
     {
-        return TryGetJToken(jobj, key, JTokenType.Object, out jvalue);
+        if (!jobj.TryGetValue(key, out var jtoken))
+        {
+            jfloat = 0f;
+            return false;
+        }
+        return MFloat.TryJsonParse(this, jtoken, out jfloat);
+    }
+
+    public bool TryGetJBool(JObject jobj, string key)
+    {
+        if (!jobj.TryGetValue(key, out var jtoken))
+        {
+            return false;
+        }
+        var res0 = MBool.TryJsonParse(this, jtoken, out var res);
+        return res0 && res;
+    }
+
+    public IEnumerable<string> GetJStrings(JToken jtoken)
+    {
+        if (jtoken.Type == JTokenType.String)
+        {
+            yield return (string)jtoken;
+        }
+        else if (jtoken is JArray jarray)
+        {
+            foreach (var jel in jarray)
+            {
+                if (jel.Type == JTokenType.String)
+                {
+                    yield return (string)jel;
+                }
+                else
+                {
+                    Logger.LogJsonParseError(jel.Path, "string array", "must be string");
+                }
+            }
+        }
+        else
+        {
+            Logger.LogJsonParseError(jtoken.Path, "strings", "must be string or array of strings");
+        }
+    }
+
+    public bool TryGetJStrings(JToken jtoken, out IEnumerable<string> result)
+    {
+        result = GetJStrings(jtoken);
+        return result.Any();
     }
 }

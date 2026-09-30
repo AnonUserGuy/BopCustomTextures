@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace BopCustomTextures.SceneMods.Scripts;
 
 [MComponent("TempoSound")]
-public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
+public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal, IMInstantComponent
 {
     public bool Play;
     public bool Stop;
@@ -19,7 +19,17 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
         else base.JsonParsePair(ctx, key, jtoken);
     }
 
-    public object ApplyLoader(MixtapeLoaderCustom loader, object ctx, Entity entity, float beat, GameObject gameObj)
+    public void ApplyInstant(GameObject gameObj)
+    {
+        if (!gameObj.TryGetComponent<TempoSound>(out var sound))
+        {
+            return;
+        }
+        if (Stop) Context.Stop(sound);
+        if (Play) Context.Play(sound);
+    }
+
+    public object ApplyLoader(MixtapeLoaderCustom loader, object ctx, float beat, GameObject gameObj)
     {
         if (!gameObj.TryGetComponent<TempoSound>(out var sound))
         {
@@ -47,7 +57,7 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
                 }
                 else if (currentBeat != beat)
                 {
-                    Context.Play(sound);
+                    //Context.Play(sound);
                     loader.scheduler.Schedule(beat, () => Context.Stop(sound));
                 }
                 ctx.Remove(sound);
@@ -58,7 +68,7 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
             }
             else
             {
-                Context.Stop(sound);
+                //Context.Stop(sound);
             }
         }
 
@@ -73,7 +83,7 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
                 }
                 else
                 {
-                    Context.Play(sound);
+                    //Context.Play(sound);
                 }
             }
             ctx[sound] = beat;
@@ -93,7 +103,7 @@ public class MTempoSound : MBehaviour<TempoSound>, IMLoaderComponentFinal
         {
             if (loader.jukebox.CurrentBeat == pair.Value)
             {
-                Context.Play(pair.Key);
+                //Context.Play(pair.Key);
             }
             else
             {
