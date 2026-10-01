@@ -37,6 +37,7 @@ public class ConfigManager
     public ConfigEntry<string> EventTemplatesAfter;
     public ConfigEntry<string> EventTemplatesBefore;
     public ConfigEntry<int> EventTemplatesIndex;
+    public ConfigEntry<bool> CustomEventAppearance;
 
     // Logging
     public ConfigEntry<LogLevel> LogOutdatedPlugin;
@@ -180,6 +181,11 @@ public class ConfigManager
             4,
             "Position in categories to display \"Bop Custom Textures\" at. " +
             "Values lower than 0 will put category at end of list.");
+
+        CustomEventAppearance = config.Bind("Editor.Display",
+            "CustomEventAppearance",
+            true,
+            "Display BopCustomTextures Texture Variant and Scene Mod events with a unique appearance.");
 
 
         // Logging

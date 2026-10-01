@@ -22,6 +22,31 @@ public static class RiqLoaderStartMixtapePatch
     }
 }
 
+[HarmonyPatch(typeof(MixtapeEventScript), "Spawn")] 
+public static class MixtapeEventScriptSpawn
+{
+    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value;
+
+    static void Postfix(ref MixtapeEventScript __result)
+    {
+        if (Instance.ConfigManager.CustomEventAppearance.Value)
+        {
+            BopCustomTexturesEventScript.ApplyIfNecessary(__result);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(MixtapeEventScript), "SetDefaultColor")]
+public static class MixtapeEventScriptSetDefaultColor
+{
+    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value;
+
+    static void Postfix(MixtapeEventScript __instance)
+    {
+        BopCustomTexturesEventScript.FixAccentColorIfNecessary(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(MixtapeEditorScript), "GameNameToDisplay")]
 public static class MixtapeEditorScriptGameNameToDisplayPatch
 {
