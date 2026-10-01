@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using BopCustomTextures.Config;
+using UnityEngine;
+using static BopCustomTextures.BopCustomTexturesPlugin;
 
 namespace BopCustomTextures.Scripts;
 
@@ -12,6 +14,8 @@ public class BopCustomTexturesEventScript : MonoBehaviour
     
     public string lastKey;
 
+    public bool hasKey;
+
     public bool isVariant;
 
     public Color accentColor;
@@ -23,21 +27,23 @@ public class BopCustomTexturesEventScript : MonoBehaviour
         {
             return null;
         }
+        
         var isVariant = false;
-        if (!eventScript.Entity.dynamicData.TryGetValue("key", out var keyObj))
+        var hasKey = eventScript.Entity.dynamicData.TryGetValue("key", out var keyObj);
+        if (!hasKey)
         {
-            isVariant = eventScript.Entity.dynamicData.TryGetValue("variant", out keyObj);
-            if (!isVariant)
-            {
-                return null;
-            }
+            hasKey = isVariant = eventScript.Entity.dynamicData.TryGetValue("variant", out keyObj);
         }
 
         var component = eventScript.gameObject.AddComponent<BopCustomTexturesEventScript>();
         component.eventScript = eventScript;
         component.eventName = eventScript.label.text;
         component.lastScene = (string)sceneObj;
-        component.lastKey = (string)keyObj;
+        component.hasKey = hasKey;
+        if (hasKey)
+        {
+            component.lastKey = (string)keyObj;
+        }
         component.isVariant = isVariant;
         component.UpdateDisplay();
 
@@ -48,13 +54,13 @@ public class BopCustomTexturesEventScript : MonoBehaviour
     {
         if (eventScript.gameObject.TryGetComponent<BopCustomTexturesEventScript>(out var component))
         {
-            eventScript.accentRenderer.color = component.accentColor;
+            component.UpdateColor();
         }
     }
 
     private void Update()
     {
-        var key = eventScript.Entity.GetString(isVariant ? "variant" : "key");
+        var key = hasKey ? eventScript.Entity.GetString(isVariant ? "variant" : "key") : null;
         var scene = eventScript.Entity.GetString("scene");
         if (key != lastKey || scene != lastScene)
         {
@@ -67,9 +73,24 @@ public class BopCustomTexturesEventScript : MonoBehaviour
     public void UpdateDisplay()
     {
         var entity = eventScript.Entity;
-        eventScript.label.text = $"{lastKey} <i>({eventName})</i>";
+        if (hasKey)
+        {
+            eventScript.label.text = $"{lastKey} <alpha=#C0>({eventName})";
+        }
         accentColor = GetColor(lastScene);
-        eventScript.accentRenderer.color = accentColor;
+        UpdateColor();
+    }
+
+    public void UpdateColor()
+    {
+        if (Instance.ConfigManager.CustomEventAppearance.Value == CustomEventAppearance.Inverted)
+        {
+            eventScript.spriteRenderer.color = accentColor;
+        }
+        else
+        {
+            eventScript.accentRenderer.color = accentColor;
+        }
     }
 
     public static Color GetColor(string scene) => scene.ToLowerInvariant() switch

@@ -48,7 +48,7 @@ public class SceneSetResolved(SceneSet sceneSet) : ISceneResolved
             var beat = outerBeat + el.Beat;
             if (el.Ratio.HasValue)
             {
-                beat += (SceneSet.Loop ?? length) * el.Ratio.Value;
+                beat += length * el.Ratio.Value;
             }
             if (el.Offset.HasValue && !CustomSceneManager.TryGetOffsetBeat(__instance.jukebox, ref beat, length,
                 el.Offset.Value,
@@ -58,22 +58,16 @@ public class SceneSetResolved(SceneSet sceneSet) : ISceneResolved
                 continue;
             }
 
-            if (SceneSet.Loop.HasValue)
+            if (SceneSet.Loop.HasValue && !el.Ratio.HasValue)
             {
                 for (; beat < outerBeat + outerLength; beat += SceneSet.Loop.Value)
                 {
-                    foreach (var mobj in mobjs)
-                    {
-                        mobj.Apply(__instance, ctxs, beat, length);
-                    }
+                    mobjs.Apply(__instance, ctxs, beat, length);
                 }
             }
             else
             {
-                foreach (var mobj in mobjs)
-                {
-                    mobj.Apply(__instance, ctxs, beat, length);
-                }
+                mobjs.Apply(__instance, ctxs, beat, length);
             }
         }
     }

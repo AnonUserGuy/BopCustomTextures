@@ -37,7 +37,7 @@ public class ConfigManager
     public ConfigEntry<string> EventTemplatesAfter;
     public ConfigEntry<string> EventTemplatesBefore;
     public ConfigEntry<int> EventTemplatesIndex;
-    public ConfigEntry<bool> CustomEventAppearance;
+    public ConfigEntry<CustomEventAppearance> CustomEventAppearance;
 
     // Logging
     public ConfigEntry<LogLevel> LogOutdatedPlugin;
@@ -184,7 +184,7 @@ public class ConfigManager
 
         CustomEventAppearance = config.Bind("Editor.Display",
             "CustomEventAppearance",
-            true,
+            Config.CustomEventAppearance.Enabled,
             "Display BopCustomTextures Texture Variant and Scene Mod events with a unique appearance.");
 
 

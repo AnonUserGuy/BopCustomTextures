@@ -32,6 +32,8 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
     public static readonly Regex FileRegex = new Regex(@"([a-z]+)[^\\/]*\.jsonc?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     public static readonly Regex MixtapeEventRegex = new Regex(@"^" + MyPluginInfo.PLUGIN_GUID + @"/apply (offset )?scene mod( on input)?$", RegexOptions.Compiled);
 
+    // @"\(([^\(\)]*)\)$"
+
     public MixtapeEventTemplate[] MixtapeEventTemplates = mixtapeEventTemplates;
     public CustomJsonInitializer JsonInitializer = new CustomJsonInitializer(logger, variantManager);
 

@@ -4,6 +4,7 @@ using HarmonyLib;
 using System.Reflection;
 using System.Collections.Generic;
 using static BopCustomTextures.BopCustomTexturesPlugin;
+using BopCustomTextures.Config;
 
 namespace BopCustomTextures.Patches;
 
@@ -25,11 +26,11 @@ public static class RiqLoaderStartMixtapePatch
 [HarmonyPatch(typeof(MixtapeEventScript), "Spawn")] 
 public static class MixtapeEventScriptSpawn
 {
-    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value;
+    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value != CustomEventAppearance.Disabled;
 
     static void Postfix(ref MixtapeEventScript __result)
     {
-        if (Instance.ConfigManager.CustomEventAppearance.Value)
+        if (Prepare())
         {
             BopCustomTexturesEventScript.ApplyIfNecessary(__result);
         }
@@ -39,7 +40,7 @@ public static class MixtapeEventScriptSpawn
 [HarmonyPatch(typeof(MixtapeEventScript), "SetDefaultColor")]
 public static class MixtapeEventScriptSetDefaultColor
 {
-    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value;
+    static bool Prepare() => Instance.ConfigManager.CustomEventAppearance.Value != CustomEventAppearance.Disabled;
 
     static void Postfix(MixtapeEventScript __instance)
     {
