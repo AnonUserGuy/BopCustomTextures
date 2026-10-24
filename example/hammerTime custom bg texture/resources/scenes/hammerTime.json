@@ -1,0 +1,19 @@
+{
+    "Card/Card/Background": {
+        "!Transform": {
+            "LocalPosition": {
+                "y": 5.3560
+            },
+            "LocalScale": {
+                "x": 0.05026156941649899396378269617706,
+                "y": 0.05026156941649899396378269617706
+            }
+        },
+        "!SpriteRenderer": {
+            "Color": "#FFFFFF"
+        },
+        "!CustomSpriteSwapper": {
+            "Variants": "bg"
+        }
+    }
+}
