@@ -9,11 +9,11 @@ using LoaderComponentContexts = IDictionary<Type, MLoaderComponentContext>;
 
 public interface ISceneResolved
 {
-    public bool HasApplyInstant();
+    public bool HasApplyInstant(MixtapeLoaderCustom __instance);
 
     public void ApplyInstant();
 
-    public void Apply();
+    public void Apply(MixtapeLoaderCustom __instance);
 
     public void Apply(MixtapeLoaderCustom __instance, LoaderComponentContexts ctxs, float beat, float length = 0f);
 }
@@ -26,11 +26,11 @@ public class SceneResolvedMultiple(int capacity = 0) : ISceneResolved, IEnumerab
 
     public ISceneResolved this[int i] { get => Elements[i]; set => Elements[i] = value; }
 
-    public bool HasApplyInstant()
+    public bool HasApplyInstant(MixtapeLoaderCustom __instance)
     {
         foreach (var el in Elements)
         {
-            if (el.HasApplyInstant()) return true;
+            if (el.HasApplyInstant(__instance)) return true;
         }
         return false;
     }
@@ -43,11 +43,11 @@ public class SceneResolvedMultiple(int capacity = 0) : ISceneResolved, IEnumerab
         }
     }
 
-    public void Apply()
+    public void Apply(MixtapeLoaderCustom __instance)
     {
         foreach (var el in Elements)
         {
-            el.Apply();
+            el.Apply(__instance);
         }
     }
 

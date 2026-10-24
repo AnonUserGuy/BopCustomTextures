@@ -10,14 +10,17 @@ public class SceneSet : IScene, IEnumerable<SceneSetElement>
     public readonly int[] IndicesInstant;
     public readonly SceneKey Scene;
     public readonly float? Loop;
+    public readonly bool? Autoplay;
 
     public SceneSet(SceneSetElement[] elements,
         SceneKey scene = SceneKey.Invalid,
-        float? loop = null)
+        float? loop = null,
+        bool? autoplay = null)
     {
         Elements = elements;
         Scene = scene;
         Loop = loop;
+        Autoplay = autoplay;
         List<int> indicesInstant = [];
         for (int i = 0; i < Elements.Length; i++)
         {

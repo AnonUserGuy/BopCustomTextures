@@ -36,17 +36,13 @@ public class MGameObjectResolved(MGameObject mobj, GameObject obj) : ISceneResol
     /// <summary>
     /// Apply the resolved scene mod.
     /// </summary>
-    public void Apply()
-    {
-        Apply(obj);
-    }
+    public void Apply() => Apply(obj);
 
-    public bool HasApplyInstant() => mobj.HasApplyInstant();
+    public void Apply(MixtapeLoaderCustom __instance) => Apply();
 
-    public void ApplyInstant()
-    {
-        ApplyInstant(obj);
-    }
+    public bool HasApplyInstant(MixtapeLoaderCustom __instance) => mobj.HasApplyInstant();
+
+    public void ApplyInstant() => ApplyInstant(obj);
 
     public void ApplyInstant(GameObject rootObj)
     {

@@ -12,11 +12,15 @@ public class SceneSetResolved(SceneSet sceneSet) : ISceneResolved
     public readonly SceneResolvedMultiple[] Elements = new SceneResolvedMultiple[sceneSet.Elements.Length];
     public readonly int[] IndicesInstant = sceneSet.IndicesInstant;
 
-    public bool HasApplyInstant()
+    public bool HasApplyInstant(MixtapeLoaderCustom __instance)
     {
+        if (CheckPredicate(__instance))
+        {
+            return false;
+        }
         foreach (var i in IndicesInstant)
         {
-            if (Elements[i].HasApplyInstant())
+            if (Elements[i].HasApplyInstant(__instance))
             {
                 return true;
             }
@@ -32,17 +36,28 @@ public class SceneSetResolved(SceneSet sceneSet) : ISceneResolved
         }
     }
 
-    public void Apply()
+    public void Apply(MixtapeLoaderCustom __instance)
     {
-        return;
+        if (CheckPredicate(__instance))
+        {
+            return;
+        }
+        foreach (var mobj in Elements)
+        {
+            mobj.Apply(__instance);
+        }
     }
 
     public void Apply(MixtapeLoaderCustom __instance, LoaderComponentContexts ctxs, float outerBeat, float outerLength = 0f)
     {
+        if (CheckPredicate(__instance))
+        {
+            return;
+        }
         for (var i = 0; i < Elements.Length; i++)
         {
             var el = SceneSet.Elements[i];
-            var mobjs = Elements[i];
+            var mobj = Elements[i];
 
             var length = el.Length ?? outerLength;
             var beat = outerBeat + el.Beat;
@@ -62,14 +77,19 @@ public class SceneSetResolved(SceneSet sceneSet) : ISceneResolved
             {
                 for (; beat < outerBeat + outerLength; beat += SceneSet.Loop.Value)
                 {
-                    mobjs.Apply(__instance, ctxs, beat, length);
+                    mobj.Apply(__instance, ctxs, beat, length);
                 }
             }
             else
             {
-                mobjs.Apply(__instance, ctxs, beat, length);
+                mobj.Apply(__instance, ctxs, beat, length);
             }
         }
+    }
+
+    private bool CheckPredicate(MixtapeLoaderCustom __instance)
+    {
+        return SceneSet.Autoplay.HasValue && SceneSet.Autoplay.Value != __instance.RootObjects[SceneSet.Scene].GetComponentInChildren<GameplayScript>().inputManager.autoplay.AutoplayActive;
     }
 }
 

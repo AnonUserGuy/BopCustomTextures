@@ -137,12 +137,18 @@ public class CustomJsonInitializer(ILogger logger, CustomVariantNameManager vari
 
     public bool TryGetJBool(JObject jobj, string key)
     {
+        var res0 = TryGetJBool(jobj, key, out var res1);
+        return res0 && res1;
+    }
+
+    public bool TryGetJBool(JObject jobj, string key, out bool res)
+    {
         if (!jobj.TryGetValue(key, out var jtoken))
         {
+            res = false;
             return false;
         }
-        var res0 = MBool.TryJsonParse(this, jtoken, out var res);
-        return res0 && res;
+        return MBool.TryJsonParse(this, jtoken, out res);
     }
 
     public IEnumerable<string> GetJStrings(JToken jtoken)

@@ -190,7 +190,8 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
                     }
 
                     float? loop = JsonInitializer.TryGetJFloat(jobj, "loop", out float _float) ? _float : null;
-                    SceneSet set = new(list, scene, loop);
+                    bool? autoplay = JsonInitializer.TryGetJBool(jobj, "autoplay", out bool _bool) ? _bool : null; 
+                    SceneSet set = new(list, scene, loop, autoplay);
 
                     AddCustomScene(scene, key, set);
 
@@ -383,25 +384,18 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         return true;
     }
 
-    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey scene, string key = "")
+    public void InitCustomScene(MixtapeLoaderCustom __instance, SceneKey scene, string key = "", bool deferred = false)
     {
         if (!TryResolveCustomScene(__instance, scene, key, out var mobjResolved))
         {
             return;
         }
-        Logger.LogInfo($"Applying custom scene: {scene}");
-        mobjResolved.Apply();
+        Logger.LogInfo($"Applying custom scene{(deferred ? " (deferred)" : "")}: {scene}");
+        mobjResolved.Apply(__instance);
     }
 
     public void InitCustomSceneDeferred(MixtapeLoaderCustom __instance, SceneKey scene, string key = "")
-    {
-        if (!TryResolveCustomScene(__instance, scene, key, out var mobjResolved))
-        {
-            return;
-        }
-        Logger.LogInfo($"Applying custom scene (deferred): {scene}");
-        mobjResolved.Apply();
-    }
+        => InitCustomScene(__instance, scene, key, true);
 
     public void PrepareEvents(MixtapeLoaderCustom __instance, Entity[] entities)
     {
@@ -619,19 +613,19 @@ public class CustomSceneManager(ILogger logger, CustomVariantNameManager variant
         scene = ToSceneKeyOrInvalid(sceneStr);
         if (scene == SceneKey.Invalid)
         {
-            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key");
+            Logger.LogError($"Scene \"{sceneStr}\" is not a valid scene key at beat {entity.beat}, track {entity.track}");
             rootObj = null;
             return false;
         }
         if (!CustomScenes.ContainsKey(scene))
         {
-            Logger.LogError($"Cannot apply scene mod to vanilla scene {scene}");
+            Logger.LogError($"Cannot apply scene mod to vanilla scene {scene} at beat {entity.beat}, track {entity.track}");
             rootObj = null;
             return false;
         }
         if (!__instance.RootObjects.TryGetValue(scene, out rootObj))
         {
-            Logger.LogError($"Cannot apply scene mod to missing scene {scene}");
+            Logger.LogError($"Cannot apply scene mod to missing scene {scene} at beat {entity.beat}, track {entity.track}");
             return false;
         }
         return true;

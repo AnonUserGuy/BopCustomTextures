@@ -31,10 +31,10 @@ public class InputSyncedScene(ISceneResolved mobj, Entity entity)
     private bool SufficientJudgement(Judgement judgement, bool early)
         => judgement >= MinJudgement && judgement <= MaxJudgement && (judgement != Judgement.Almost || early ? Early : Late);
 
-    public bool HasApplyInstant() => BeatOffset == 0 && Offset == 0 && Mobj.HasApplyInstant();
+    public bool HasApplyInstant(MixtapeLoaderCustom __instance) => BeatOffset == 0 && Offset == 0 && Mobj.HasApplyInstant(__instance);
 
     /// <returns><see langword="true"/> if mobj is done being applied and should be removed from callbacks.</returns>
-    public bool ApplyInstant(MixtapeLoaderCustom __instance)
+    public bool ApplyInstant()
     {
         if (Count == 0)
         {
@@ -45,7 +45,7 @@ public class InputSyncedScene(ISceneResolved mobj, Entity entity)
     }
 
     /// <returns><see langword="true"/> if mobj is done being applied and should be removed from callbacks.</returns>
-    public bool ApplyInstant(MixtapeLoaderCustom __instance, Judgement judgement, bool early)
+    public bool ApplyInstant(Judgement judgement, bool early)
     {
         if (Count == 0)
         {
@@ -108,7 +108,7 @@ public abstract class OnActionCallbackBase(MixtapeLoaderCustom __instance)
 
     public void Add(InputSyncedScene mobj)
     {
-        if (mobj.HasApplyInstant())
+        if (mobj.HasApplyInstant(Loader))
         {
             MobjsPre.Add(mobj);
         }
@@ -154,7 +154,7 @@ public class OnActionCallback : OnActionCallbackBase
     {
         for (var i = 0; i < MobjsPre.Count;)
         {
-            if (MobjsPre[i].ApplyInstant(Loader, judgement, early))
+            if (MobjsPre[i].ApplyInstant(judgement, early))
             {
                 MobjsPre.RemoveAt(i);
             }
@@ -219,7 +219,7 @@ public class OnActionMissCallback : OnActionCallbackBase
     {
         for (var i = 0; i < MobjsPre.Count;)
         {
-            if (MobjsPre[i].ApplyInstant(Loader))
+            if (MobjsPre[i].ApplyInstant())
             {
                 MobjsPre.RemoveAt(i);
             }
